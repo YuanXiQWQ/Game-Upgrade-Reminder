@@ -1,0 +1,1 @@
+# BoomBeach Upgrade Manager
