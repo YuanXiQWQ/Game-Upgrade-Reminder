@@ -1,0 +1,39 @@
+﻿# Rider
+.idea/
+*~
+~*
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Build output
+bin/
+obj/
+[Bb]uild/
+out/
+
+# NuGet
+packages/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+
+# Logs
+*.log
+
+# System files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Cache
+*.cache
+*.tmp
+
+# 本地
+C实现
+*.lnk
+测试

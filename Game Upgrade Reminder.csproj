@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>YuanXi.ico</ApplicationIcon>
+    <AssemblyName>Game Upgrade Reminder</AssemblyName>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Framework References -->
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
+    
+    <!-- Package References -->
+    <PackageReference Include="System.Text.Json" Version="6.0.0" />
+    <PackageReference Include="System.Text.Encodings.Web" Version="6.0.0" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="YuanXi.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Program.cs" />
+    <Compile Update="Models\*.cs" />
+    <Compile Update="Forms\*.cs" />
+  </ItemGroup>
+
+</Project>
