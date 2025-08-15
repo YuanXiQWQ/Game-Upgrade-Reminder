@@ -97,8 +97,30 @@ namespace Game_Upgrade_Reminder
         private readonly TextBox tbFinish = new() { ReadOnly = true };
         private readonly Button btnAddSave = new() { Text = "添加" };
 
-        private readonly ListView lv = new()
-            { View = View.Details, FullRowSelect = true, HideSelection = false, MultiSelect = false, AllowDrop = true };
+        // 支持双缓冲的 ListView
+        private class DoubleBufferedListView : ListView
+        {
+            public DoubleBufferedListView()
+            {
+                View = View.Details;
+                FullRowSelect = true;
+                HideSelection = false;
+                MultiSelect = false;
+            }
+
+            protected override void OnHandleCreated(EventArgs e)
+            {
+                base.OnHandleCreated(e);
+                if (DesignMode)
+                    return;
+                    
+                // 启用双缓冲
+                DoubleBuffered = true;
+                AllowDrop = true;
+            }
+        }
+
+        private readonly ListView lv = new DoubleBufferedListView();
 
         // 菜单&托盘
         private readonly MenuStrip menu = new();
@@ -195,6 +217,7 @@ namespace Game_Upgrade_Reminder
         // ---------- 构建 UI ----------
         private void BuildUi()
         {
+            
             AutoScaleMode = AutoScaleMode.Dpi;
             Padding = new Padding(3);
 
