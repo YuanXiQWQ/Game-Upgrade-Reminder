@@ -1,6 +1,15 @@
-// Game Upgrade Reminder
-// YuanXiQWQ
-// https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
+/*
+ * 游戏升级提醒 - 主程序入口
+ * 作者: YuanXiQWQ
+ * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
+ * 描述: 游戏升级提醒工具，用于跟踪和管理游戏中的升级进度
+ * 创建日期: 2025-08-13
+ * 最后修改: 2025-08-15
+ *
+ * 版权所有 (C) 2025 YuanXiQWQ
+ * 根据 GNU Affero 通用公共许可证 (AGPL-3.0) 授权
+ * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
+ */
 
 using System.ComponentModel;
 using System.IO;
@@ -70,6 +79,17 @@ namespace Game_Upgrade_Reminder
         // 用户正在通过鼠标/键盘操作编辑开始时间
         private bool userEditingStart;
 
+        // 排序模式：默认按完成时间，或用户自定义（列点击/拖拽）
+        private enum SortMode
+        {
+            DefaultByFinish,
+            Custom
+        }
+
+        private SortMode sortMode = SortMode.DefaultByFinish;
+        private int customSortColumn = 4;
+        private bool customSortAsc = true;
+
         private readonly DateTimePicker dtpStart = new()
         {
             Format = DateTimePickerFormat.Custom,
@@ -85,8 +105,9 @@ namespace Game_Upgrade_Reminder
         private readonly ComboBox cbAccount = new() { DropDownStyle = ComboBoxStyle.DropDownList };
         private readonly Button btnAccountMgr = new() { Text = "账号管理" };
         private readonly ComboBox cbTask = new() { DropDownStyle = ComboBoxStyle.DropDown };
+
         private readonly Button btnTaskMgr = new() { Text = "任务管理" };
-        private readonly Button btnSort = new() { Text = "按完成时间排序" };
+        
         private readonly Button btnDeleteDone = new() { Text = "删除已完成" };
         private readonly Button btnRefresh = new() { Text = "刷新" };
 
@@ -148,8 +169,7 @@ namespace Game_Upgrade_Reminder
         public MainForm()
         {
             Text = AppTitle;
-            // 设置应用图标
-            string iconPath = Path.Combine(AppBaseDir, "YuanXi.ico");
+            var iconPath = Path.Combine(AppBaseDir, "YuanXi.ico");
             if (File.Exists(iconPath))
             {
                 try
@@ -174,7 +194,17 @@ namespace Game_Upgrade_Reminder
             LoadSettings();
             ApplySettingsToUi();
             LoadTasks();
+            if (sortMode == SortMode.DefaultByFinish) SortByFinish();
             RefreshTable();
+
+            // 开机自启状态与注册表对齐
+            var actuallyOn = QueryAutostart();
+            if (actuallyOn != settings.StartupOnBoot)
+            {
+                settings.StartupOnBoot = actuallyOn;
+                SaveSettings();
+                UpdateMenuChecks();
+            }
 
             // 计时器
             timerTick.Start();
@@ -243,7 +273,7 @@ namespace Game_Upgrade_Reminder
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 RowCount = 1,
-                ColumnCount = 12,
+                ColumnCount = 11,
                 Padding = new Padding(0),
                 Margin = new Padding(0)
             };
@@ -257,7 +287,6 @@ namespace Game_Upgrade_Reminder
             line1.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240)); // 5  任务下拉
             line1.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // 6  管理任务
             line1.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 6)); // 7  gap
-            line1.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // 8  排序
             line1.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // 9  删除完成
             line1.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); // 10 刷新
             line1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f)); // 11 伸展填充
@@ -304,17 +333,14 @@ namespace Game_Upgrade_Reminder
                 b.MinimumSize = new Size(0, 24);
             }
 
-            btnSort.Text = "按完成时间排序";
             btnDeleteDone.Text = "删除已完成";
             btnRefresh.Text = "刷新";
 
-            StyleSmallButton(btnSort);
             StyleSmallButton(btnDeleteDone);
             StyleSmallButton(btnRefresh);
 
-            line1.Controls.Add(btnSort, 8, 0);
-            line1.Controls.Add(btnDeleteDone, 9, 0);
-            line1.Controls.Add(btnRefresh, 10, 0);
+            line1.Controls.Add(btnDeleteDone, 8, 0);
+            line1.Controls.Add(btnRefresh, 9, 0);
 
             gbTop.Controls.Add(line1);
             root.Controls.Add(gbTop, 0, 0);
@@ -503,12 +529,16 @@ namespace Game_Upgrade_Reminder
                 AddOrSaveTask();
             };
 
-            btnSort.Click += (_, _) =>
+            // 添加测试按钮
+            var btnTest = new Button
             {
-                SortByFinish();
-                SaveTasks();
-                RefreshTable();
+                Text = "测试排序",
+                Location = new Point(10, 10),
+                AutoSize = true
             };
+            btnTest.Click += (_, _) => TestSorting();
+            Controls.Add(btnTest);
+
             btnDeleteDone.Click += (_, _) =>
             {
                 DeleteAllDone();
@@ -531,11 +561,11 @@ namespace Game_Upgrade_Reminder
                 if (me.Button == MouseButtons.Left) HandleListClick();
             };
 
-            // 拖拽排序
+            // 拖拽排序（视为显式排序，切换到自定义模式）
             lv.ItemDrag += (_, e) =>
             {
                 if (e.Item == null) return;
-
+                sortMode = SortMode.Custom;
                 dragItem = (ListViewItem)e.Item;
                 DoDragDrop(e.Item, DragDropEffects.Move);
             };
@@ -543,20 +573,48 @@ namespace Game_Upgrade_Reminder
             lv.DragOver += (_, e) => e.Effect = DragDropEffects.Move;
             lv.DragDrop += Lv_DragDrop;
 
+            // 列标题点击排序（显式）
+            lv.ColumnClick += (_, e) =>
+            {
+                // 用户显式点列：进入自定义排序模式
+                sortMode = SortMode.Custom;
+
+                int column = e.Column;
+                bool sortAscending = column != customSortColumn ? true : !customSortAsc;
+
+                lv.ListViewItemSorter = new ListViewItemComparer(column, sortAscending);
+                lv.Sort();
+
+                // 保存当前状态
+                customSortColumn = column;
+                customSortAsc = sortAscending;
+
+                // 按可见顺序回写 tasks（通过 Tag 绑定）
+                var newOrder = new List<TaskItem>();
+                foreach (ListViewItem row in lv.Items)
+                {
+                    if (row.Tag is TaskItem tsk) newOrder.Add(tsk);
+                }
+
+                tasks.Clear();
+                foreach (var tsk in newOrder) tasks.Add(tsk);
+
+                SaveTasks();
+            };
+
             // Timer
             timerTick.Tick += (_, _) => CheckDueAndNotify();
             timerUi.Tick += (_, _) =>
-                timerUi.Tick += (_, _) =>
-                {
-                    UpdateRemainingCells();
-                    RepaintStyles();
+            {
+                UpdateRemainingCells();
+                RepaintStyles();
 
-                    if (!followSystemStartTime || DateTime.Now.Second != 0) return;
+                if (!followSystemStartTime || DateTime.Now.Second != 0) return;
 
-                    isUpdatingStartProgrammatically = true;
-                    dtpStart.Value = DateTime.Now;
-                    isUpdatingStartProgrammatically = false;
-                };
+                isUpdatingStartProgrammatically = true;
+                dtpStart.Value = DateTime.Now;
+                isUpdatingStartProgrammatically = false;
+            };
             timerPurge.Tick += (_, _) => PurgePending(force: false);
 
             // 关闭最小化逻辑
@@ -607,6 +665,195 @@ namespace Game_Upgrade_Reminder
             SaveTasks();
             RefreshTable();
             dragItem = null;
+        }
+
+        // 列表项比较器，用于排序
+        private class ListViewItemComparer : System.Collections.IComparer
+        {
+            private readonly int col;
+            private readonly bool asc;
+
+            public ListViewItemComparer(int column, bool ascending = true)
+            {
+                col = column;
+                asc = ascending;
+            }
+
+            public int Compare(object? x, object? y)
+            {
+                if (x == null && y == null) return 0;
+                if (x == null) return -1;
+                if (y == null) return 1;
+
+                if (!(x is ListViewItem lvx) || !(y is ListViewItem lvy)) return 0;
+
+                var xText = col < lvx.SubItems.Count ? lvx.SubItems[col].Text : string.Empty;
+                var yText = col < lvy.SubItems.Count ? lvy.SubItems[col].Text : string.Empty;
+
+                // 如果是时间列（开始时间、完成时间）
+                if (col == 2 || col == 4) // 开始时间或完成时间
+                {
+                    if (DateTime.TryParse(xText, out var xDate) && DateTime.TryParse(yText, out var yDate))
+                    {
+                        return asc ? xDate.CompareTo(yDate) : yDate.CompareTo(xDate);
+                    }
+                }
+                // 如果是时长列（持续时间、剩余时间）
+                else if (col == 3 || col == 5) // 持续时间或剩余时间
+                {
+                    var xSecs = ParseTimeSpanToSeconds(xText);
+                    var ySecs = ParseTimeSpanToSeconds(yText);
+                    return asc ? xSecs.CompareTo(ySecs) : ySecs.CompareTo(xSecs);
+                }
+
+                // 默认文本比较
+                var result = string.Compare(xText, yText, StringComparison.Ordinal);
+
+                // 如果主排序列值相同，则按剩余时间升序排序
+                if (result == 0 && col != 5) // 5是剩余时间列，避免重复排序
+                {
+                    var xRemaining = ParseTimeSpanToSeconds(lvx.SubItems[5].Text);
+                    var yRemaining = ParseTimeSpanToSeconds(lvy.SubItems[5].Text);
+                    return xRemaining.CompareTo(yRemaining);
+                }
+
+                return asc ? result : -result;
+            }
+
+            private static int ParseTimeSpanToSeconds(string text)
+            {
+                if (string.IsNullOrEmpty(text)) return 0;
+
+                int totalSeconds = 0;
+                var numberStr = new System.Text.StringBuilder();
+
+                for (int i = 0; i < text.Length; i++)
+                {
+                    if (char.IsDigit(text[i]))
+                    {
+                        numberStr.Append(text[i]);
+                    }
+                    else if (numberStr.Length > 0)
+                    {
+                        int value = int.Parse(numberStr.ToString());
+                        numberStr.Clear();
+
+                        if (text[i] == '天')
+                        {
+                            totalSeconds += value * 24 * 3600;
+                        }
+                        else if (i < text.Length - 1 && text[i] == '小' && text[i + 1] == '时')
+                        {
+                            totalSeconds += value * 3600;
+                            i++; // 跳过'时'
+                        }
+                        else if (i < text.Length - 1 && text[i] == '分' && text[i + 1] == '钟')
+                        {
+                            totalSeconds += value * 60;
+                            i++; // 跳过'钟'
+                        }
+                        else if (text[i] == '时')
+                        {
+                            totalSeconds += value * 3600;
+                        }
+                        else if (text[i] == '分')
+                        {
+                            totalSeconds += value * 60;
+                        }
+                        else if (text[i] == '秒')
+                        {
+                            totalSeconds += value;
+                        }
+                    }
+                }
+
+                // 处理最后一个数字（如果没有单位，默认是“秒”）
+                if (numberStr.Length > 0)
+                {
+                    totalSeconds += int.Parse(numberStr.ToString());
+                }
+
+                return totalSeconds;
+            }
+        }
+
+        private void TestSorting()
+        {
+            try
+            {
+                // 保存当前任务列表
+                var originalTasks = new List<TaskItem>(tasks);
+
+                // 添加测试数据
+                tasks.Clear();
+                var now = DateTime.Now;
+
+                // 添加测试任务
+                tasks.Add(new TaskItem
+                {
+                    Account = "UserB",
+                    TaskName = "Upgrade Defense",
+                    Start = now,
+                    Days = 1,
+                    Hours = 2,
+                    Minutes = 30,
+                    Finish = now.AddDays(1).AddHours(2).AddMinutes(30)
+                });
+
+                tasks.Add(new TaskItem
+                {
+                    Account = "UserA",
+                    TaskName = "Upgrade Resource",
+                    Start = now.AddHours(-2),
+                    Days = 0,
+                    Hours = 12,
+                    Minutes = 0,
+                    Finish = now.AddHours(10)
+                });
+
+                tasks.Add(new TaskItem
+                {
+                    Account = "UserA",
+                    TaskName = "Research",
+                    Start = now.AddHours(-1),
+                    Days = 2,
+                    Hours = 0,
+                    Minutes = 15,
+                    Finish = now.AddDays(2).AddMinutes(15)
+                });
+
+                // 刷新列表
+                RefreshTable();
+
+                // 测试各种列排序
+                lv.ListViewItemSorter = new ListViewItemComparer(0);
+                lv.Sort();
+                lv.ListViewItemSorter = new ListViewItemComparer(1);
+                lv.Sort();
+                lv.ListViewItemSorter = new ListViewItemComparer(2);
+                lv.Sort();
+                lv.ListViewItemSorter = new ListViewItemComparer(3);
+                lv.Sort();
+                lv.ListViewItemSorter = new ListViewItemComparer(4);
+                lv.Sort();
+                lv.ListViewItemSorter = new ListViewItemComparer(5);
+                lv.Sort();
+
+                // 恢复原始任务列表
+                tasks.Clear();
+                foreach (var item in originalTasks)
+                {
+                    tasks.Add(item);
+                }
+
+                RefreshTable();
+
+                MessageBox.Show("排序测试完成！", "测试结果", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"排序测试失败：{ex.Message}", "测试错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         // ---------- 设置 & 持久化 ----------
@@ -750,7 +997,7 @@ namespace Game_Upgrade_Reminder
         // ---------- 托盘 ----------
         private void InitTray()
         {
-            tray.Icon = SystemIcons.Application;
+            tray.Icon = Icon;
             tray.Text = "升级提醒";
             tray.Visible = true;
             tray.DoubleClick += (_, _) =>
@@ -799,11 +1046,18 @@ namespace Game_Upgrade_Reminder
                     t.Done ? "撤销完成" : "完成",
                     t.PendingDelete ? "撤销删除" : "删除"
                 });
+                it.Tag = t;
                 lv.Items.Add(it);
             }
 
             RepaintStyles();
             lv.EndUpdate();
+
+            if (sortMode == SortMode.Custom)
+            {
+                lv.ListViewItemSorter = new ListViewItemComparer(customSortColumn, customSortAsc);
+                lv.Sort();
+            }
         }
 
         private static string FormatTime(int days, int hours, int minutes, int seconds = 0, bool showSeconds = false)
@@ -868,26 +1122,26 @@ namespace Game_Upgrade_Reminder
 
         private void UpdateRemainingCells()
         {
-            for (var i = 0; i < tasks.Count; i++)
+            foreach (ListViewItem row in lv.Items)
             {
-                lv.Items[i].SubItems[5].Text = tasks[i].RemainingStr; // 剩余列
+                if (row.Tag is TaskItem t)
+                    row.SubItems[5].Text = t.RemainingStr; // 剩余列
             }
         }
 
         // 完成=灰字；删除=删除线；到点=背景浅灰
         private void RepaintStyles()
         {
-            for (var i = 0; i < tasks.Count; i++)
+            foreach (ListViewItem row in lv.Items)
             {
-                var t = tasks[i];
-                var row = lv.Items[i];
+                if (row.Tag is not TaskItem t) continue;
 
                 // 默认
                 row.BackColor = Color.White;
                 row.ForeColor = Color.Black;
                 row.Font = Font;
 
-                // Apply styles based on task state (order indicates priority)
+                // 状态样式
                 if (t.PendingDelete && strikeFont != null)
                 {
                     row.Font = strikeFont;
@@ -1005,15 +1259,32 @@ namespace Game_Upgrade_Reminder
             var sel = SelectedIndex;
             if (sel >= 0 && sel < tasks.Count)
             {
+                // 编辑现有任务
                 tasks[sel] = t;
+                if (sortMode == SortMode.DefaultByFinish)
+                {
+                    var moved = tasks[sel];
+                    tasks.RemoveAt(sel);
+                    InsertTaskByFinish(moved);
+                }
             }
             else
             {
-                tasks.Add(t);
+                if (sortMode == SortMode.DefaultByFinish)
+                    InsertTaskByFinish(t);
+                else
+                    tasks.Add(t);
             }
 
             SaveTasks();
             RefreshTable();
+        }
+
+        private void InsertTaskByFinish(TaskItem t)
+        {
+            int i = 0;
+            while (i < tasks.Count && tasks[i].Finish <= t.Finish) i++;
+            tasks.Insert(i, t);
         }
 
         private void SortByFinish()
@@ -1069,7 +1340,7 @@ namespace Game_Upgrade_Reminder
                         shouldRemove = true;
                     }
                 }
-                
+
                 // 检查已完成超过1分钟的任务
                 else if (t is { Done: true, CompletedTime: not null } &&
                          (now - t.CompletedTime.Value).TotalMinutes >= 1)
@@ -1089,6 +1360,9 @@ namespace Game_Upgrade_Reminder
             }
 
             if (!changed) return;
+
+            // 删除后在默认模式下维持按完成时间排序
+            if (sortMode == SortMode.DefaultByFinish) SortByFinish();
 
             SaveTasks();
             RefreshTable(); // 立刻刷新列表，条目直接消失
@@ -1157,13 +1431,15 @@ namespace Game_Upgrade_Reminder
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore
+                MessageBox.Show($"设置开机自启失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-            SaveSettings();
-            UpdateMenuChecks();
+            finally
+            {
+                SaveSettings();
+                UpdateMenuChecks();
+            }
         }
     }
 
