@@ -1,38 +1,53 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <UseWindowsForms>true</UseWindowsForms>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon>YuanXi.ico</ApplicationIcon>
-    <AssemblyName>Game Upgrade Reminder</AssemblyName>
-    <UseWPF>true</UseWPF>
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <UseWindowsForms>true</UseWindowsForms>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AssemblyName>Game Upgrade Reminder</AssemblyName>
+        <RootNamespace>Game_Upgrade_Reminder</RootNamespace>
+        
+        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <!-- Framework References -->
-    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
-    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
-    
-    <!-- Package References -->
-    <PackageReference Include="System.Text.Json" Version="6.0.0" />
-    <PackageReference Include="System.Text.Encodings.Web" Version="6.0.0" />
-    <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
-    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
-  </ItemGroup>
+    <ItemGroup>
+        <Compile Include="Program.cs"/>
+        <Compile Include="UI\MainForm.cs"/>
+        <Compile Include="UI\InputBox.cs"/>
+        <Compile Include="UI\ManageListForm.cs"/>
 
-  <ItemGroup>
-    <None Update="YuanXi.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+        <Compile Include="Core\Models\FontSpec.cs"/>
+        <Compile Include="Core\Models\SettingsData.cs"/>
+        <Compile Include="Core\Models\TaskItem.cs"/>
 
-  <ItemGroup>
-    <Compile Update="Program.cs" />
-    <Compile Update="Models\*.cs" />
-    <Compile Update="Forms\*.cs" />
-  </ItemGroup>
+        <Compile Include="Core\Abstractions\ITaskRepository.cs"/>
+        <Compile Include="Core\Abstractions\ISettingsStore.cs"/>
+        <Compile Include="Core\Abstractions\INotifier.cs"/>
+        <Compile Include="Core\Abstractions\IAutostartManager.cs"/>
+        <Compile Include="Core\Abstractions\ISortStrategy.cs"/>
+        <Compile Include="Core\Abstractions\IDeletionPolicy.cs"/>
+        <Compile Include="Core\Abstractions\IDurationFormatter.cs"/>
+
+        <Compile Include="Core\Services\ByFinishTimeSortStrategy.cs"/>
+        <Compile Include="Core\Services\SimpleDeletionPolicy.cs"/>
+        <Compile Include="Core\Services\ZhCnDurationFormatter.cs"/>
+
+        <Compile Include="Infrastructure\Repositories\JsonTaskRepository.cs"/>
+        <Compile Include="Infrastructure\Repositories\JsonSettingsStore.cs"/>
+        <Compile Include="Infrastructure\System\RegistryAutostartManager.cs"/>
+        <Compile Include="Infrastructure\UI\TrayNotifier.cs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="YuanXi.ico">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <PropertyGroup>
+        <ApplicationIcon>YuanXi.ico</ApplicationIcon>
+    </PropertyGroup>
 
 </Project>

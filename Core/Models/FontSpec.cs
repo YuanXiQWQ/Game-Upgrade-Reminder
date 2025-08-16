@@ -5,11 +5,13 @@
  * 描述: 定义应用程序中使用的字体规范
  * 创建日期: 2025-08-14
  * 最后修改: 2025-08-15
- * 
+ *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU Affero 通用公共许可证 (AGPL-3.0) 授权
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
+
+using System.Drawing;
 
 namespace Game_Upgrade_Reminder.Models
 {
