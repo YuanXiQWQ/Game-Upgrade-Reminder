@@ -15,8 +15,32 @@ using Game_Upgrade_Reminder.Core.Abstractions;
 
 namespace Game_Upgrade_Reminder.Core.Services
 {
+    /// <summary>
+    /// 实现中文格式的持续时间格式化器
+    /// </summary>
+    /// <remarks>
+    /// 此类实现了<see cref="IDurationFormatter"/>接口，
+    /// 提供将时间间隔格式化为中文表示的功能。
+    /// 格式示例："2天 3时 5分 30秒" 或 "1时 45分"
+    /// </remarks>
     public sealed class ZhCnDurationFormatter : IDurationFormatter
     {
+        /// <summary>
+        /// 将时间间隔格式化为中文字符串
+        /// </summary>
+        /// <param name="days">天数</param>
+        /// <param name="hours">小时数</param>
+        /// <param name="minutes">分钟数</param>
+        /// <param name="seconds">秒数，默认为0</param>
+        /// <param name="showSeconds">是否显示秒数，默认为false</param>
+        /// <returns>格式化后的中文字符串</returns>
+        /// <remarks>
+        /// 格式化规则：
+        /// 1. 只显示非零的时间单位
+        /// 2. 如果showSeconds为true，则始终显示秒数
+        /// 3. 时间单位之间用空格分隔
+        /// 4. 如果所有时间单位都为零，则返回"0分"或"0秒"（根据showSeconds参数）
+        /// </remarks>
         public string Format(int days, int hours, int minutes, int seconds = 0, bool showSeconds = false)
         {
             var parts = new List<string>();

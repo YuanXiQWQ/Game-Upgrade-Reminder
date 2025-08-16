@@ -14,10 +14,19 @@
 namespace Game_Upgrade_Reminder.Core.Abstractions
 {
     /// <summary>
-    /// 用于“持续时间”列的字符串格式化（与原 MainForm.FormatTime 输出严格一致）。
+    /// 定义将时间间隔格式化为可读字符串的接口
     /// </summary>
     public interface IDurationFormatter
     {
+        /// <summary>
+        /// 将时间间隔格式化为可读的字符串表示
+        /// </summary>
+        /// <param name="days">天数</param>
+        /// <param name="hours">小时数</param>
+        /// <param name="minutes">分钟数</param>
+        /// <param name="seconds">秒数，默认为0</param>
+        /// <param name="showSeconds">是否显示秒数，默认为false</param>
+        /// <returns>格式化后的时间间隔字符串</returns>
         string Format(int days, int hours, int minutes, int seconds = 0, bool showSeconds = false);
     }
 }

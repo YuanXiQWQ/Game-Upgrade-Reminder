@@ -11,10 +11,7 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System.Collections.Generic;
-using System.Drawing;
-using System.Windows.Forms;
-using Game_Upgrade_Reminder.Models;
+using Game_Upgrade_Reminder.Core.Models;
 
 namespace Game_Upgrade_Reminder.UI
 {
@@ -67,7 +64,7 @@ namespace Game_Upgrade_Reminder.UI
             };
             btnClose.Click += (_, _) => { DialogResult = DialogResult.OK; };
 
-            Controls.AddRange(new Control[] { lb, btnAdd, btnDel, btnClose });
+            Controls.AddRange([lb, btnAdd, btnDel, btnClose]);
         }
     }
 }

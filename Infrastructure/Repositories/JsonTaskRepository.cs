@@ -11,21 +11,44 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text;
 using System.Text.Json;
 using Game_Upgrade_Reminder.Core.Abstractions;
-using Game_Upgrade_Reminder.Models;
+using Game_Upgrade_Reminder.Core.Models;
 
 namespace Game_Upgrade_Reminder.Infrastructure.Repositories
 {
+    /// <summary>
+    /// 使用JSON文件实现任务存储
+    /// </summary>
+    /// <remarks>
+    /// 此类实现了<see cref="ITaskRepository"/>接口，
+    /// 使用JSON格式将任务数据持久化到应用程序目录下的tasks.json文件中。
+    /// 如果读取或写入过程中发生错误，将静默失败并返回空列表。
+    /// </remarks>
     public sealed class JsonTaskRepository : ITaskRepository
     {
+        /// <summary>
+        /// 获取应用程序基础目录
+        /// </summary>
         private static string AppBaseDir => AppContext.BaseDirectory;
+
+        /// <summary>
+        /// 获取任务文件的完整路径
+        /// </summary>
         private static string TasksPath => Path.Combine(AppBaseDir, "tasks.json");
 
+        /// <summary>
+        /// 从JSON文件加载任务列表
+        /// </summary>
+        /// <returns>加载的任务列表，如果文件不存在或反序列化失败则返回空列表</returns>
+        /// <remarks>
+        /// 此方法会：
+        /// 1. 检查任务文件是否存在，如果不存在则返回空列表
+        /// 2. 读取文件内容并使用UTF-8编码（不带BOM）
+        /// 3. 将JSON反序列化为<see cref="List{TaskItem}"/>对象
+        /// 4. 如果任何步骤失败，返回空列表
+        /// </remarks>
         public List<TaskItem> Load()
         {
             try
@@ -40,6 +63,17 @@ namespace Game_Upgrade_Reminder.Infrastructure.Repositories
             }
         }
 
+        /// <summary>
+        /// 将任务列表保存到JSON文件
+        /// </summary>
+        /// <param name="tasks">要保存的任务列表</param>
+        /// <remarks>
+        /// 此方法会：
+        /// 1. 使用带缩进的JSON格式
+        /// 2. 使用带BOM的UTF-8编码保存文件
+        /// 3. 如果保存过程中发生错误，将静默失败
+        /// 注意：此方法会覆盖现有的任务文件
+        /// </remarks>
         public void Save(IEnumerable<TaskItem> tasks)
         {
             try
@@ -50,7 +84,7 @@ namespace Game_Upgrade_Reminder.Infrastructure.Repositories
             }
             catch
             {
-                // ignore
+                // 静默失败，不抛出异常
             }
         }
     }

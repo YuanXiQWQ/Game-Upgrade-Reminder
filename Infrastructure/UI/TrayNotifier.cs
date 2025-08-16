@@ -11,25 +11,25 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System.Windows.Forms;
 using Game_Upgrade_Reminder.Core.Abstractions;
 
 namespace Game_Upgrade_Reminder.Infrastructure.UI
 {
-    public sealed class TrayNotifier : INotifier
+    /// <summary>
+    /// 使用系统托盘显示通知消息的实现类
+    /// </summary>
+    /// <remarks>
+    /// 此类实现了<see cref="INotifier"/>接口，
+    /// 通过系统托盘显示气泡提示通知用户。
+    /// </remarks>
+    /// <param name="tray">系统托盘图标控件</param>
+    public sealed class TrayNotifier(NotifyIcon tray) : INotifier
     {
-        private readonly NotifyIcon _tray;
-
-        public TrayNotifier(NotifyIcon tray)
-        {
-            _tray = tray;
-        }
-
         public void Toast(string title, string body, int timeoutMs = 3000)
         {
-            _tray.BalloonTipTitle = title;
-            _tray.BalloonTipText  = body;
-            _tray.ShowBalloonTip(timeoutMs);
+            tray.BalloonTipTitle = title;
+            tray.BalloonTipText  = body;
+            tray.ShowBalloonTip(timeoutMs);
         }
     }
 }

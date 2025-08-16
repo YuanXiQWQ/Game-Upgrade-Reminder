@@ -11,14 +11,12 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System.Drawing;
-using System.Windows.Forms;
-
 namespace Game_Upgrade_Reminder.UI
 {
     internal sealed class InputBox : Form
     {
         public string ResultText { get; private set; } = "";
+        
         private readonly TextBox tb = new();
 
         public InputBox(string title, string label = "名称")
@@ -34,11 +32,13 @@ namespace Game_Upgrade_Reminder.UI
             tb.SetBounds(76, 14, 250, 24);
             var ok = new Button { Text = "确定", Left = 116, Top = 54, Width = 80 };
             var cancel = new Button { Text = "取消", Left = 212, Top = 54, Width = 80 };
+            
             ok.Click += (_, _) =>
             {
                 ResultText = tb.Text.Trim();
                 if (ResultText.Length > 0) DialogResult = DialogResult.OK;
             };
+            
             cancel.Click += (_, _) => DialogResult = DialogResult.Cancel;
 
             Controls.Add(lb);

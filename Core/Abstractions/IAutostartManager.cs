@@ -11,13 +11,23 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System;
-
 namespace Game_Upgrade_Reminder.Core.Abstractions
 {
+    /// <summary>
+    /// 定义管理应用程序开机自启动功能的接口
+    /// </summary>
     public interface IAutostartManager
     {
+        /// <summary>
+        /// 检查应用程序是否已设置为开机自启动
+        /// </summary>
+        /// <returns>如果已启用开机自启动则返回true，否则返回false</returns>
         bool IsEnabled();
+
+        /// <summary>
+        /// 启用或禁用应用程序的开机自启动
+        /// </summary>
+        /// <param name="enable">true表示启用开机自启动，false表示禁用</param>
         void SetEnabled(bool enable);
     }
 }

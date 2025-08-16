@@ -11,24 +11,49 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System;
 using Game_Upgrade_Reminder.Core.Abstractions;
-using Game_Upgrade_Reminder.Models;
+using Game_Upgrade_Reminder.Core.Models;
 
 namespace Game_Upgrade_Reminder.Core.Services
 {
-    /// <summary>与原实现参数一致：待删延迟3秒；完成后保留1分钟。</summary>
-    public sealed class SimpleDeletionPolicy : IDeletionPolicy
+    /// <summary>
+    /// 实现简单的任务删除策略，支持延迟删除和完成后保留时间
+    /// </summary>
+    /// <remarks>
+    /// 此类实现了<see cref="IDeletionPolicy"/>接口，
+    /// 提供基于时间的任务删除策略，包括：
+    /// 1. 标记为删除的任务在经过指定延迟后删除
+    /// 2. 已完成的任务在保留指定时间后删除
+    /// </remarks>
+    /// <param name="pendingDeleteDelaySeconds">标记为删除后的延迟秒数，默认为3秒</param>
+    /// <param name="completedKeepMinutes">任务完成后保留的分钟数，默认为1分钟</param>
+    public sealed class SimpleDeletionPolicy(int pendingDeleteDelaySeconds = 3, int completedKeepMinutes = 1) : IDeletionPolicy
     {
-        public int PendingDeleteDelaySeconds { get; }
-        public int CompletedKeepMinutes { get; }
+        /// <summary>
+        /// 获取标记为删除后的延迟秒数
+        /// </summary>
+        public int PendingDeleteDelaySeconds { get; } = pendingDeleteDelaySeconds;
 
-        public SimpleDeletionPolicy(int pendingDeleteDelaySeconds = 3, int completedKeepMinutes = 1)
-        {
-            PendingDeleteDelaySeconds = pendingDeleteDelaySeconds;
-            CompletedKeepMinutes = completedKeepMinutes;
-        }
+        /// <summary>
+        /// 获取任务完成后保留的分钟数
+        /// </summary>
+        public int CompletedKeepMinutes { get; } = completedKeepMinutes;
 
+        /// <summary>
+        /// 确定是否应该删除指定的任务
+        /// </summary>
+        /// <param name="task">要检查的任务</param>
+        /// <param name="now">当前时间</param>
+        /// <param name="force">是否强制删除，忽略时间限制</param>
+        /// <returns>如果应该删除任务则返回true，否则返回false</returns>
+        /// <remarks>
+        /// 以下情况会返回true：
+        /// 1. 任务已标记为删除，并且：
+        ///    - force为true，或者
+        ///    - 自标记时间起已超过<see cref="PendingDeleteDelaySeconds"/>秒
+        /// 2. 任务已完成，并且：
+        ///    - 自完成时间起已超过<see cref="CompletedKeepMinutes"/>分钟
+        /// </remarks>
         public bool ShouldRemove(TaskItem task, DateTime now, bool force)
         {
             if (task.PendingDelete)

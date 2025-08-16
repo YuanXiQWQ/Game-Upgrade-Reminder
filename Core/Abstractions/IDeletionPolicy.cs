@@ -11,20 +11,45 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System;
-using Game_Upgrade_Reminder.Models;
+using Game_Upgrade_Reminder.Core.Models;
 
 namespace Game_Upgrade_Reminder.Core.Abstractions
 {
+    /// <summary>
+    /// 定义任务删除策略的接口，用于控制任务的删除行为
+    /// </summary>
     public interface IDeletionPolicy
     {
-        /// <summary>标记删除后延迟秒数（与原实现一致：3秒）。</summary>
+        /// <summary>
+        /// 获取标记为删除后的延迟秒数
+        /// </summary>
+        /// <remarks>
+        /// 默认实现为3秒，与原始实现保持一致。
+        /// 这表示任务被标记为删除后，将在指定秒数后执行实际删除操作。
+        /// </remarks>
         int PendingDeleteDelaySeconds { get; }
 
-        /// <summary>完成后保留分钟数（与原实现一致：1分钟）。</summary>
+        /// <summary>
+        /// 获取任务完成后保留的分钟数
+        /// </summary>
+        /// <remarks>
+        /// 默认实现为1分钟，与原始实现保持一致。
+        /// 这表示任务完成后，将在指定时间后自动删除。
+        /// </remarks>
         int CompletedKeepMinutes { get; }
 
-        /// <summary>根据当前时间与force判断是否应彻底删除该任务。</summary>
+        /// <summary>
+        /// 确定是否应该删除指定的任务
+        /// </summary>
+        /// <param name="task">要检查的任务</param>
+        /// <param name="now">当前时间</param>
+        /// <param name="force">是否强制删除，忽略时间限制</param>
+        /// <returns>如果应该删除任务则返回true，否则返回false</returns>
+        /// <remarks>
+        /// 此方法根据任务的当前状态、时间限制和force参数来决定是否应该删除任务。
+        /// 如果force为true，则忽略时间限制，立即删除任务。
+        /// 否则，将根据PendingDeleteDelaySeconds和CompletedKeepMinutes属性决定是否删除。
+        /// </remarks>
         bool ShouldRemove(TaskItem task, DateTime now, bool force);
     }
 }

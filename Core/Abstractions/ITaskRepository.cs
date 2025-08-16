@@ -11,14 +11,34 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System.Collections.Generic;
-using Game_Upgrade_Reminder.Models;
+using Game_Upgrade_Reminder.Core.Models;
 
 namespace Game_Upgrade_Reminder.Core.Abstractions
 {
+    /// <summary>
+    /// 定义任务数据持久化的接口，负责任务的加载和保存
+    /// </summary>
     public interface ITaskRepository
     {
+        /// <summary>
+        /// 从持久化存储中加载所有任务
+        /// </summary>
+        /// <returns>包含所有任务的<see cref="List{TaskItem}"/>集合</returns>
+        /// <remarks>
+        /// 如果存储中没有任何任务或发生错误，应返回空列表而不是null。
+        /// 实现应处理所有可能的I/O异常，并记录任何错误。
+        /// </remarks>
         List<TaskItem> Load();
+
+        /// <summary>
+        /// 将任务集合保存到持久化存储中
+        /// </summary>
+        /// <param name="tasks">要保存的任务集合</param>
+        /// <remarks>
+        /// 此方法会覆盖存储中的所有现有任务。
+        /// 实现应确保数据的原子性保存，并处理所有可能的I/O异常。
+        /// 如果保存操作失败，应记录错误并可能抛出异常。
+        /// </remarks>
         void Save(IEnumerable<TaskItem> tasks);
     }
 }

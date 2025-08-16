@@ -11,9 +11,6 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System;
-using System.Windows.Forms;
-
 namespace Game_Upgrade_Reminder
 {
     internal static class Program

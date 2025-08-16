@@ -14,10 +14,14 @@
 - ⏰ 设置升级完成时间，自动倒计时
 - 🔔 升级完成时显示系统通知
 
+>计划实现：
+> - 多语言支持
+> - 循环任务
+
 ## 系统要求
 
 - Windows 10 或更高版本
-- .NET Framework 6.0 或更高版本
+- .NET Framework 8.0 或更高版本
 > 其它版本能不能行我也不知道 :<
 
 ## 安装方法
@@ -65,7 +69,7 @@ A reminder tool for tracking and managing in-game upgrade progress that requires
 ## System Requirements
 
 - Windows 10 or later
-- .NET Framework 6.0 or later
+- .NET Framework 8.0 or later
 
 ## Installation
 
