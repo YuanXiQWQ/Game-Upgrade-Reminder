@@ -113,7 +113,7 @@ namespace Game_Upgrade_Reminder
                 base.OnHandleCreated(e);
                 if (DesignMode)
                     return;
-                    
+
                 // 启用双缓冲
                 DoubleBuffered = true;
                 AllowDrop = true;
@@ -161,7 +161,7 @@ namespace Game_Upgrade_Reminder
                     Console.WriteLine($"加载图标时出错: {ex.Message}");
                 }
             }
-            
+
             const int totalWidth = AccountColWidth + TaskColWidth + StartTimeColWidth + DurationColWidth +
                                    FinishTimeColWidth + RemainingTimeColWidth + (ActionColWidth * 2) + ExtraSpace;
             ClientSize = new Size(totalWidth, 580);
@@ -217,7 +217,6 @@ namespace Game_Upgrade_Reminder
         // ---------- 构建 UI ----------
         private void BuildUi()
         {
-            
             AutoScaleMode = AutoScaleMode.Dpi;
             Padding = new Padding(3);
 
@@ -927,6 +926,7 @@ namespace Game_Upgrade_Reminder
             {
                 case 6: // 完成列
                     t.Done = !t.Done;
+                    t.CompletedTime = t.Done ? DateTime.Now : null;
                     SaveTasks();
                     RefreshTable();
                     break;
@@ -1052,23 +1052,40 @@ namespace Game_Upgrade_Reminder
         private void PurgePending(bool force)
         {
             var changed = false;
+            var now = DateTime.Now;
 
             for (var i = 0; i < tasks.Count;)
             {
                 var t = tasks[i];
+                bool shouldRemove = false;
+
+                // 检查待删除任务
                 if (t.PendingDelete)
                 {
                     var mark = t.DeleteMarkTime ?? DateTime.MinValue;
                     // 满足“强制清理”或超过延迟秒数
-                    if (force || (DateTime.Now - mark).TotalSeconds >= PendingDeleteDelaySeconds)
+                    if (force || (now - mark).TotalSeconds >= PendingDeleteDelaySeconds)
                     {
-                        tasks.RemoveAt(i);
-                        changed = true;
-                        continue;
+                        shouldRemove = true;
                     }
                 }
+                
+                // 检查已完成超过1分钟的任务
+                else if (t is { Done: true, CompletedTime: not null } &&
+                         (now - t.CompletedTime.Value).TotalMinutes >= 1)
+                {
+                    shouldRemove = true;
+                }
 
-                i++;
+                if (shouldRemove)
+                {
+                    tasks.RemoveAt(i);
+                    changed = true;
+                }
+                else
+                {
+                    i++;
+                }
             }
 
             if (!changed) return;
@@ -1227,7 +1244,7 @@ namespace Game_Upgrade_Reminder
 
                 Items.RemoveAt(i);
                 lb.Items.RemoveAt(i);
-                
+
                 if (Items.Count > 0 || !title.StartsWith("账号")) return;
 
                 Items.Add(TaskItem.DefaultAccount);

@@ -16,6 +16,7 @@ namespace Game_Upgrade_Reminder.Models
         public DateTime Finish { get; set; }
         public bool Notified { get; set; }
         public bool Done { get; set; }
+        public DateTime? CompletedTime { get; set; }
 
         public bool PendingDelete { get; set; }
         public DateTime? DeleteMarkTime { get; set; }
