@@ -14,14 +14,15 @@
 - ⏰ 设置升级完成时间，自动倒计时
 - 🔔 升级完成时显示系统通知
 
->计划实现：
+> 计划实现（~~但大概率会鸽~~）：
 > - 多语言支持
 > - 循环任务
 
 ## 系统要求
 
-- Windows 10 或更高版本
-- .NET Framework 8.0 或更高版本
+- [Windows 10](https://www.microsoft.com/en-ca/software-download/windows10) 或更高版本
+- [.NET Framework 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) 或更高版本
+
 > 其它版本能不能行我也不知道 :<
 
 ## 安装方法
@@ -44,6 +45,18 @@
 - 到时间的任务会突出显示，点击“完成”来标记完成
 - 可以在列表中删除任务，三秒内可撤销删除
 
+## 常见问题
+
+### 收不到系统通知
+
+- 把**专注助手**关了
+- 除此之外就不知道了
+
+### 其它神奇的问题
+
+- 应该是 bug 吧，踩死就好了
+- 可以到 Issues 页面报告，不过我很可能不知道怎么修
+
 ## 许可证
 
 本项目采用 [GNU Affero General Public License v3.0](LICENSE) 开源许可。
@@ -58,7 +71,8 @@
 
 ---
 
-A reminder tool for tracking and managing in-game upgrade progress that requires significant time investment. Initially created for "Boom Beach."
+A reminder tool for tracking and managing in-game upgrade progress that requires significant time investment. Initially
+created for "Boom Beach."
 
 ## Features
 
@@ -66,10 +80,16 @@ A reminder tool for tracking and managing in-game upgrade progress that requires
 - ⏰ Set completion time with automatic countdown
 - 🔔 Receive system notifications when upgrades complete
 
+> Planned features (~~but might be delayed~~):
+> - Multi-language support
+> - Recurring tasks
+
 ## System Requirements
 
-- Windows 10 or later
-- .NET Framework 8.0 or later
+- [Windows 10](https://www.microsoft.com/en-ca/software-download/windows10) or later
+- [.NET Framework 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) or later
+
+> Not sure if it works with other versions :<
 
 ## Installation
 
@@ -90,6 +110,18 @@ A reminder tool for tracking and managing in-game upgrade progress that requires
 
 - Completed tasks will be highlighted - click "Complete" to mark them as done
 - Delete tasks from the list (deletion can be undone within 3 seconds)
+
+## FAQ
+
+### Not receiving system notifications
+
+- Turn off **Focus Assist**
+- If that doesn't help, I'm not sure what else to suggest
+
+### Other issues
+
+- Probably a miracle bug (aka feature)
+- You can report issues, but I probably won't know how to fix them
 
 ## License
 
