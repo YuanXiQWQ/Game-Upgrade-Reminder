@@ -82,6 +82,13 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// <value>默认为true</value>
         public bool MinimizeOnClose { get; set; } = true;
 
+        // 清理设置
+        /// <summary>
+        /// 获取或设置一个值，指示是否在任务完成后1分钟自动删除
+        /// </summary>
+        /// <value>默认为true（与旧版本行为一致）</value>
+        public bool AutoDeleteCompletedAfter1Min { get; set; } = true;
+
         // 预设
         /// <summary>
         /// 获取或设置账号预设列表

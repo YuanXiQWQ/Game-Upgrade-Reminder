@@ -46,7 +46,7 @@ namespace Game_Upgrade_Reminder.UI
         private readonly RegistryAutostartManager autostartManager = new();
         private readonly ByFinishTimeSortStrategy sortStrategy = new();
 
-        private readonly SimpleDeletionPolicy deletionPolicy =
+        private SimpleDeletionPolicy deletionPolicy =
             new(pendingDeleteDelaySeconds: 3, completedKeepMinutes: 1);
 
         private readonly ZhCnDurationFormatter durationFormatter = new();
@@ -122,9 +122,10 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripMenuItem miSettings = new() { Text = "设置(&S)" };
         private readonly ToolStripMenuItem miFont = new() { Text = "选择字体(&F)..." };
         private readonly ToolStripMenuItem miAutoStart = new() { Text = "开机自启(&A)" };
+        private readonly ToolStripMenuItem miAutoDeleteAfter1Min = new() { Text = "已完成任务在1分钟后自行删除(&D)" };
         private readonly ToolStripMenuItem miCloseExit = new() { Text = "退出程序" };
         private readonly ToolStripMenuItem miCloseMinimize = new() { Text = "最小化到托盘" };
-        private readonly ToolStripMenuItem miAboutTop = new() { Text = "关于(&A)..." }; // top-level About
+        private readonly ToolStripMenuItem miAboutTop = new() { Text = "关于(&A)..." };
 
         private readonly NotifyIcon tray = new();
         private readonly ContextMenuStrip trayMenu = new();
@@ -167,6 +168,7 @@ namespace Game_Upgrade_Reminder.UI
 
             // Load settings/tasks
             LoadSettings();
+            ApplyDeletionPolicyFromSettings();
             ApplySettingsToUi();
             LoadTasks();
             if (sortMode == SortMode.DefaultByFinish) sortStrategy.Sort(tasks);
@@ -206,6 +208,7 @@ namespace Game_Upgrade_Reminder.UI
             miSettings.DropDownItems.Add(miFont);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(miAutoStart);
+            miSettings.DropDownItems.Add(miAutoDeleteAfter1Min);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(closeSub);
 
@@ -429,6 +432,7 @@ namespace Game_Upgrade_Reminder.UI
             // Menu
             miFont.Click += (_, _) => DoChooseFont();
             miAutoStart.Click += (_, _) => ToggleAutostart();
+            miAutoDeleteAfter1Min.Click += (_, _) => ToggleAutoDeleteAfter1Min();
             miCloseExit.Click += (_, _) =>
             {
                 settings.MinimizeOnClose = false;
@@ -999,6 +1003,7 @@ private void ShowAboutDialog()
             miAutoStart.Checked = settings.StartupOnBoot;
             miCloseExit.Checked = !settings.MinimizeOnClose;
             miCloseMinimize.Checked = settings.MinimizeOnClose;
+            miAutoDeleteAfter1Min.Checked = settings.AutoDeleteCompletedAfter1Min;
         }
 
         private void ApplyUiFont(Font f)
@@ -1338,6 +1343,21 @@ private void ShowAboutDialog()
                 SaveSettings();
                 UpdateMenuChecks();
             }
+        }
+
+        // ---------- Deletion policy toggle ----------
+        private void ApplyDeletionPolicyFromSettings()
+        {
+            var keepMinutes = settings.AutoDeleteCompletedAfter1Min ? 1 : int.MaxValue;
+            deletionPolicy = new SimpleDeletionPolicy(pendingDeleteDelaySeconds: 3, completedKeepMinutes: keepMinutes);
+        }
+
+        private void ToggleAutoDeleteAfter1Min()
+        {
+            settings.AutoDeleteCompletedAfter1Min = !settings.AutoDeleteCompletedAfter1Min;
+            ApplyDeletionPolicyFromSettings();
+            SaveSettings();
+            UpdateMenuChecks();
         }
 
         // ---------- Update check helpers ----------
