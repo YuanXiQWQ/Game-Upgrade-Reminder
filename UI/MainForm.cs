@@ -14,6 +14,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -29,7 +30,7 @@ namespace Game_Upgrade_Reminder.UI
     /// 主窗体：负责界面布局、用户交互、任务展示与托盘交互。
     /// 主要模块：菜单、顶部账号/任务区、时间区、任务列表、托盘与通知、设置的加载/保存。
     /// </summary>
-    public sealed class MainForm : Form
+    public sealed partial class MainForm : Form
     {
         // 常量
         private const string AppTitle = "游戏升级提醒";
@@ -67,6 +68,63 @@ namespace Game_Upgrade_Reminder.UI
         {
             DefaultByFinish,
             Custom
+        }
+
+        /// <summary>
+        /// 当列表无选中项时，清除一切焦点痕迹（包括每一项的 Focused 标记与 ListView.FocusedItem），
+        /// 并可选择将焦点移出 ListView，避免虚线焦点框。
+        /// </summary>
+        private void ClearListViewFocusIfNoSelection(bool moveFocusAway = true)
+        {
+            try
+            {
+                if (lv.IsDisposed) return;
+                if (lv.SelectedIndices.Count > 0) return;
+
+                // 清除每一项的 Focused 以防止系统重绘焦点框
+                foreach (ListViewItem it in lv.Items)
+                {
+                    if (it.Focused) it.Focused = false;
+                }
+
+                // 清除 ListView 的焦点项
+                lv.FocusedItem = null;
+
+                // 可选地把焦点移到其它控件上
+                if (moveFocusAway && dtpStart.CanFocus)
+                {
+                    ActiveControl = dtpStart;
+                }
+            }
+            catch
+            {
+                // 忽略异常以保证 UI 流畅
+            }
+        }
+
+        /// <summary>
+        /// 强制清除 ListView 的焦点痕迹（不论是否有选中项），主要用于列头排序等不改变选中状态但会导致焦点框出现的场景。
+        /// </summary>
+        private void ClearListViewFocusRegardlessOfSelection(bool moveFocusAway = true)
+        {
+            try
+            {
+                if (lv.IsDisposed) return;
+                foreach (ListViewItem it in lv.Items)
+                {
+                    if (it.Focused) it.Focused = false;
+                }
+
+                lv.FocusedItem = null;
+                if (moveFocusAway && dtpStart.CanFocus)
+                {
+                    ActiveControl = dtpStart;
+                }
+            }
+            catch
+            {
+                // 忽略
+            }
         }
 
         // ---------- 工具/辅助 ----------
@@ -378,6 +436,90 @@ namespace Game_Upgrade_Reminder.UI
         private readonly System.Windows.Forms.Timer hoverMenuTimer = new() { Interval = 200 };
         private ToolStripMenuItem? hoverPendingClose;
 
+        // ---------- 原生 Header 箭头（与系统主题同步） ----------
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        private struct Hditem
+        {
+            public uint mask;
+            public int cxy;
+            public IntPtr pszText;
+            public IntPtr hbm;
+            public int cchTextMax;
+            public int fmt;
+            public IntPtr lParam;
+            public int iImage;
+            public int iOrder;
+            public uint type;
+            public IntPtr pvFilter;
+            public uint state;
+        }
+
+        private const int LvmFirst = 0x1000;
+        private const int LvmGetHeader = LvmFirst + 31;
+        private const int HdmFirst = 0x1200;
+        private const int HdmGetItem = HdmFirst + 11;
+        private const int HdmSetItem = HdmFirst + 12;
+
+        private const int HdiFormat = 0x0004;
+        private const int HdfSortUp = 0x0400;
+        private const int HdfSortDown = 0x0200;
+
+        [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+        private static partial IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+        private static partial void SendMessage(IntPtr hWnd, int msg, IntPtr wParam, ref Hditem lParam);
+
+        private void UpdateListViewSortArrow()
+        {
+            if (lv.IsDisposed || lv.Handle == IntPtr.Zero || lv.Columns.Count == 0) return;
+            var header = SendMessage(lv.Handle, LvmGetHeader, IntPtr.Zero, IntPtr.Zero);
+            if (header == IntPtr.Zero) return;
+
+            // 计算当前应显示箭头的列与方向：
+            // - 自定义排序：使用 customSortColumn/customSortAsc
+            // - 默认排序：使用 剩余时间列(索引5) 升序
+            var sortedColumn = -1;
+            var sortedAsc = true;
+            if (sortMode == SortMode.Custom)
+            {
+                // 仅允许 0..5 这些“可排序列”显示自定义排序箭头；6/7（完成/删除）不显示
+                if (customSortColumn is >= 0 and <= 5)
+                {
+                    sortedColumn = customSortColumn;
+                    sortedAsc = customSortAsc;
+                }
+                else
+                {
+                    sortedColumn = -1;
+                }
+            }
+            else // SortMode.DefaultByFinish
+            {
+                if (lv.Columns.Count > 5)
+                {
+                    sortedColumn = 5; // 剩余时间列
+                    sortedAsc = true; // 升序
+                }
+            }
+
+            for (int i = 0; i < lv.Columns.Count; i++)
+            {
+                var item = new Hditem { mask = HdiFormat };
+                SendMessage(header, HdmGetItem, new IntPtr(i), ref item);
+
+                // 清理旧的箭头位
+                item.fmt &= ~(HdfSortUp | HdfSortDown);
+
+                if (i == sortedColumn)
+                {
+                    item.fmt |= sortedAsc ? HdfSortUp : HdfSortDown;
+                }
+
+                SendMessage(header, HdmSetItem, new IntPtr(i), ref item);
+            }
+        }
+
         public MainForm()
         {
             Text = AppTitle;
@@ -440,6 +582,14 @@ namespace Game_Upgrade_Reminder.UI
 
             // 初始调度（根据最近的提醒点设置计时器间隔）
             RescheduleNextTick();
+
+            // 首次显示时：同步列头箭头，并把焦点移出列表，去掉默认的虚线焦点框
+            Shown += (_, _) =>
+            {
+                UpdateListViewSortArrow();
+                if (dtpStart.CanFocus) ActiveControl = dtpStart;
+                ClearListViewFocusIfNoSelection();
+            };
         }
 
         // ---------- 菜单 / 界面 ----------
@@ -918,13 +1068,20 @@ namespace Game_Upgrade_Reminder.UI
                 if (me.Button == MouseButtons.Left) HandleListClick();
             };
             lv.Resize += (_, _) => AdjustListViewColumns();
+            lv.GotFocus += (_, _) =>
+            {
+                // 当列表获得焦点但没有选中项时，清除焦点项避免虚线焦点框
+                ClearListViewFocusIfNoSelection();
+            };
 
             // 列头点击排序（文本为主，部分列有特殊处理）
             lv.ColumnClick += (_, e) =>
             {
-                sortMode = SortMode.Custom;
-
                 var column = e.Column;
+                // 完成(6)/删除(7) 列：不参与排序，也不显示箭头
+                if (column >= 6) return;
+
+                sortMode = SortMode.Custom;
                 var sortAscending = column != customSortColumn || !customSortAsc;
 
                 lv.ListViewItemSorter = new ListViewItemComparer(column, sortAscending);
@@ -942,6 +1099,15 @@ namespace Game_Upgrade_Reminder.UI
                 foreach (var t in newOrder) tasks.Add(t);
 
                 SaveTasks();
+                UpdateListViewSortArrow();
+
+                // 异步移除虚线焦点框并移走焦点，确保在排序后的消息循环稳定后处理
+                BeginInvoke(() =>
+                {
+                    if (lv.SelectedIndices.Count != 0) return;
+                    ClearListViewFocusRegardlessOfSelection();
+                    if (dtpStart.CanFocus) dtpStart.Focus();
+                });
             };
 
             // 计时器
@@ -1619,12 +1785,28 @@ namespace Game_Upgrade_Reminder.UI
             RepaintStyles();
             lv.EndUpdate();
 
-            if (sortMode != SortMode.Custom) return;
+            if (sortMode == SortMode.Custom)
+            {
+                lv.ListViewItemSorter = new ListViewItemComparer(customSortColumn, customSortAsc);
+                lv.Sort();
+            }
 
-            lv.ListViewItemSorter = new ListViewItemComparer(customSortColumn, customSortAsc);
-            lv.Sort();
             AdjustListViewColumns();
             UpdateStatusBar();
+            UpdateListViewSortArrow();
+
+            // 异步清除焦点项，避免在刷新/排序后出现虚线焦点框
+            if (IsHandleCreated)
+            {
+                BeginInvoke(() =>
+                {
+                    if (lv.SelectedIndices.Count != 0) return;
+                    ClearListViewFocusRegardlessOfSelection();
+                    // 若列表当前仍持有焦点，则把焦点移出以彻底避免焦点框
+                    if (lv.Focused && dtpStart.CanFocus)
+                        dtpStart.Focus();
+                });
+            }
         }
 
         private void UpdateRemainingCells()

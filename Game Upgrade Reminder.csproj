@@ -10,6 +10,7 @@
         <RootNamespace>Game_Upgrade_Reminder</RootNamespace>
 
         <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>
