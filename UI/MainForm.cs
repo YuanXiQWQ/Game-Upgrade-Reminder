@@ -69,6 +69,123 @@ namespace Game_Upgrade_Reminder.UI
             Custom
         }
 
+        // ---------- 工具/辅助 ----------
+        private void UpdateStatusBar()
+        {
+            var now = DateTime.Now;
+            // 不统计“待删除”的任务
+            var total = tasks.Count(t => t is { PendingDelete: false });
+            var due = tasks.Count(t => t is { PendingDelete: false, Done: false } && t.Finish <= now);
+            var pending = tasks.Count(t => t is { PendingDelete: false, Done: false } && t.Finish > now);
+
+            lblTotal.Text = $"总数: {total}";
+            lblDue.Text = $"已到点: {due}";
+            lblPending.Text = $"进行中: {pending}";
+
+            // 计算下一个提醒点（包含提前提醒或到点提醒）
+            DateTime? next = null;
+            int adv = settings.AdvanceNotifySeconds;
+            foreach (var t in tasks)
+            {
+                if (adv > 0 && !t.AdvanceNotified)
+                {
+                    var advTime = t.Finish.AddSeconds(-adv);
+                    if (advTime > now) next = next == null || advTime < next ? advTime : next;
+                }
+
+                if (!t.Notified && t.Finish > now && (settings.AlsoNotifyAtDue || !t.AdvanceNotified))
+                {
+                    next = next == null || t.Finish < next ? t.Finish : next;
+                }
+            }
+
+            lblNext.Text = next.HasValue ? $@"下一个: {(next.Value - now):hh\:mm\:ss}" : "下一个: -";
+
+            // 同步托盘菜单状态
+            UpdateTrayMenuStatus();
+        }
+
+        private void UpdateTrayMenuStatus()
+        {
+            try
+            {
+                // 从状态栏文本直接同步，保持显示一致
+                miStatTotal.Text = lblTotal.Text;
+                miStatDue.Text = lblDue.Text;
+                miStatPending.Text = lblPending.Text;
+                miStatNext.Text = lblNext.Text;
+            }
+            catch
+            {
+                // 忽略
+            }
+        }
+
+        private void AdjustListViewColumns()
+        {
+            if (lv.Columns.Count < 8) return;
+
+            // 固定列总宽（开始、持续、完成、剩余、操作两列）
+            const int fixedSum = StartTimeColWidth + DurationColWidth + FinishTimeColWidth + RemainingTimeColWidth +
+                                 (ActionColWidth * 2);
+            var available = lv.ClientSize.Width - fixedSum - 8;
+            if (available < 100) available = 100;
+
+            // Account 与 Task 两列平均分配，并设置最小值
+            const int minA = 100, minT = 120;
+            var a = Math.Max(minA, available / 2);
+            var t = Math.Max(minT, available - a);
+
+            lv.Columns[0].Width = a; // 账号
+            lv.Columns[1].Width = t; // 任务
+            lv.Columns[2].Width = StartTimeColWidth;
+            lv.Columns[3].Width = DurationColWidth;
+            lv.Columns[4].Width = FinishTimeColWidth;
+            lv.Columns[5].Width = RemainingTimeColWidth;
+            lv.Columns[6].Width = ActionColWidth;
+            lv.Columns[7].Width = ActionColWidth;
+        }
+
+        private void MainForm_KeyDown(object? sender, KeyEventArgs e)
+        {
+            Action? handler = e.KeyData switch
+            {
+                Keys.F5 => () =>
+                {
+                    PurgePending(force: true);
+                    RefreshTable();
+                },
+                Keys.Control | Keys.N => () => { btnAddSave.PerformClick(); },
+                Keys.Control | Keys.Shift | Keys.D => () => { btnDeleteDone.PerformClick(); },
+                Keys.Control | Keys.O => OpenConfigFolder,
+                Keys.Control | Keys.U => () => { _ = CheckForUpdatesAsync(this); },
+                Keys.Control | Keys.Q => () =>
+                {
+                    settings.MinimizeOnClose = false;
+                    Close();
+                },
+                _ => null
+            };
+
+            if (handler is null) return;
+
+            e.Handled = true;
+            handler();
+        }
+
+        private static void OpenConfigFolder()
+        {
+            try
+            {
+                var folder = AppContext.BaseDirectory;
+                Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"无法打开配置文件夹：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private SortMode sortMode = SortMode.DefaultByFinish;
         private int customSortColumn = 4;
         private bool customSortAsc = true;
@@ -85,18 +202,84 @@ namespace Game_Upgrade_Reminder.UI
         private Font? strikeFont;
 
         // 控件
-        private readonly ComboBox cbAccount = new() { DropDownStyle = ComboBoxStyle.DropDownList };
-        private readonly Button btnAccountMgr = new() { Text = "账号管理" };
-        private readonly ComboBox cbTask = new() { DropDownStyle = ComboBoxStyle.DropDown };
-        private readonly Button btnTaskMgr = new() { Text = "任务管理" };
-        private readonly Button btnDeleteDone = new() { Text = "删除已完成" };
-        private readonly Button btnRefresh = new() { Text = "刷新" };
-        private readonly Button btnNow = new() { Text = "当前时间" };
-        private readonly NumericUpDown numDays = new() { Minimum = 0, Maximum = 3650, Width = 40 };
-        private readonly NumericUpDown numHours = new() { Minimum = 0, Maximum = 1000, Width = 40 };
-        private readonly NumericUpDown numMinutes = new() { Minimum = 0, Maximum = 59, Width = 40 };
-        private readonly TextBox tbFinish = new() { ReadOnly = true };
-        private readonly Button btnAddSave = new() { Text = "添加" };
+        private readonly ComboBox cbAccount = new()
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            AccessibleName = "账号",
+            AccessibleDescription = "选择账号"
+        };
+        private readonly Button btnAccountMgr = new()
+        {
+            Text = "账号管理(&M)",
+            AccessibleName = "账号管理",
+            AccessibleDescription = "打开账号管理"
+        };
+        private readonly ComboBox cbTask = new()
+        {
+            DropDownStyle = ComboBoxStyle.DropDown,
+            AccessibleName = "任务",
+            AccessibleDescription = "输入或选择任务"
+        };
+        private readonly Button btnTaskMgr = new()
+        {
+            Text = "任务管理(&K)",
+            AccessibleName = "任务管理",
+            AccessibleDescription = "打开任务管理"
+        };
+        private readonly Button btnDeleteDone = new()
+        {
+            Text = "删除已完成(&D)",
+            AccessibleName = "删除已完成",
+            AccessibleDescription = "删除已完成的任务（Ctrl+Shift+D）"
+        };
+        private readonly Button btnRefresh = new()
+        {
+            Text = "刷新(&R)",
+            AccessibleName = "刷新",
+            AccessibleDescription = "刷新列表（F5）"
+        };
+        private readonly Button btnNow = new()
+        {
+            Text = "当前时间(&T)",
+            AccessibleName = "当前时间",
+            AccessibleDescription = "将开始时间设置为当前时间"
+        };
+        private readonly NumericUpDown numDays = new()
+        {
+            Minimum = 0,
+            Maximum = 3650,
+            Width = 40,
+            AccessibleName = "天",
+            AccessibleDescription = "持续时间（天）"
+        };
+        private readonly NumericUpDown numHours = new()
+        {
+            Minimum = 0,
+            Maximum = 1000,
+            Width = 40,
+            AccessibleName = "小时",
+            AccessibleDescription = "持续时间（小时）"
+        };
+        private readonly NumericUpDown numMinutes = new()
+        {
+            Minimum = 0,
+            Maximum = 59,
+            Width = 40,
+            AccessibleName = "分钟",
+            AccessibleDescription = "持续时间（分钟）"
+        };
+        private readonly TextBox tbFinish = new()
+        {
+            ReadOnly = true,
+            AccessibleName = "完成时间",
+            AccessibleDescription = "根据开始时间与持续时间计算的完成时间"
+        };
+        private readonly Button btnAddSave = new()
+        {
+            Text = "添加(&N)",
+            AccessibleName = "添加",
+            AccessibleDescription = "添加/保存任务（Ctrl+N）"
+        };
 
         // 双缓冲 ListView
         private class DoubleBufferedListView : ListView
@@ -125,6 +308,12 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripMenuItem miSettings = new() { Text = "设置(&S)" };
         private readonly ToolStripMenuItem miFont = new() { Text = "选择字体(&F)..." };
         private readonly ToolStripMenuItem miAutoStart = new() { Text = "开机自启(&A)" };
+        private readonly ToolStripMenuItem miOpenConfig = new()
+        {
+            Text = "打开配置文件夹(&O)",
+            AccessibleName = "打开配置文件夹",
+            AccessibleDescription = "打开配置文件夹（Ctrl+O）"
+        };
         private readonly ToolStripMenuItem miAutoDelete = new() { Text = "已完成任务自行删除(&D)" };
         private readonly ToolStripMenuItem miDelOff = new() { Text = "关闭" };
         private readonly ToolStripMenuItem miDel30S = new() { Text = "30秒" };
@@ -149,6 +338,20 @@ namespace Game_Upgrade_Reminder.UI
         private readonly NotifyIcon tray = new();
         private readonly ContextMenuStrip trayMenu = new();
         private readonly TrayNotifier notifier;
+
+        // 托盘状态项
+        private readonly ToolStripMenuItem miStatHeader = new() { Text = "状态", Enabled = false };
+        private readonly ToolStripMenuItem miStatTotal = new() { Text = "总数: 0", Enabled = false };
+        private readonly ToolStripMenuItem miStatDue = new() { Text = "已到点: 0", Enabled = false };
+        private readonly ToolStripMenuItem miStatPending = new() { Text = "进行中: 0", Enabled = false };
+        private readonly ToolStripMenuItem miStatNext = new() { Text = "下一个: -", Enabled = false };
+
+        // 底部状态栏
+        private readonly StatusStrip status = new();
+        private readonly ToolStripStatusLabel lblTotal = new() { Text = "总数: 0" };
+        private readonly ToolStripStatusLabel lblDue = new() { Text = "已到点: 0" };
+        private readonly ToolStripStatusLabel lblPending = new() { Text = "进行中: 0" };
+        private readonly ToolStripStatusLabel lblNext = new() { Text = "下一个: -" };
 
         // 计时器
         private readonly System.Windows.Forms.Timer timerTick = new() { Interval = 1_000 };
@@ -186,6 +389,7 @@ namespace Game_Upgrade_Reminder.UI
             LoadSettings();
             ApplyDeletionPolicyFromSettings();
             ApplySettingsToUi();
+            RestoreWindowBoundsFromSettings();
             LoadTasks();
             if (sortMode == SortMode.DefaultByFinish) sortStrategy.Sort(tasks);
             RefreshTable();
@@ -257,6 +461,7 @@ namespace Game_Upgrade_Reminder.UI
             miSettings.DropDownItems.Add(miFont);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(miAutoStart);
+            miSettings.DropDownItems.Add(miOpenConfig);
             miSettings.DropDownItems.Add(miAutoDelete);
             miSettings.DropDownItems.Add(miAdvanceNotify);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
@@ -283,13 +488,14 @@ namespace Game_Upgrade_Reminder.UI
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 4,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink
             };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             Controls.Add(root);
 
             // 第 1 行（账号与任务）
@@ -324,8 +530,7 @@ namespace Game_Upgrade_Reminder.UI
             cbAccount.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             cbAccount.Margin = new Padding(0, 2, 6, 2);
             line1.Controls.Add(cbAccount, 1, 0);
-
-            btnAccountMgr.Text = "管理账号";
+            btnAccountMgr.Text = "管理账号(&M)";
             btnAccountMgr.AutoSize = true;
             btnAccountMgr.Anchor = AnchorStyles.Left;
             btnAccountMgr.Margin = new Padding(0, 2, 0, 2);
@@ -339,14 +544,14 @@ namespace Game_Upgrade_Reminder.UI
             cbTask.Margin = new Padding(0, 2, 6, 2);
             line1.Controls.Add(cbTask, 5, 0);
 
-            btnTaskMgr.Text = "管理任务";
+            btnTaskMgr.Text = "管理任务(&K)";
             btnTaskMgr.AutoSize = true;
             btnTaskMgr.Anchor = AnchorStyles.Left;
             btnTaskMgr.Margin = new Padding(0, 2, 0, 2);
             line1.Controls.Add(btnTaskMgr, 6, 0);
 
-            btnDeleteDone.Text = "删除已完成";
-            btnRefresh.Text = "刷新";
+            btnDeleteDone.Text = "删除已完成(&D)";
+            btnRefresh.Text = "刷新(&R)";
             StyleSmallButton(btnDeleteDone);
             StyleSmallButton(btnRefresh);
 
@@ -393,7 +598,7 @@ namespace Game_Upgrade_Reminder.UI
             dtpStart.Anchor = AnchorStyles.Left;
             line2.Controls.Add(dtpStart, 1, 0);
 
-            btnNow.Text = "当前时间";
+            btnNow.Text = "当前时间(&T)";
             btnNow.AutoSize = true;
             btnNow.Anchor = AnchorStyles.Left;
             btnNow.Margin = new Padding(0, 0, 0, 0);
@@ -422,7 +627,7 @@ namespace Game_Upgrade_Reminder.UI
             tbFinish.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             line2.Controls.Add(tbFinish, 11, 0);
 
-            btnAddSave.Text = "添加";
+            btnAddSave.Text = "添加(&N)";
             StyleSmallButton(btnAddSave, new Padding(0, 2, 0, 2));
             line2.Controls.Add(btnAddSave, 12, 0);
 
@@ -439,6 +644,18 @@ namespace Game_Upgrade_Reminder.UI
             root.Controls.Add(lv, 0, 2);
 
             InitListViewColumns();
+            AdjustListViewColumns();
+
+            // 底部状态栏
+            status.SizingGrip = true;
+            status.Items.Add(lblTotal);
+            status.Items.Add(new ToolStripStatusLabel("|") { ForeColor = SystemColors.ControlDark });
+            status.Items.Add(lblDue);
+            status.Items.Add(new ToolStripStatusLabel("|") { ForeColor = SystemColors.ControlDark });
+            status.Items.Add(lblPending);
+            status.Items.Add(new ToolStripStatusLabel("|") { ForeColor = SystemColors.ControlDark });
+            status.Items.Add(lblNext);
+            root.Controls.Add(status, 0, 3);
         }
 
         /// <summary>
@@ -481,6 +698,7 @@ namespace Game_Upgrade_Reminder.UI
             // 菜单事件
             miFont.Click += (_, _) => DoChooseFont();
             miAutoStart.Click += (_, _) => ToggleAutostart();
+            miOpenConfig.Click += (_, _) => OpenConfigFolder();
             // 自动删除下拉
             miAutoDelete.DropDownOpening += (_, _) => UpdateAutoDeleteMenuChecks();
             miAutoDelete.MouseEnter += (_, _) =>
@@ -602,6 +820,7 @@ namespace Game_Upgrade_Reminder.UI
             {
                 if (me.Button == MouseButtons.Left) HandleListClick();
             };
+            lv.Resize += (_, _) => AdjustListViewColumns();
 
             // 列头点击排序（文本为主，部分列有特殊处理）
             lv.ColumnClick += (_, e) =>
@@ -644,6 +863,15 @@ namespace Game_Upgrade_Reminder.UI
 
             // 关闭按钮 -> 最小化逻辑
             FormClosing += MainForm_FormClosing;
+
+            // 窗口尺寸/位置变更时记忆
+            LocationChanged += (_, _) => UpdateWindowBoundsToSettings(save: false);
+            SizeChanged += (_, _) => UpdateWindowBoundsToSettings(save: false);
+            Resize += (_, _) => AdjustListViewColumns();
+
+            // 快捷键
+            KeyPreview = true;
+            KeyDown += MainForm_KeyDown;
         }
 
         // ---------- 关于对话框（可点击链接 + 检查更新按钮） ----------
@@ -881,6 +1109,8 @@ namespace Game_Upgrade_Reminder.UI
             }
             else
             {
+                // 保存窗口位置与尺寸
+                UpdateWindowBoundsToSettings(save: true);
                 SaveTasks();
                 SaveSettings();
                 tray.Visible = false;
@@ -1225,17 +1455,39 @@ namespace Game_Upgrade_Reminder.UI
                 Activate();
             };
 
+            // 菜单样式优化
+            trayMenu.ShowImageMargin = false;
+            trayMenu.RenderMode = ToolStripRenderMode.System;
+
+            // 状态区（只读项）
+            miStatHeader.Font = new Font(Font, FontStyle.Bold);
+            trayMenu.Items.Add(miStatHeader);
+            trayMenu.Items.Add(miStatTotal);
+            trayMenu.Items.Add(miStatDue);
+            trayMenu.Items.Add(miStatPending);
+            trayMenu.Items.Add(miStatNext);
+            trayMenu.Items.Add(new ToolStripSeparator());
+
             trayMenu.Items.Add("打开(&O)", null, (_, _) =>
             {
                 Show();
                 Activate();
             });
+            trayMenu.Items.Add("刷新(&R)", null, (_, _) =>
+            {
+                PurgePending(force: true);
+                RefreshTable();
+            });
+            trayMenu.Items.Add("检查更新(&U)", null, (_, _) => { _ = CheckForUpdatesAsync(this, openOnNew: true); });
+            trayMenu.Items.Add("打开配置文件夹(&F)", null, (_, _) => OpenConfigFolder());
             trayMenu.Items.Add("退出(&X)", null, (_, _) =>
             {
                 settings.MinimizeOnClose = false;
                 Close();
             });
             tray.ContextMenuStrip = trayMenu;
+
+            UpdateTrayMenuStatus();
         }
 
         // ---------- 列表 ----------
@@ -1274,6 +1526,8 @@ namespace Game_Upgrade_Reminder.UI
 
             lv.ListViewItemSorter = new ListViewItemComparer(customSortColumn, customSortAsc);
             lv.Sort();
+            AdjustListViewColumns();
+            UpdateStatusBar();
         }
 
         private void UpdateRemainingCells()
@@ -1311,6 +1565,8 @@ namespace Game_Upgrade_Reminder.UI
                 row.SubItems[6].Text = t.Done ? "撤销完成" : "完成";
                 row.SubItems[7].Text = t.PendingDelete ? "撤销删除" : "删除";
             }
+
+            UpdateStatusBar();
         }
 
         private void HandleListClick()
@@ -1425,6 +1681,7 @@ namespace Game_Upgrade_Reminder.UI
 
             SaveTasks();
             RefreshTable();
+            UpdateStatusBar();
         }
 
         private void DeleteAllDone()
@@ -1474,6 +1731,7 @@ namespace Game_Upgrade_Reminder.UI
 
             if (changed) SaveTasks();
             RescheduleNextTick();
+            UpdateStatusBar();
         }
 
         // 自适应调度：带“提前量(guard)”与“上下限夹紧”的计时器间隔计算
@@ -1604,6 +1862,63 @@ namespace Game_Upgrade_Reminder.UI
             deletionPolicy = new SimpleDeletionPolicy(pendingDeleteDelaySeconds: 3, completedKeepSeconds: keepSecs);
         }
 
+        // ---------- 窗口记忆 ----------
+        private void RestoreWindowBoundsFromSettings()
+        {
+            try
+            {
+                if (settings is { WindowWidth: > 0, WindowHeight: > 0 })
+                {
+                    var bounds = new Rectangle(
+                        settings.WindowX >= 0 ? settings.WindowX : Location.X,
+                        settings.WindowY >= 0 ? settings.WindowY : Location.Y,
+                        settings.WindowWidth,
+                        settings.WindowHeight);
+
+                    // 确保窗口在任何屏幕可见范围内
+                    var screen = Screen.FromRectangle(bounds);
+                    var wa = screen.WorkingArea;
+                    var safe = Rectangle.Intersect(bounds,
+                        new Rectangle(wa.X, wa.Y, Math.Max(200, wa.Width), Math.Max(200, wa.Height)));
+                    if (safe is { Width: >= 400, Height: >= 300 })
+                    {
+                        StartPosition = FormStartPosition.Manual;
+                        Bounds = bounds;
+                    }
+                }
+
+                if (settings.WindowMaximized)
+                {
+                    WindowState = FormWindowState.Maximized;
+                }
+            }
+            catch
+            {
+                // 忽略
+            }
+        }
+
+        private void UpdateWindowBoundsToSettings(bool save)
+        {
+            try
+            {
+                settings.WindowMaximized = WindowState == FormWindowState.Maximized;
+                if (WindowState == FormWindowState.Normal)
+                {
+                    settings.WindowX = Bounds.X;
+                    settings.WindowY = Bounds.Y;
+                    settings.WindowWidth = Bounds.Width;
+                    settings.WindowHeight = Bounds.Height;
+                }
+
+                if (save) SaveSettings();
+            }
+            catch
+            {
+                /* ignore */
+            }
+        }
+
         // ---------- 更新检查辅助 ----------
         private static Version GetCurrentVersion()
         {
@@ -1685,13 +2000,15 @@ namespace Game_Upgrade_Reminder.UI
 
                 if (!Version.TryParse(normalized, out var latestVer))
                 {
-                    if (MessageBox.Show(owner, $"检测到最新版本标记：{tag}\n无法解析为标准版本号，是否打开发布页？",
-                            "检查更新", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                    if (MessageBox.Show(owner,
+                            $"检测到最新版本标记：{tag}\n无法解析为标准版本号，是否打开发布页？",
+                            "检查更新", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes)
                     {
-                        var url = string.IsNullOrWhiteSpace(latest.HtmlUrl) ? releasesPage : latest.HtmlUrl;
-                        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                        return;
                     }
 
+                    var url = string.IsNullOrWhiteSpace(latest.HtmlUrl) ? releasesPage : latest.HtmlUrl;
+                    Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
                     return;
                 }
 

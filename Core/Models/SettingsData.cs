@@ -94,6 +94,16 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// <value>默认为true</value>
         public bool MinimizeOnClose { get; set; } = true;
 
+        // 窗口记忆
+        /// <summary>
+        /// 主窗口左上角位置与尺寸以及最大化状态
+        /// </summary>
+        public int WindowX { get; set; } = -1;
+        public int WindowY { get; set; } = -1;
+        public int WindowWidth { get; set; } = -1;
+        public int WindowHeight { get; set; } = -1;
+        public bool WindowMaximized { get; set; }
+
         // 清理设置
         /// <summary>
         /// 获取或设置一个值，指示是否在任务完成后1分钟自动删除
