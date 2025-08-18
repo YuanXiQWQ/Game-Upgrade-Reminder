@@ -68,6 +68,11 @@ namespace Game_Upgrade_Reminder.Core.Models
         public bool Notified { get; set; }
 
         /// <summary>
+        /// 获取或设置一个值，指示是否已发送“提前通知”
+        /// </summary>
+        public bool AdvanceNotified { get; set; }
+
+        /// <summary>
         /// 获取或设置一个值，指示任务是否已完成
         /// </summary>
         public bool Done { get; set; }

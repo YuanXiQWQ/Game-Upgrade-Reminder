@@ -15,6 +15,7 @@
     <ItemGroup>
         <Compile Include="Program.cs"/>
         <Compile Include="UI\MainForm.cs"/>
+        <Compile Include="UI\AdvanceTimeDialog.cs"/>
         <Compile Include="UI\InputBox.cs"/>
         <Compile Include="UI\ManageListForm.cs"/>
 

@@ -60,6 +60,18 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// <value>默认值为5分钟</value>
         public int NotifyBeforeMinutes { get; init; } = 5;
 
+        /// <summary>
+        /// 获取或设置任务到期前提前通知的秒数（0 表示关闭提前通知）
+        /// </summary>
+        /// <value>默认值为 0（关闭提前通知）</value>
+        public int AdvanceNotifySeconds { get; set; }
+
+        /// <summary>
+        /// 获取或设置一个值，指示是否在到点时也进行通知（与提前通知并存）
+        /// </summary>
+        /// <value>默认值为 true（即同时进行到点通知）</value>
+        public bool AlsoNotifyAtDue { get; set; } = true;
+
         // 启动设置
         /// <summary>
         /// 获取或设置一个值，指示是否随Windows自动启动

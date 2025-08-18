@@ -123,6 +123,15 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripMenuItem miFont = new() { Text = "选择字体(&F)..." };
         private readonly ToolStripMenuItem miAutoStart = new() { Text = "开机自启(&A)" };
         private readonly ToolStripMenuItem miAutoDeleteAfter1Min = new() { Text = "已完成任务在1分钟后自行删除(&D)" };
+        private readonly ToolStripMenuItem miAdvanceNotify = new() { Text = "提前通知(&N)" };
+        private readonly ToolStripMenuItem miAdvOff = new() { Text = "关闭" };
+        private readonly ToolStripMenuItem miAdvAlsoDue = new() { Text = "同时准点通知" };
+        private readonly ToolStripMenuItem miAdv30s = new() { Text = "30秒" };
+        private readonly ToolStripMenuItem miAdv1m = new() { Text = "1分钟" };
+        private readonly ToolStripMenuItem miAdv3m = new() { Text = "3分钟" };
+        private readonly ToolStripMenuItem miAdv30m = new() { Text = "30分钟" };
+        private readonly ToolStripMenuItem miAdv1h = new() { Text = "1小时" };
+        private readonly ToolStripMenuItem miAdvCustom = new() { Text = "自定义..." };
         private readonly ToolStripMenuItem miCloseExit = new() { Text = "退出程序" };
         private readonly ToolStripMenuItem miCloseMinimize = new() { Text = "最小化到托盘" };
         private readonly ToolStripMenuItem miAboutTop = new() { Text = "关于(&A)..." };
@@ -132,7 +141,7 @@ namespace Game_Upgrade_Reminder.UI
         private readonly TrayNotifier notifier;
 
         // Timers
-        private readonly System.Windows.Forms.Timer timerTick = new() { Interval = 30_000 };
+        private readonly System.Windows.Forms.Timer timerTick = new() { Interval = 1_000 };
         private readonly System.Windows.Forms.Timer timerUi = new() { Interval = 1000 };
         private readonly System.Windows.Forms.Timer timerPurge = new() { Interval = 500 };
 
@@ -195,8 +204,11 @@ namespace Game_Upgrade_Reminder.UI
             followSystemStartTime = true;
             RecalcFinishFromFields();
 
-            // Tray
+            // 托盘初始化
             InitTray();
+
+            // 初始调度（根据最近的提醒点设置计时器间隔）
+            RescheduleNextTick();
         }
 
         // ---------- Menu / UI ----------
@@ -205,10 +217,25 @@ namespace Game_Upgrade_Reminder.UI
             var closeSub = new ToolStripMenuItem("关闭按钮行为(&C)");
             closeSub.DropDownItems.AddRange([miCloseExit, miCloseMinimize]);
 
+            // Advance notify presets
+            miAdvanceNotify.DropDownItems.AddRange([
+                miAdvOff,
+                miAdvAlsoDue,
+                new ToolStripSeparator(),
+                miAdv30s,
+                miAdv1m,
+                miAdv3m,
+                miAdv30m,
+                miAdv1h,
+                new ToolStripSeparator(),
+                miAdvCustom
+            ]);
+
             miSettings.DropDownItems.Add(miFont);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(miAutoStart);
             miSettings.DropDownItems.Add(miAutoDeleteAfter1Min);
+            miSettings.DropDownItems.Add(miAdvanceNotify);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(closeSub);
 
@@ -433,6 +460,32 @@ namespace Game_Upgrade_Reminder.UI
             miFont.Click += (_, _) => DoChooseFont();
             miAutoStart.Click += (_, _) => ToggleAutostart();
             miAutoDeleteAfter1Min.Click += (_, _) => ToggleAutoDeleteAfter1Min();
+            miAdvanceNotify.DropDownOpening += (_, _) => UpdateAdvanceMenuChecks();
+            miAdvanceNotify.MouseEnter += (_, _) =>
+            {
+                if (!miAdvanceNotify.DropDown.Visible) miAdvanceNotify.ShowDropDown();
+            };
+            miAdvOff.Click += (_, _) => SetAdvanceSecondsAndSave(0);
+            miAdv30s.Click += (_, _) => SetAdvanceSecondsAndSave(30);
+            miAdv1m.Click += (_, _) => SetAdvanceSecondsAndSave(60);
+            miAdv3m.Click += (_, _) => SetAdvanceSecondsAndSave(180);
+            miAdv30m.Click += (_, _) => SetAdvanceSecondsAndSave(1800);
+            miAdv1h.Click += (_, _) => SetAdvanceSecondsAndSave(3600);
+            miAdvAlsoDue.Click += (_, _) =>
+            {
+                settings.AlsoNotifyAtDue = !settings.AlsoNotifyAtDue;
+                SaveSettings();
+                UpdateAdvanceMenuChecks();
+                RescheduleNextTick();
+            };
+            miAdvCustom.Click += (_, _) =>
+            {
+                using var dlg = new AdvanceTimeDialog(settings.AdvanceNotifySeconds);
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    SetAdvanceSecondsAndSave(dlg.TotalSeconds);
+                }
+            };
             miCloseExit.Click += (_, _) =>
             {
                 settings.MinimizeOnClose = false;
@@ -1004,6 +1057,39 @@ private void ShowAboutDialog()
             miCloseExit.Checked = !settings.MinimizeOnClose;
             miCloseMinimize.Checked = settings.MinimizeOnClose;
             miAutoDeleteAfter1Min.Checked = settings.AutoDeleteCompletedAfter1Min;
+            UpdateAdvanceMenuChecks();
+        }
+
+        private void UpdateAdvanceMenuChecks()
+        {
+            var secs = settings.AdvanceNotifySeconds;
+            var presets = new Dictionary<ToolStripMenuItem, int>
+            {
+                { miAdvOff, 0 },
+                { miAdv30s, 30 },
+                { miAdv1m, 60 },
+                { miAdv3m, 180 },
+                { miAdv30m, 1800 },
+                { miAdv1h, 3600 }
+            };
+
+            foreach (var kv in presets)
+                kv.Key.Checked = kv.Value == secs;
+
+            // Custom -> checked when positive and not a preset
+            miAdvCustom.Checked = secs > 0 && !presets.Values.Contains(secs);
+            miAdvAlsoDue.Checked = settings.AlsoNotifyAtDue;
+        }
+
+        private void SetAdvanceSecondsAndSave(int secs)
+        {
+            if (secs < 0) secs = 0;
+            settings.AdvanceNotifySeconds = secs;
+            SaveSettings();
+            UpdateAdvanceMenuChecks();
+            // 先立即检查一次，再重新计算下次触发，防止临近提醒点被错过
+            CheckDueAndNotify();
+            RescheduleNextTick();
         }
 
         private void ApplyUiFont(Font f)
@@ -1227,6 +1313,7 @@ private void ShowAboutDialog()
                 Minutes = m,
                 Finish = fin,
                 Notified = false,
+                AdvanceNotified = false,
                 Done = false,
                 PendingDelete = false,
                 DeleteMarkTime = null
@@ -1266,9 +1353,32 @@ private void ShowAboutDialog()
         private void CheckDueAndNotify()
         {
             var changed = false;
+            var now = DateTime.Now;
             foreach (var t in tasks)
             {
-                if (t.Finish > DateTime.Now || t.Notified) continue;
+                // Advance notify
+                var adv = settings.AdvanceNotifySeconds;
+                if (adv > 0 && !t.AdvanceNotified && t.Finish > now)
+                {
+                    var advTime = t.Finish.AddSeconds(-adv);
+                    if (advTime <= now)
+                    {
+                        notifier.Toast($"[提前] {t.Account}", $"{t.TaskName} 即将到点，完成时间：{t.FinishStr}");
+                        t.AdvanceNotified = true;
+                        changed = true;
+                    }
+                }
+
+                // 到点提醒
+                if (t.Finish > now || t.Notified) continue;
+
+                // 若用户关闭“同时准点通知”，且已进行过提前通知，则此处直接标记已到点通知，避免再次弹窗
+                if (!settings.AlsoNotifyAtDue && t.AdvanceNotified)
+                {
+                    t.Notified = true;
+                    changed = true;
+                    continue;
+                }
 
                 notifier.Toast($"[到点] {t.Account}", $"{t.TaskName} 完成时间：{t.FinishStr}");
                 t.Notified = true;
@@ -1276,6 +1386,61 @@ private void ShowAboutDialog()
             }
 
             if (changed) SaveTasks();
+            RescheduleNextTick();
+        }
+
+        // 自适应调度：带“提前量(guard)”与“上下限夹紧”的计时器间隔计算
+        private void RescheduleNextTick()
+        {
+            try
+            {
+                var now = DateTime.Now;
+                DateTime? next = null;
+                var adv = settings.AdvanceNotifySeconds;
+
+                foreach (var t in tasks)
+                {
+                    // 候选1：提前提醒时间点（若启用且尚未提前提醒）
+                    if (adv > 0 && !t.AdvanceNotified)
+                    {
+                        var advTime = t.Finish.AddSeconds(-adv);
+                        if (advTime > now)
+                            next = next == null || advTime < next ? advTime : next;
+                    }
+
+                    // 候选2：到点提醒时间（遵循 AlsoNotifyAtDue 设置）
+                    if (!t.Notified)
+                    {
+                        if (!settings.AlsoNotifyAtDue && t.AdvanceNotified)
+                        {
+                            // 已提前提醒且关闭了“同时准点通知” -> 跳过到点提醒的调度
+                        }
+                        else if (t.Finish > now)
+                        {
+                            next = next == null || t.Finish < next ? t.Finish : next;
+                        }
+                    }
+                }
+
+                const int minMs = 1000;   // 最小间隔 1 秒
+                const int maxMs = 5000;   // 最大间隔 5 秒（避免等待过久）
+                const int guardSec = 3;   // 提前量 3 秒（稍早唤醒以对冲计时抖动）
+
+                int interval = maxMs;
+                if (next.HasValue)
+                {
+                    var target = next.Value.AddSeconds(-guardSec);
+                    if (target < now) target = now.AddMilliseconds(minMs); // 若已过期，则尽快（按最小间隔）检查
+                    var deltaMs = (int)Math.Max(0, (target - now).TotalMilliseconds);
+                    interval = Math.Clamp(deltaMs, minMs, maxMs);
+                }
+
+                timerTick.Interval = interval;
+            }
+            catch
+            {
+                // 忽略异常，防止影响计时器工作
+            }
         }
 
         private void PurgePending(bool force)
