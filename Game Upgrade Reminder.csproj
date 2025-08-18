@@ -52,8 +52,8 @@
     </PropertyGroup>
     
     <PropertyGroup>
-        <AssemblyVersion>1.1.1.0</AssemblyVersion>
-        <FileVersion>1.1.1.0</FileVersion>
+        <AssemblyVersion>1.1.1.1</AssemblyVersion>
+        <FileVersion>1.1.1.1</FileVersion>
         <InformationalVersion>1.1.1</InformationalVersion>
         <Company>YuanXiQWQ</Company>
         <Product>游戏升级提醒</Product>

@@ -16,6 +16,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Game_Upgrade_Reminder.Core.Services;
 using Game_Upgrade_Reminder.Infrastructure.Repositories;
 using Game_Upgrade_Reminder.Infrastructure.System;
@@ -1435,7 +1436,7 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
-        // ---------- Due notify & delayed delete ----------
+        // ---------- 到点提醒 ----------
         private void CheckDueAndNotify()
         {
             var changed = false;
@@ -1525,7 +1526,7 @@ namespace Game_Upgrade_Reminder.UI
             }
             catch
             {
-                // 忽略异常，防止影响计时器工作
+                // 忽略
             }
         }
 
@@ -1552,7 +1553,7 @@ namespace Game_Upgrade_Reminder.UI
             RefreshTable();
         }
 
-        // ---------- Manager dialog ----------
+        // ---------- 管理列表 ----------
         private void ShowManager(bool isAccount)
         {
             using var dlg = new ManageListForm(isAccount ? "账号管理" : "任务管理",
@@ -1577,7 +1578,7 @@ namespace Game_Upgrade_Reminder.UI
             SaveSettings();
         }
 
-        // ---------- Autostart ----------
+        // ---------- 开机自启 ----------
         private void ToggleAutostart()
         {
             settings.StartupOnBoot = !settings.StartupOnBoot;
@@ -1596,17 +1597,17 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
-        // ---------- Deletion policy toggle ----------
+        // ---------- 删除策略开关 ----------
         private void ApplyDeletionPolicyFromSettings()
         {
             var keepSecs = settings.AutoDeleteCompletedSeconds > 0 ? settings.AutoDeleteCompletedSeconds : int.MaxValue;
             deletionPolicy = new SimpleDeletionPolicy(pendingDeleteDelaySeconds: 3, completedKeepSeconds: keepSecs);
         }
 
-        // ---------- Update check helpers ----------
+        // ---------- 更新检查辅助 ----------
         private static Version GetCurrentVersion()
         {
-            // Prefer AssemblyInformationalVersion, then FileVersion, then ProductVersion
+            // 优先使用 AssemblyInformationalVersion；若无则用 FileVersion；再退而求其次使用 ProductVersion
             var asm = Assembly.GetExecutingAssembly();
 
             var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
@@ -1625,11 +1626,26 @@ namespace Game_Upgrade_Reminder.UI
             return new Version(0, 0, 0, 0);
         }
 
+        private static Version NormalizeVersion(Version v)
+        {
+            // 将缺省的 Build/Revision 归一化为 0，避免 1.1.1 与 1.1.1.0 被误判为不同版本
+            var build = v.Build < 0 ? 0 : v.Build;
+            var rev = v.Revision < 0 ? 0 : v.Revision;
+            return new Version(v.Major, v.Minor, build, rev);
+        }
+
+        private static string FormatVersionForDisplay(Version v) =>
+            v.Revision == 0
+                ? (v.Build == 0
+                    ? $"{v.Major}.{v.Minor}"
+                    : $"{v.Major}.{v.Minor}.{v.Build}")
+                : $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+
         private sealed class GitHubLatestRelease
         {
-            public string? TagName { get; init; }
-            public string? HtmlUrl { get; init; }
-            public string? Name { get; init; }
+            [JsonPropertyName("tag_name")] public string? TagName { get; init; }
+            [JsonPropertyName("html_url")] public string? HtmlUrl { get; init; }
+            [JsonPropertyName("name")] public string? Name { get; init; }
         }
 
         private async Task CheckForUpdatesAsync(IWin32Window owner, bool openOnNew = true)
@@ -1640,7 +1656,7 @@ namespace Game_Upgrade_Reminder.UI
             try
             {
                 using var http = new HttpClient();
-                // GitHub API requires a User-Agent
+                // GitHub API 需要设置 User-Agent 请求头
                 http.DefaultRequestHeaders.UserAgent.ParseAdd("Game-Upgrade-Reminder/1.0 (+WinForms)");
 
                 var resp = await http.GetAsync(apiUrl);
@@ -1663,7 +1679,7 @@ namespace Game_Upgrade_Reminder.UI
                     return;
                 }
 
-                var current = GetCurrentVersion();
+                var current = NormalizeVersion(GetCurrentVersion());
                 var tag = latest.TagName.Trim();
                 var normalized = tag.TrimStart('v', 'V');
 
@@ -1679,9 +1695,12 @@ namespace Game_Upgrade_Reminder.UI
                     return;
                 }
 
+                latestVer = NormalizeVersion(latestVer);
+
                 if (latestVer > current)
                 {
-                    var msg = $"发现新版本：v{latestVer}\n当前版本：v{current}\n是否前往下载？";
+                    var msg =
+                        $"发现新版本：v{FormatVersionForDisplay(latestVer)}\n当前版本：v{FormatVersionForDisplay(current)}\n是否前往下载？";
                     if (!openOnNew ||
                         MessageBox.Show(owner, msg, "有可用更新", MessageBoxButtons.YesNo, MessageBoxIcon.Information) ==
                         DialogResult.Yes)
@@ -1692,7 +1711,8 @@ namespace Game_Upgrade_Reminder.UI
                 }
                 else
                 {
-                    MessageBox.Show(owner, $"已是最新版本（当前 v{current}）。", "检查更新", MessageBoxButtons.OK,
+                    MessageBox.Show(owner, $"已是最新版本（当前 v{FormatVersionForDisplay(current)}）。", "检查更新",
+                        MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
                 }
             }
