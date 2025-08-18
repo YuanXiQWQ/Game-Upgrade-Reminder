@@ -99,7 +99,14 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// 获取或设置一个值，指示是否在任务完成后1分钟自动删除
         /// </summary>
         /// <value>默认为true（与旧版本行为一致）</value>
-        public bool AutoDeleteCompletedAfter1Min { get; set; } = true;
+        public bool AutoDeleteCompletedAfter1Min { get; init; } = true;
+
+        /// <summary>
+        /// 获取或设置任务完成后自动删除的延迟秒数。
+        /// 0 表示关闭“已完成任务自动删除”。
+        /// </summary>
+        /// <value>默认值为 60 秒（与旧版“1分钟后”行为一致）。</value>
+        public int AutoDeleteCompletedSeconds { get; set; } = 60;
 
         // 预设
         /// <summary>

@@ -50,7 +50,7 @@ namespace Game_Upgrade_Reminder.UI
         private readonly RegistryAutostartManager autostartManager = new();
         private readonly ByFinishTimeSortStrategy sortStrategy = new();
         private SimpleDeletionPolicy deletionPolicy =
-            new(pendingDeleteDelaySeconds: 3, completedKeepMinutes: 1);
+            new(pendingDeleteDelaySeconds: 3, completedKeepSeconds: 60);
         private readonly ZhCnDurationFormatter durationFormatter = new();
 
         // 状态
@@ -122,7 +122,14 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripMenuItem miSettings = new() { Text = "设置(&S)" };
         private readonly ToolStripMenuItem miFont = new() { Text = "选择字体(&F)..." };
         private readonly ToolStripMenuItem miAutoStart = new() { Text = "开机自启(&A)" };
-        private readonly ToolStripMenuItem miAutoDeleteAfter1Min = new() { Text = "已完成任务在1分钟后自行删除(&D)" };
+        private readonly ToolStripMenuItem miAutoDelete = new() { Text = "已完成任务自行删除(&D)" };
+        private readonly ToolStripMenuItem miDelOff = new() { Text = "关闭" };
+        private readonly ToolStripMenuItem miDel30S = new() { Text = "30秒" };
+        private readonly ToolStripMenuItem miDel1M = new() { Text = "1分钟" };
+        private readonly ToolStripMenuItem miDel3M = new() { Text = "3分钟" };
+        private readonly ToolStripMenuItem miDel30M = new() { Text = "30分钟" };
+        private readonly ToolStripMenuItem miDel1H = new() { Text = "1小时" };
+        private readonly ToolStripMenuItem miDelCustom = new() { Text = "自定义..." };
         private readonly ToolStripMenuItem miAdvanceNotify = new() { Text = "提前通知(&N)" };
         private readonly ToolStripMenuItem miAdvOff = new() { Text = "关闭" };
         private readonly ToolStripMenuItem miAdvAlsoDue = new() { Text = "同时准点通知" };
@@ -220,6 +227,19 @@ namespace Game_Upgrade_Reminder.UI
             var closeSub = new ToolStripMenuItem("关闭按钮行为(&C)");
             closeSub.DropDownItems.AddRange([miCloseExit, miCloseMinimize]);
 
+            // 已完成任务自动删除 预设
+            miAutoDelete.DropDownItems.AddRange([
+                miDelOff,
+                new ToolStripSeparator(),
+                miDel30S,
+                miDel1M,
+                miDel3M,
+                miDel30M,
+                miDel1H,
+                new ToolStripSeparator(),
+                miDelCustom
+            ]);
+
             // 提前通知预设
             miAdvanceNotify.DropDownItems.AddRange([
                 miAdvOff,
@@ -237,7 +257,7 @@ namespace Game_Upgrade_Reminder.UI
             miSettings.DropDownItems.Add(miFont);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(miAutoStart);
-            miSettings.DropDownItems.Add(miAutoDeleteAfter1Min);
+            miSettings.DropDownItems.Add(miAutoDelete);
             miSettings.DropDownItems.Add(miAdvanceNotify);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(closeSub);
@@ -461,7 +481,26 @@ namespace Game_Upgrade_Reminder.UI
             // 菜单事件
             miFont.Click += (_, _) => DoChooseFont();
             miAutoStart.Click += (_, _) => ToggleAutostart();
-            miAutoDeleteAfter1Min.Click += (_, _) => ToggleAutoDeleteAfter1Min();
+            // 自动删除下拉
+            miAutoDelete.DropDownOpening += (_, _) => UpdateAutoDeleteMenuChecks();
+            miAutoDelete.MouseEnter += (_, _) =>
+            {
+                if (!miAutoDelete.DropDown.Visible) miAutoDelete.ShowDropDown();
+            };
+            miDelOff.Click += (_, _) => SetAutoDeleteSecondsAndSave(0);
+            miDel30S.Click += (_, _) => SetAutoDeleteSecondsAndSave(30);
+            miDel1M.Click += (_, _) => SetAutoDeleteSecondsAndSave(60);
+            miDel3M.Click += (_, _) => SetAutoDeleteSecondsAndSave(180);
+            miDel30M.Click += (_, _) => SetAutoDeleteSecondsAndSave(1800);
+            miDel1H.Click += (_, _) => SetAutoDeleteSecondsAndSave(3600);
+            miDelCustom.Click += (_, _) =>
+            {
+                using var dlg = new AdvanceTimeDialog(settings.AutoDeleteCompletedSeconds);
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    SetAutoDeleteSecondsAndSave(dlg.TotalSeconds);
+                }
+            };
             miAdvanceNotify.DropDownOpening += (_, _) => UpdateAdvanceMenuChecks();
             miAdvanceNotify.MouseEnter += (_, _) =>
             {
@@ -1046,6 +1085,18 @@ namespace Game_Upgrade_Reminder.UI
                 settings.StartupOnBoot = autostartManager.IsEnabled();
                 SaveSettings();
             }
+            
+            if (settings is { AutoDeleteCompletedSeconds: <= 0, AutoDeleteCompletedAfter1Min: true })
+            {
+                settings.AutoDeleteCompletedSeconds = 60;
+                SaveSettings();
+            }
+            // 合法性：不可为负
+            if (settings.AutoDeleteCompletedSeconds < 0)
+            {
+                settings.AutoDeleteCompletedSeconds = 0;
+                SaveSettings();
+            }
 
             UpdateMenuChecks();
         }
@@ -1091,7 +1142,7 @@ namespace Game_Upgrade_Reminder.UI
             miAutoStart.Checked = settings.StartupOnBoot;
             miCloseExit.Checked = !settings.MinimizeOnClose;
             miCloseMinimize.Checked = settings.MinimizeOnClose;
-            miAutoDeleteAfter1Min.Checked = settings.AutoDeleteCompletedAfter1Min;
+            UpdateAutoDeleteMenuChecks();
             UpdateAdvanceMenuChecks();
         }
 
@@ -1128,6 +1179,39 @@ namespace Game_Upgrade_Reminder.UI
             // 先立即检查一次，再重新计算下次触发，防止临近提醒点被错过
             CheckDueAndNotify();
             RescheduleNextTick();
+        }
+
+        /// <summary>
+        /// 根据当前设置更新“已完成任务自动删除”菜单勾选状态。
+        /// </summary>
+        private void UpdateAutoDeleteMenuChecks()
+        {
+            var secs = settings.AutoDeleteCompletedSeconds;
+            var presets = new Dictionary<ToolStripMenuItem, int>
+            {
+                { miDelOff, 0 },
+                { miDel30S, 30 },
+                { miDel1M, 60 },
+                { miDel3M, 180 },
+                { miDel30M, 1800 },
+                { miDel1H, 3600 }
+            };
+
+            foreach (var kv in presets)
+                kv.Key.Checked = kv.Value == secs;
+
+            miDelCustom.Checked = secs > 0 && !presets.Values.Contains(secs);
+        }
+
+        private void SetAutoDeleteSecondsAndSave(int secs)
+        {
+            if (secs < 0) secs = 0;
+            settings.AutoDeleteCompletedSeconds = secs;
+            ApplyDeletionPolicyFromSettings();
+            SaveSettings();
+            UpdateAutoDeleteMenuChecks();
+            // 变更后立即进行一次清理尝试（非强制），以尽快反映设置
+            PurgePending(force: false);
         }
 
         private void ApplyUiFont(Font f)
@@ -1557,16 +1641,8 @@ namespace Game_Upgrade_Reminder.UI
         // ---------- Deletion policy toggle ----------
         private void ApplyDeletionPolicyFromSettings()
         {
-            var keepMinutes = settings.AutoDeleteCompletedAfter1Min ? 1 : int.MaxValue;
-            deletionPolicy = new SimpleDeletionPolicy(pendingDeleteDelaySeconds: 3, completedKeepMinutes: keepMinutes);
-        }
-
-        private void ToggleAutoDeleteAfter1Min()
-        {
-            settings.AutoDeleteCompletedAfter1Min = !settings.AutoDeleteCompletedAfter1Min;
-            ApplyDeletionPolicyFromSettings();
-            SaveSettings();
-            UpdateMenuChecks();
+            var keepSecs = settings.AutoDeleteCompletedSeconds > 0 ? settings.AutoDeleteCompletedSeconds : int.MaxValue;
+            deletionPolicy = new SimpleDeletionPolicy(pendingDeleteDelaySeconds: 3, completedKeepSeconds: keepSecs);
         }
 
         // ---------- Update check helpers ----------
