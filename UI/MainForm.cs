@@ -90,10 +90,10 @@ namespace Game_Upgrade_Reminder.UI
                 // 清除 ListView 的焦点项
                 lv.FocusedItem = null;
 
-                // 可选地把焦点移到其它控件上
-                if (moveFocusAway && dtpStart.CanFocus)
+                // 把焦点移出到窗体（不让任何子控件获得焦点）
+                if (moveFocusAway)
                 {
-                    ActiveControl = dtpStart;
+                    ActiveControl = null;
                 }
             }
             catch
@@ -116,9 +116,9 @@ namespace Game_Upgrade_Reminder.UI
                 }
 
                 lv.FocusedItem = null;
-                if (moveFocusAway && dtpStart.CanFocus)
+                if (moveFocusAway)
                 {
-                    ActiveControl = dtpStart;
+                    ActiveControl = null;
                 }
             }
             catch
@@ -503,7 +503,7 @@ namespace Game_Upgrade_Reminder.UI
                 }
             }
 
-            for (int i = 0; i < lv.Columns.Count; i++)
+            for (var i = 0; i < lv.Columns.Count; i++)
             {
                 var item = new Hditem { mask = HdiFormat };
                 SendMessage(header, HdmGetItem, new IntPtr(i), ref item);
@@ -587,7 +587,7 @@ namespace Game_Upgrade_Reminder.UI
             Shown += (_, _) =>
             {
                 UpdateListViewSortArrow();
-                if (dtpStart.CanFocus) ActiveControl = dtpStart;
+                ActiveControl = null;
                 ClearListViewFocusIfNoSelection();
             };
         }
@@ -824,7 +824,7 @@ namespace Game_Upgrade_Reminder.UI
 
             dtpStart.Format = DateTimePickerFormat.Custom;
             dtpStart.CustomFormat = "yyyy-MM-dd HH:mm";
-            dtpStart.ShowUpDown = true;
+            dtpStart.ShowUpDown = false;
             dtpStart.Margin = new Padding(0, 2, 6, 2);
             dtpStart.Anchor = AnchorStyles.Left;
             line2.Controls.Add(dtpStart, 1, 0);
@@ -1106,7 +1106,7 @@ namespace Game_Upgrade_Reminder.UI
                 {
                     if (lv.SelectedIndices.Count != 0) return;
                     ClearListViewFocusRegardlessOfSelection();
-                    if (dtpStart.CanFocus) dtpStart.Focus();
+                    ActiveControl = null;
                 });
             };
 
@@ -1803,8 +1803,8 @@ namespace Game_Upgrade_Reminder.UI
                     if (lv.SelectedIndices.Count != 0) return;
                     ClearListViewFocusRegardlessOfSelection();
                     // 若列表当前仍持有焦点，则把焦点移出以彻底避免焦点框
-                    if (lv.Focused && dtpStart.CanFocus)
-                        dtpStart.Focus();
+                    if (lv.Focused)
+                        ActiveControl = null;
                 });
             }
         }
