@@ -60,6 +60,18 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// <value>默认值为5分钟</value>
         public int NotifyBeforeMinutes { get; init; } = 5;
 
+        /// <summary>
+        /// 获取或设置任务到期前提前通知的秒数（0 表示关闭提前通知）
+        /// </summary>
+        /// <value>默认值为 0（关闭提前通知）</value>
+        public int AdvanceNotifySeconds { get; set; }
+
+        /// <summary>
+        /// 获取或设置一个值，指示是否在到点时也进行通知（与提前通知并存）
+        /// </summary>
+        /// <value>默认值为 true（即同时进行到点通知）</value>
+        public bool AlsoNotifyAtDue { get; set; } = true;
+
         // 启动设置
         /// <summary>
         /// 获取或设置一个值，指示是否随Windows自动启动
@@ -81,6 +93,20 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// </summary>
         /// <value>默认为true</value>
         public bool MinimizeOnClose { get; set; } = true;
+
+        // 清理设置
+        /// <summary>
+        /// 获取或设置一个值，指示是否在任务完成后1分钟自动删除
+        /// </summary>
+        /// <value>默认为true（与旧版本行为一致）</value>
+        public bool AutoDeleteCompletedAfter1Min { get; init; } = true;
+
+        /// <summary>
+        /// 获取或设置任务完成后自动删除的延迟秒数。
+        /// 0 表示关闭“已完成任务自动删除”。
+        /// </summary>
+        /// <value>默认值为 60 秒（与旧版“1分钟后”行为一致）。</value>
+        public int AutoDeleteCompletedSeconds { get; set; } = 60;
 
         // 预设
         /// <summary>

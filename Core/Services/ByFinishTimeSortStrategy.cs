@@ -54,7 +54,7 @@ namespace Game_Upgrade_Reminder.Core.Services
         /// </remarks>
         public void Insert(BindingList<TaskItem> tasks, TaskItem item)
         {
-            int i = 0;
+            var i = 0;
             while (i < tasks.Count && tasks[i].Finish <= item.Finish) i++;
             tasks.Insert(i, item);
         }

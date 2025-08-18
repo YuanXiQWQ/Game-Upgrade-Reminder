@@ -26,8 +26,8 @@ namespace Game_Upgrade_Reminder.Core.Services
     /// 2. 已完成的任务在保留指定时间后删除
     /// </remarks>
     /// <param name="pendingDeleteDelaySeconds">标记为删除后的延迟秒数，默认为3秒</param>
-    /// <param name="completedKeepMinutes">任务完成后保留的分钟数，默认为1分钟</param>
-    public sealed class SimpleDeletionPolicy(int pendingDeleteDelaySeconds = 3, int completedKeepMinutes = 1) : IDeletionPolicy
+    /// <param name="completedKeepSeconds">任务完成后保留的秒数，默认为60秒</param>
+    public sealed class SimpleDeletionPolicy(int pendingDeleteDelaySeconds = 3, int completedKeepSeconds = 60) : IDeletionPolicy
     {
         /// <summary>
         /// 获取标记为删除后的延迟秒数
@@ -35,9 +35,9 @@ namespace Game_Upgrade_Reminder.Core.Services
         public int PendingDeleteDelaySeconds { get; } = pendingDeleteDelaySeconds;
 
         /// <summary>
-        /// 获取任务完成后保留的分钟数
+        /// 获取任务完成后保留的秒数
         /// </summary>
-        public int CompletedKeepMinutes { get; } = completedKeepMinutes;
+        public int CompletedKeepSeconds { get; } = completedKeepSeconds;
 
         /// <summary>
         /// 确定是否应该删除指定的任务
@@ -52,7 +52,7 @@ namespace Game_Upgrade_Reminder.Core.Services
         ///    - force为true，或者
         ///    - 自标记时间起已超过<see cref="PendingDeleteDelaySeconds"/>秒
         /// 2. 任务已完成，并且：
-        ///    - 自完成时间起已超过<see cref="CompletedKeepMinutes"/>分钟
+        ///    - 自完成时间起已超过<see cref="CompletedKeepSeconds"/>秒
         /// </remarks>
         public bool ShouldRemove(TaskItem task, DateTime now, bool force)
         {
@@ -63,7 +63,7 @@ namespace Game_Upgrade_Reminder.Core.Services
                     return true;
             }
             else if (task is { Done: true, CompletedTime: not null } &&
-                     (now - task.CompletedTime.Value).TotalMinutes >= CompletedKeepMinutes)
+                     (now - task.CompletedTime.Value).TotalSeconds >= CompletedKeepSeconds)
             {
                 return true;
             }

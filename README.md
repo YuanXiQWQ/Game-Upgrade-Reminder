@@ -57,6 +57,10 @@
 - 应该是 bug 吧，踩死就好了
 - 可以到 Issues 页面报告，不过我很可能不知道怎么修
 
+### 有时候任务会错位
+
+- 已知问题，暂时没稳定复现出来，所以不知道怎么修，通常更新一下任意列的排序就好了
+
 ## 许可证
 
 本项目采用 [GNU Affero General Public License v3.0](LICENSE) 开源许可。
@@ -122,6 +126,11 @@ created for "Boom Beach."
 
 - Probably a miracle bug (aka feature)
 - You can report issues, but I probably won't know how to fix them
+
+### Sometimes tasks get misaligned
+
+- Known issue, not consistently reproducible yet, so I don’t really know how to fix it. Usually just updating the sort
+  order of any column works.
 
 ## License
 

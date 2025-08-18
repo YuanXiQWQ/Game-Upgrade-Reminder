@@ -13,8 +13,16 @@
 
 namespace Game_Upgrade_Reminder
 {
+    /// <summary>
+    /// 应用程序入口点。
+    /// </summary>
     internal static class Program
     {
+        /// <summary>
+        /// 主入口方法。
+        /// 支持命令行参数 <c>--minimized</c>：以最小化方式启动主窗口（并立即隐藏）。
+        /// </summary>
+        /// <param name="args">命令行参数。</param>
         [STAThread]
         private static void Main(string[] args)
         {

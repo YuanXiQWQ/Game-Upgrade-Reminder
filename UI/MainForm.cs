@@ -24,13 +24,17 @@ using Game_Upgrade_Reminder.Core.Models;
 
 namespace Game_Upgrade_Reminder.UI
 {
+    /// <summary>
+    /// 主窗体：负责界面布局、用户交互、任务展示与托盘交互。
+    /// 主要模块：菜单、顶部账号/任务区、时间区、任务列表、托盘与通知、设置的加载/保存。
+    /// </summary>
     public sealed class MainForm : Form
     {
-        // Constants
+        // 常量
         private const string AppTitle = "游戏升级提醒";
         private static readonly Color DueBackColor = Color.FromArgb(230, 230, 230);
 
-        // Column widths
+        // 列宽
         private const int AccountColWidth = 150;
         private const int TaskColWidth = 150;
         private const int StartTimeColWidth = 130;
@@ -40,22 +44,18 @@ namespace Game_Upgrade_Reminder.UI
         private const int ActionColWidth = 50;
         private const int ExtraSpace = 50;
 
-        // Services
+        // 服务
         private readonly JsonTaskRepository taskRepo = new();
         private readonly JsonSettingsStore settingsStore = new();
         private readonly RegistryAutostartManager autostartManager = new();
         private readonly ByFinishTimeSortStrategy sortStrategy = new();
-
-        private readonly SimpleDeletionPolicy deletionPolicy =
-            new(pendingDeleteDelaySeconds: 3, completedKeepMinutes: 1);
-
+        private SimpleDeletionPolicy deletionPolicy =
+            new(pendingDeleteDelaySeconds: 3, completedKeepSeconds: 60);
         private readonly ZhCnDurationFormatter durationFormatter = new();
 
-        // State
+        // 状态
         private SettingsData settings = new();
         private readonly BindingList<TaskItem> tasks = [];
-
-        // New logic flags (keep)
         private bool followSystemStartTime;
         private bool isUpdatingStartProgrammatically;
         private bool userEditingStart;
@@ -78,10 +78,10 @@ namespace Game_Upgrade_Reminder.UI
             Width = 160
         };
 
-        // Fonts
+        // 字体
         private Font? strikeFont;
 
-        // Controls
+        // 控件
         private readonly ComboBox cbAccount = new() { DropDownStyle = ComboBoxStyle.DropDownList };
         private readonly Button btnAccountMgr = new() { Text = "账号管理" };
         private readonly ComboBox cbTask = new() { DropDownStyle = ComboBoxStyle.DropDown };
@@ -95,7 +95,7 @@ namespace Game_Upgrade_Reminder.UI
         private readonly TextBox tbFinish = new() { ReadOnly = true };
         private readonly Button btnAddSave = new() { Text = "添加" };
 
-        // Double buffered ListView
+        // 双缓冲 ListView
         private class DoubleBufferedListView : ListView
         {
             public DoubleBufferedListView()
@@ -117,25 +117,42 @@ namespace Game_Upgrade_Reminder.UI
 
         private readonly ListView lv = new DoubleBufferedListView();
 
-        // Menu & tray
+        // 菜单与托盘
         private readonly MenuStrip menu = new();
         private readonly ToolStripMenuItem miSettings = new() { Text = "设置(&S)" };
         private readonly ToolStripMenuItem miFont = new() { Text = "选择字体(&F)..." };
         private readonly ToolStripMenuItem miAutoStart = new() { Text = "开机自启(&A)" };
+        private readonly ToolStripMenuItem miAutoDelete = new() { Text = "已完成任务自行删除(&D)" };
+        private readonly ToolStripMenuItem miDelOff = new() { Text = "关闭" };
+        private readonly ToolStripMenuItem miDel30S = new() { Text = "30秒" };
+        private readonly ToolStripMenuItem miDel1M = new() { Text = "1分钟" };
+        private readonly ToolStripMenuItem miDel3M = new() { Text = "3分钟" };
+        private readonly ToolStripMenuItem miDel30M = new() { Text = "30分钟" };
+        private readonly ToolStripMenuItem miDel1H = new() { Text = "1小时" };
+        private readonly ToolStripMenuItem miDelCustom = new() { Text = "自定义..." };
+        private readonly ToolStripMenuItem miAdvanceNotify = new() { Text = "提前通知(&N)" };
+        private readonly ToolStripMenuItem miAdvOff = new() { Text = "关闭" };
+        private readonly ToolStripMenuItem miAdvAlsoDue = new() { Text = "同时准点通知" };
+        private readonly ToolStripMenuItem miAdv30S = new() { Text = "30秒" };
+        private readonly ToolStripMenuItem miAdv1M = new() { Text = "1分钟" };
+        private readonly ToolStripMenuItem miAdv3M = new() { Text = "3分钟" };
+        private readonly ToolStripMenuItem miAdv30M = new() { Text = "30分钟" };
+        private readonly ToolStripMenuItem miAdv1H = new() { Text = "1小时" };
+        private readonly ToolStripMenuItem miAdvCustom = new() { Text = "自定义..." };
         private readonly ToolStripMenuItem miCloseExit = new() { Text = "退出程序" };
         private readonly ToolStripMenuItem miCloseMinimize = new() { Text = "最小化到托盘" };
-        private readonly ToolStripMenuItem miAboutTop = new() { Text = "关于(&A)..." }; // top-level About
+        private readonly ToolStripMenuItem miAboutTop = new() { Text = "关于(&A)..." };
 
         private readonly NotifyIcon tray = new();
         private readonly ContextMenuStrip trayMenu = new();
         private readonly TrayNotifier notifier;
 
-        // Timers
-        private readonly System.Windows.Forms.Timer timerTick = new() { Interval = 30_000 };
+        // 计时器
+        private readonly System.Windows.Forms.Timer timerTick = new() { Interval = 1_000 };
         private readonly System.Windows.Forms.Timer timerUi = new() { Interval = 1000 };
         private readonly System.Windows.Forms.Timer timerPurge = new() { Interval = 500 };
 
-        // Drag sort
+        // 拖拽排序
         private ListViewItem? dragItem;
 
         public MainForm()
@@ -165,14 +182,15 @@ namespace Game_Upgrade_Reminder.UI
             BuildUi();
             WireEvents();
 
-            // Load settings/tasks
+            // 加载设置与任务
             LoadSettings();
+            ApplyDeletionPolicyFromSettings();
             ApplySettingsToUi();
             LoadTasks();
             if (sortMode == SortMode.DefaultByFinish) sortStrategy.Sort(tasks);
             RefreshTable();
 
-            // Sync autostart state
+            // 同步自启动状态
             var actuallyOn = autostartManager.IsEnabled();
             if (actuallyOn != settings.StartupOnBoot)
             {
@@ -181,37 +199,70 @@ namespace Game_Upgrade_Reminder.UI
                 UpdateMenuChecks();
             }
 
-            // Timers
+            // 启动计时器
             timerTick.Start();
             timerUi.Start();
             timerPurge.Start();
 
-            // Initial start time follow system
+            // 初始开始时间跟随系统时间
             isUpdatingStartProgrammatically = true;
             dtpStart.Value = DateTime.Now;
             isUpdatingStartProgrammatically = false;
             followSystemStartTime = true;
             RecalcFinishFromFields();
 
-            // Tray
+            // 托盘初始化
             InitTray();
+
+            // 初始调度（根据最近的提醒点设置计时器间隔）
+            RescheduleNextTick();
         }
 
-        // ---------- Menu / UI ----------
+        // ---------- 菜单 / 界面 ----------
+        /// <summary>
+        /// 构建主菜单与设置项，包括字体、开机自启、自动删除、提前通知与关闭按钮行为等。
+        /// </summary>
         private void BuildMenu()
         {
             var closeSub = new ToolStripMenuItem("关闭按钮行为(&C)");
             closeSub.DropDownItems.AddRange([miCloseExit, miCloseMinimize]);
 
+            // 已完成任务自动删除 预设
+            miAutoDelete.DropDownItems.AddRange([
+                miDelOff,
+                new ToolStripSeparator(),
+                miDel30S,
+                miDel1M,
+                miDel3M,
+                miDel30M,
+                miDel1H,
+                new ToolStripSeparator(),
+                miDelCustom
+            ]);
+
+            // 提前通知预设
+            miAdvanceNotify.DropDownItems.AddRange([
+                miAdvOff,
+                miAdvAlsoDue,
+                new ToolStripSeparator(),
+                miAdv30S,
+                miAdv1M,
+                miAdv3M,
+                miAdv30M,
+                miAdv1H,
+                new ToolStripSeparator(),
+                miAdvCustom
+            ]);
+
             miSettings.DropDownItems.Add(miFont);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(miAutoStart);
+            miSettings.DropDownItems.Add(miAutoDelete);
+            miSettings.DropDownItems.Add(miAdvanceNotify);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(closeSub);
 
             menu.Items.Add(miSettings);
-
-            // Put "About" on the right end
             miAboutTop.Alignment = ToolStripItemAlignment.Left;
             menu.Items.Add(miAboutTop);
 
@@ -219,6 +270,10 @@ namespace Game_Upgrade_Reminder.UI
             Controls.Add(menu);
         }
 
+        /// <summary>
+        /// 构建主界面布局与控件结构（不含业务逻辑）。
+        /// 包含：账号/任务区、时间与持续时长区、任务列表区。
+        /// </summary>
         private void BuildUi()
         {
             AutoScaleMode = AutoScaleMode.Dpi;
@@ -237,7 +292,7 @@ namespace Game_Upgrade_Reminder.UI
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             Controls.Add(root);
 
-            // Row 1
+            // 第 1 行（账号与任务）
             var gbTop = new GroupBox { Text = "", Dock = DockStyle.Fill, Padding = new Padding(10, 6, 10, 6) };
             var line1 = new TableLayoutPanel
             {
@@ -290,19 +345,6 @@ namespace Game_Upgrade_Reminder.UI
             btnTaskMgr.Margin = new Padding(0, 2, 0, 2);
             line1.Controls.Add(btnTaskMgr, 6, 0);
 
-            static void StyleSmallButton(Button b, Padding? margin = null)
-            {
-                // English comments as requested
-                b.AutoSize = true;
-                b.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-                b.Dock = DockStyle.None;
-                b.Anchor = AnchorStyles.Left;
-                b.Margin = margin ?? new Padding(6, 2, 0, 2);
-                b.Padding = new Padding(6, 0, 6, 1);
-                b.Height = 24;
-                b.MinimumSize = new Size(0, 24);
-            }
-
             btnDeleteDone.Text = "删除已完成";
             btnRefresh.Text = "刷新";
             StyleSmallButton(btnDeleteDone);
@@ -314,7 +356,7 @@ namespace Game_Upgrade_Reminder.UI
             gbTop.Controls.Add(line1);
             root.Controls.Add(gbTop, 0, 0);
 
-            // Row 2
+            // 第 2 行（时间与持续时长）
             var gbTime = new GroupBox { Text = "", Dock = DockStyle.Fill, Padding = new Padding(10, 6, 10, 6) };
             var line2 = new TableLayoutPanel
             {
@@ -387,7 +429,7 @@ namespace Game_Upgrade_Reminder.UI
             gbTime.Controls.Add(line2);
             root.Controls.Add(gbTime, 0, 1);
 
-            // Row 3
+            // 第 3 行（任务列表）
             lv.Dock = DockStyle.Fill;
             lv.FullRowSelect = true;
             lv.GridLines = true;
@@ -399,6 +441,9 @@ namespace Game_Upgrade_Reminder.UI
             InitListViewColumns();
         }
 
+        /// <summary>
+        /// 初始化任务列表列头与列宽，确保与常量宽度保持一致。
+        /// </summary>
         private void InitListViewColumns()
         {
             lv.Columns.Clear();
@@ -415,6 +460,9 @@ namespace Game_Upgrade_Reminder.UI
             ]);
         }
 
+        /// <summary>
+        /// 生成自动尺寸的标签，常用于表单左侧的说明文字。
+        /// </summary>
         private static Label MakeAutoLabel(string text) => new()
         {
             Text = text,
@@ -424,11 +472,61 @@ namespace Game_Upgrade_Reminder.UI
             Anchor = AnchorStyles.Left
         };
 
+        /// <summary>
+        /// 统一绑定菜单、输入控件、列表、计时器等事件处理。
+        /// 仅连接事件与状态更新，不包含业务数据加载。
+        /// </summary>
         private void WireEvents()
         {
-            // Menu
+            // 菜单事件
             miFont.Click += (_, _) => DoChooseFont();
             miAutoStart.Click += (_, _) => ToggleAutostart();
+            // 自动删除下拉
+            miAutoDelete.DropDownOpening += (_, _) => UpdateAutoDeleteMenuChecks();
+            miAutoDelete.MouseEnter += (_, _) =>
+            {
+                if (!miAutoDelete.DropDown.Visible) miAutoDelete.ShowDropDown();
+            };
+            miDelOff.Click += (_, _) => SetAutoDeleteSecondsAndSave(0);
+            miDel30S.Click += (_, _) => SetAutoDeleteSecondsAndSave(30);
+            miDel1M.Click += (_, _) => SetAutoDeleteSecondsAndSave(60);
+            miDel3M.Click += (_, _) => SetAutoDeleteSecondsAndSave(180);
+            miDel30M.Click += (_, _) => SetAutoDeleteSecondsAndSave(1800);
+            miDel1H.Click += (_, _) => SetAutoDeleteSecondsAndSave(3600);
+            miDelCustom.Click += (_, _) =>
+            {
+                using var dlg = new AdvanceTimeDialog(settings.AutoDeleteCompletedSeconds);
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    SetAutoDeleteSecondsAndSave(dlg.TotalSeconds);
+                }
+            };
+            miAdvanceNotify.DropDownOpening += (_, _) => UpdateAdvanceMenuChecks();
+            miAdvanceNotify.MouseEnter += (_, _) =>
+            {
+                if (!miAdvanceNotify.DropDown.Visible) miAdvanceNotify.ShowDropDown();
+            };
+            miAdvOff.Click += (_, _) => SetAdvanceSecondsAndSave(0);
+            miAdv30S.Click += (_, _) => SetAdvanceSecondsAndSave(30);
+            miAdv1M.Click += (_, _) => SetAdvanceSecondsAndSave(60);
+            miAdv3M.Click += (_, _) => SetAdvanceSecondsAndSave(180);
+            miAdv30M.Click += (_, _) => SetAdvanceSecondsAndSave(1800);
+            miAdv1H.Click += (_, _) => SetAdvanceSecondsAndSave(3600);
+            miAdvAlsoDue.Click += (_, _) =>
+            {
+                settings.AlsoNotifyAtDue = !settings.AlsoNotifyAtDue;
+                SaveSettings();
+                UpdateAdvanceMenuChecks();
+                RescheduleNextTick();
+            };
+            miAdvCustom.Click += (_, _) =>
+            {
+                using var dlg = new AdvanceTimeDialog(settings.AdvanceNotifySeconds);
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    SetAdvanceSecondsAndSave(dlg.TotalSeconds);
+                }
+            };
             miCloseExit.Click += (_, _) =>
             {
                 settings.MinimizeOnClose = false;
@@ -443,7 +541,7 @@ namespace Game_Upgrade_Reminder.UI
             };
             miAboutTop.Click += (_, _) => ShowAboutDialog();
 
-            // Start time edit detection
+            // 开始时间编辑检测
             dtpStart.MouseDown += (_, _) => userEditingStart = true;
             dtpStart.KeyDown += (_, _) => userEditingStart = true;
             dtpStart.CloseUp += (_, _) => userEditingStart = true;
@@ -478,7 +576,7 @@ namespace Game_Upgrade_Reminder.UI
                 AddOrSaveTask();
             };
 
-            // Test button (keep)
+            // 测试按钮（保留）
             var btnTest = new Button { Text = "测试排序", Location = new Point(10, 10), AutoSize = true };
             btnTest.Click += (_, _) => TestSorting();
             Controls.Add(btnTest);
@@ -498,14 +596,14 @@ namespace Game_Upgrade_Reminder.UI
             btnAccountMgr.Click += (_, _) => ShowManager(isAccount: true);
             btnTaskMgr.Click += (_, _) => ShowManager(isAccount: false);
 
-            // ListView behaviors
+            // 列表行为
             lv.ItemActivate += (_, _) => HandleListClick();
             lv.MouseUp += (_, me) =>
             {
                 if (me.Button == MouseButtons.Left) HandleListClick();
             };
 
-            // Drag to reorder -> Custom mode
+            // 拖动以重新排序 -> 切换为自定义模式
             lv.ItemDrag += (_, e) =>
             {
                 if (e.Item == null) return;
@@ -517,7 +615,7 @@ namespace Game_Upgrade_Reminder.UI
             lv.DragOver += (_, e) => e.Effect = DragDropEffects.Move;
             lv.DragDrop += Lv_DragDrop;
 
-            // Column click sort (text-based with special columns)
+            // 列头点击排序（文本为主，部分列有特殊处理）
             lv.ColumnClick += (_, e) =>
             {
                 sortMode = SortMode.Custom;
@@ -542,7 +640,7 @@ namespace Game_Upgrade_Reminder.UI
                 SaveTasks();
             };
 
-            // Timers
+            // 计时器
             timerTick.Tick += (_, _) => CheckDueAndNotify();
             timerUi.Tick += (_, _) =>
             {
@@ -556,203 +654,232 @@ namespace Game_Upgrade_Reminder.UI
             };
             timerPurge.Tick += (_, _) => PurgePending(force: false);
 
-            // Close -> minimize logic
+            // 关闭按钮 -> 最小化逻辑
             FormClosing += MainForm_FormClosing;
         }
 
-        // ---------- About dialog with clickable link + update button ----------
-
-// 响应式、美观的“关于”对话框（替换原 ShowAboutDialog）
-private void ShowAboutDialog()
-{
-    const string appDisplayName = "游戏升级提醒";
-    const string gitHubUrl = "https://github.com/YuanXiQWQ/Game-Upgrade-Reminder";
-    const string licenseUrl = "https://www.gnu.org/licenses/agpl-3.0.html";
-
-    var ver = GetCurrentVersion();
-    var versionText = $"版本 v{ver.Major}.{ver.Minor}.{ver.Build}" + (ver.Revision > 0 ? $".{ver.Revision}" : "");
-
-    using var dlg = new Form();
-    dlg.Text = "关于";
-    dlg.StartPosition = FormStartPosition.CenterParent;
-    dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
-    dlg.MinimizeBox = false;
-    dlg.MaximizeBox = false;
-    dlg.ShowInTaskbar = false;
-    dlg.AutoScaleMode = AutoScaleMode.Dpi;
-    dlg.AutoSize = true;
-    dlg.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-    dlg.MinimumSize = new Size(640, 420);
-    dlg.BackColor = SystemColors.Window;
-
-    // ===== 外层：内容区 + 底部按钮条 =====
-    var contentHost = new Panel
-    {
-        Dock = DockStyle.Fill,
-        Padding = new Padding(16),
-        AutoScroll = true
-    };
-    var buttonBar = new Panel
-    {
-        Dock = DockStyle.Bottom,
-        Height = 56,
-        Padding = new Padding(16, 8, 16, 16),
-        BackColor = SystemColors.Window
-    };
-    dlg.Controls.Add(contentHost);
-    dlg.Controls.Add(buttonBar);
-
-    // ===== 内容容器：单列 TableLayout，避免 Dock 顺序问题 =====
-    var content = new TableLayoutPanel
-    {
-        Dock = DockStyle.Top,            // 放在可滚动面板顶部
-        AutoSize = true,                 // 根据子控件自然增高
-        AutoSizeMode = AutoSizeMode.GrowAndShrink,
-        ColumnCount = 1,
-        BackColor = SystemColors.Window
-    };
-    content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-    contentHost.Controls.Add(content);
-
-    // ===== 1) 头部：左图标 + 右标题/副标题 + 分隔线 =====
-    var header = new TableLayoutPanel
-    {
-        Dock = DockStyle.Top,
-        AutoSize = true,
-        ColumnCount = 2
-    };
-    header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-    header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-
-    var pic = new PictureBox
-    {
-        SizeMode = PictureBoxSizeMode.Zoom,
-        Size = new Size(64, 64),
-        Margin = new Padding(0, 0, 16, 0),
-        Image = (Icon ?? SystemIcons.Information).ToBitmap()
-    };
-    header.Controls.Add(pic, 0, 0);
-
-    var headerRight = new TableLayoutPanel
-    {
-        Dock = DockStyle.Fill,
-        AutoSize = true,
-        ColumnCount = 1
-    };
-    var titleLabel = new Label
-    {
-        AutoSize = true,
-        Text = appDisplayName,
-        Font = new Font(SystemFonts.CaptionFont?.FontFamily ?? SystemFonts.DefaultFont.FontFamily, 16f, FontStyle.Bold),
-        Margin = new Padding(0, 0, 0, 4)
-    };
-    var subLabel = new Label
-    {
-        AutoSize = true,
-        Text = "游戏升级计时与提醒工具（说不定还能拿来干点其它的:>）",
-        ForeColor = SystemColors.GrayText,
-        Margin = new Padding(0, 0, 0, 8)
-    };
-    var sepHeader = new Panel { Height = 1, Dock = DockStyle.Top, BackColor = SystemColors.ControlLight, Margin = new Padding(0, 4, 0, 0) };
-    headerRight.Controls.Add(titleLabel);
-    headerRight.Controls.Add(subLabel);
-    headerRight.Controls.Add(sepHeader);
-
-    header.Controls.Add(headerRight, 1, 0);
-    content.Controls.Add(header);
-
-    // ===== 2) 信息卡片：版本/版权/项目/许可证 =====
-    var card = new TableLayoutPanel
-    {
-        Dock = DockStyle.Top,
-        AutoSize = true,
-        ColumnCount = 2,
-        BackColor = Color.FromArgb(248, 248, 248),
-        Padding = new Padding(12),
-        Margin = new Padding(0, 12, 0, 0)
-    };
-    card.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-    card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-
-    Label L(string t) => new()
-    {
-        AutoSize = true,
-        Text = t,
-        ForeColor = SystemColors.GrayText,
-        Margin = new Padding(0, 6, 12, 6)
-    };
-    Label V(string t) => new()
-    {
-        AutoSize = true,
-        Text = t,
-        Margin = new Padding(0, 6, 0, 6)
-    };
-
-    card.Controls.Add(L("版本"));
-    card.Controls.Add(V(versionText));
-
-    card.Controls.Add(L("版权"));
-    card.Controls.Add(V("© 2025 YuanXiQWQ  •  AGPL-3.0"));
-
-    card.Controls.Add(L("许可证"));
-    var linkLicense = new LinkLabel
-    {
-        AutoSize = true,
-        Text = "GNU AGPL-3.0",
-        Margin = new Padding(0, 6, 0, 6)
-    };
-    linkLicense.Links.Add(0, linkLicense.Text.Length, licenseUrl);
-    linkLicense.LinkClicked += (_, e) =>
-    {
-        var url = e.Link.LinkData?.ToString();
-        if (string.IsNullOrEmpty(url)) return;
-        
-        try
+        // ---------- 关于对话框（可点击链接 + 检查更新按钮） ----------
+        /// <summary>
+        /// 显示“关于”对话框：包含版本信息、版权与许可证、项目链接，并提供“检查更新”。
+        /// 使用主窗体作为更新检查的宿主，避免捕获临时对话框实例。
+        /// </summary>
+        private void ShowAboutDialog()
         {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            const string appDisplayName = "游戏升级提醒";
+            const string gitHubUrl = "https://github.com/YuanXiQWQ/Game-Upgrade-Reminder";
+            const string licenseUrl = "https://www.gnu.org/licenses/agpl-3.0.html";
+
+            var ver = GetCurrentVersion();
+            var versionText = $"版本 v{ver.Major}.{ver.Minor}.{ver.Build}" + (ver.Revision > 0 ? $".{ver.Revision}" : "");
+
+            using var dlg = new Form();
+            dlg.Text = "关于";
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+            dlg.MinimizeBox = false;
+            dlg.MaximizeBox = false;
+            dlg.ShowInTaskbar = false;
+            dlg.AutoScaleMode = AutoScaleMode.Dpi;
+            dlg.AutoSize = true;
+            dlg.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            dlg.MinimumSize = new Size(640, 420);
+            dlg.BackColor = SystemColors.Window;
+
+            // ===== 外层：内容区 + 底部按钮条 =====
+            var contentHost = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(16),
+                AutoScroll = true
+            };
+            var buttonBar = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 56,
+                Padding = new Padding(16, 8, 16, 16),
+                BackColor = SystemColors.Window
+            };
+            dlg.Controls.Add(contentHost);
+            dlg.Controls.Add(buttonBar);
+
+            // ===== 内容容器：单列 TableLayout，避免 Dock 顺序问题 =====
+            var content = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top, // 放在可滚动面板顶部
+                AutoSize = true, // 根据子控件自然增高
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1,
+                BackColor = SystemColors.Window
+            };
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            contentHost.Controls.Add(content);
+
+            // ===== 1) 头部：左图标 + 右标题/副标题 + 分隔线 =====
+            var header = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2
+            };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            var pic = new PictureBox
+            {
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Size = new Size(64, 64),
+                Margin = new Padding(0, 0, 16, 0),
+                Image = (Icon ?? SystemIcons.Information).ToBitmap()
+            };
+            header.Controls.Add(pic, 0, 0);
+
+            var headerRight = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                ColumnCount = 1
+            };
+            var titleLabel = new Label
+            {
+                AutoSize = true,
+                Text = appDisplayName,
+                Font = new Font(SystemFonts.CaptionFont?.FontFamily ?? SystemFonts.DefaultFont.FontFamily, 16f,
+                    FontStyle.Bold),
+                Margin = new Padding(0, 0, 0, 4)
+            };
+            var subLabel = new Label
+            {
+                AutoSize = true,
+                Text = "游戏升级计时与提醒工具（说不定还能拿来干点其它的:>）",
+                ForeColor = SystemColors.GrayText,
+                Margin = new Padding(0, 0, 0, 8)
+            };
+            var sepHeader = new Panel
+            {
+                Height = 1, Dock = DockStyle.Top, BackColor = SystemColors.ControlLight,
+                Margin = new Padding(0, 4, 0, 0)
+            };
+            headerRight.Controls.Add(titleLabel);
+            headerRight.Controls.Add(subLabel);
+            headerRight.Controls.Add(sepHeader);
+
+            header.Controls.Add(headerRight, 1, 0);
+            content.Controls.Add(header);
+
+            // ===== 2) 信息卡片：版本/版权/项目/许可证 =====
+            var card = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2,
+                BackColor = Color.FromArgb(248, 248, 248),
+                Padding = new Padding(12),
+                Margin = new Padding(0, 12, 0, 0)
+            };
+            card.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+
+            card.Controls.Add(CreateMetaLabel("版本"));
+            card.Controls.Add(CreateMetaValue(versionText));
+
+            card.Controls.Add(CreateMetaLabel("版权"));
+            card.Controls.Add(CreateMetaValue("© 2025 YuanXiQWQ  •  AGPL-3.0"));
+
+            card.Controls.Add(CreateMetaLabel("许可证"));
+            var linkLicense = new LinkLabel
+            {
+                AutoSize = true,
+                Text = "GNU AGPL-3.0",
+                Margin = new Padding(0, 6, 0, 6)
+            };
+            linkLicense.Links.Add(0, linkLicense.Text.Length, licenseUrl);
+            linkLicense.LinkClicked += (_, e) =>
+            {
+                var url = e.Link?.LinkData?.ToString();
+                if (string.IsNullOrEmpty(url)) return;
+
+                try
+                {
+                    Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"无法打开链接: {ex.Message}");
+                }
+            };
+            card.Controls.Add(linkLicense);
+
+            content.Controls.Add(card); // 第 1 行
+
+            // ===== 3) 底部按钮条：左两右一 =====
+            var btnGitHub = new Button { AutoSize = true, Text = "打开 GitHub" };
+            btnGitHub.Click += (_, _) => Process.Start(new ProcessStartInfo(gitHubUrl) { UseShellExecute = true });
+
+            var btnUpdate = new Button { AutoSize = true, Text = "检查更新" };
+            btnUpdate.Click += async (_, _) => await CheckForUpdatesAsync(this);
+
+            var btnClose = new Button { AutoSize = true, Text = "关闭", DialogResult = DialogResult.OK };
+
+            var btnLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                ColumnCount = 4
+            };
+            btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+            btnLayout.Controls.Add(btnGitHub, 0, 0);
+            btnLayout.Controls.Add(btnUpdate, 1, 0);
+            btnLayout.Controls.Add(new Panel { Dock = DockStyle.Fill }, 2, 0);
+            btnLayout.Controls.Add(btnClose, 3, 0);
+
+            buttonBar.Controls.Add(btnLayout);
+
+            dlg.AcceptButton = btnClose;
+            dlg.CancelButton = btnClose;
+
+            dlg.ShowDialog(this);
         }
-        catch (Exception ex)
+
+        /// <summary>
+        /// 生成“元信息”说明标签（灰色文本），用于信息卡片左侧说明列。
+        /// </summary>
+        private static Label CreateMetaLabel(string t) => new Label
         {
-            Console.WriteLine($"无法打开链接: {ex.Message}");
+            AutoSize = true,
+            Text = t,
+            ForeColor = SystemColors.GrayText,
+            Margin = new Padding(0, 6, 12, 6)
+        };
+
+        /// <summary>
+        /// 生成“值”标签（常规文本），用于信息卡片右侧具体内容。
+        /// </summary>
+        private static Label CreateMetaValue(string t) => new Label
+        {
+            AutoSize = true,
+            Text = t,
+            Margin = new Padding(0, 6, 0, 6)
+        };
+
+        /// <summary>
+        /// 统一小按钮外观（尺寸、边距、对齐），保持 UI 风格一致。
+        /// </summary>
+        private static void StyleSmallButton(Button b, Padding? margin = null)
+        {
+            b.AutoSize = true;
+            b.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            b.Dock = DockStyle.None;
+            b.Anchor = AnchorStyles.Left;
+            b.Margin = margin ?? new Padding(6, 2, 0, 2);
+            b.Padding = new Padding(6, 0, 6, 1);
+            b.Height = 24;
+            b.MinimumSize = new Size(0, 24);
         }
-    };
-    card.Controls.Add(linkLicense);
-
-    content.Controls.Add(card); // 第 1 行
-
-    // ===== 3) 底部按钮条：左两右一 =====
-    var btnGitHub = new Button { AutoSize = true, Text = "打开 GitHub" };
-    btnGitHub.Click += (_, _) => Process.Start(new ProcessStartInfo(gitHubUrl) { UseShellExecute = true });
-
-    var btnUpdate = new Button { AutoSize = true, Text = "检查更新" };
-    var updateDialog = dlg;
-    btnUpdate.Click += async (_, _) => await CheckForUpdatesAsync(updateDialog);
-
-    var btnClose = new Button { AutoSize = true, Text = "关闭", DialogResult = DialogResult.OK };
-
-    var btnLayout = new TableLayoutPanel
-    {
-        Dock = DockStyle.Fill,
-        AutoSize = true,
-        ColumnCount = 4
-    };
-    btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-    btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-    btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-    btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-    btnLayout.Controls.Add(btnGitHub, 0, 0);
-    btnLayout.Controls.Add(btnUpdate, 1, 0);
-    btnLayout.Controls.Add(new Panel { Dock = DockStyle.Fill }, 2, 0);
-    btnLayout.Controls.Add(btnClose, 3, 0);
-
-    buttonBar.Controls.Add(btnLayout);
-
-    dlg.AcceptButton = btnClose;
-    dlg.CancelButton = btnClose;
-
-    dlg.ShowDialog(this);
-}
 
         private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
@@ -799,7 +926,7 @@ private void ShowAboutDialog()
             dragItem = null;
         }
 
-        // Comparer
+        // 比较器
         private class ListViewItemComparer(int col, bool asc = true) : System.Collections.IComparer
         {
             public int Compare(object? x, object? y) => (x, y) switch
@@ -817,13 +944,13 @@ private void ShowAboutDialog()
                 var xText = col < lvx.SubItems.Count ? lvx.SubItems[col].Text : string.Empty;
                 var yText = col < lvy.SubItems.Count ? lvy.SubItems[col].Text : string.Empty;
 
-                // Date columns
+                // 日期列
                 if (col == 2 || col == 4)
                 {
                     if (DateTime.TryParse(xText, out var xDate) && DateTime.TryParse(yText, out var yDate))
                         return asc ? xDate.CompareTo(yDate) : yDate.CompareTo(xDate);
                 }
-                // Duration columns
+                // 持续时间列
                 else if (col == 3 || col == 5)
                 {
                     var xSecs = ParseTimeSpanToSeconds(xText);
@@ -833,7 +960,7 @@ private void ShowAboutDialog()
 
                 var result = string.Compare(xText, yText, StringComparison.Ordinal);
 
-                // Secondary: by remaining time asc
+                // 次级排序：按剩余时间升序
                 if (result == 0 && col != 5)
                 {
                     var xRemaining = ParseTimeSpanToSeconds(lvx.SubItems[5].Text);
@@ -947,15 +1074,27 @@ private void ShowAboutDialog()
             }
         }
 
-        // ---------- Settings & persistence ----------
+        // ---------- 设置与持久化 ----------
         private void LoadSettings()
         {
             settings = settingsStore.Load();
 
-            // First run: init StartupOnBoot from registry and write a default settings file
+            // 首次运行：从注册表读取自启动状态并写入默认设置文件
             if (!File.Exists(Path.Combine(AppContext.BaseDirectory, "settings.json")))
             {
                 settings.StartupOnBoot = autostartManager.IsEnabled();
+                SaveSettings();
+            }
+            
+            if (settings is { AutoDeleteCompletedSeconds: <= 0, AutoDeleteCompletedAfter1Min: true })
+            {
+                settings.AutoDeleteCompletedSeconds = 60;
+                SaveSettings();
+            }
+            // 合法性：不可为负
+            if (settings.AutoDeleteCompletedSeconds < 0)
+            {
+                settings.AutoDeleteCompletedSeconds = 0;
                 SaveSettings();
             }
 
@@ -972,7 +1111,11 @@ private void ShowAboutDialog()
 
         private void SaveTasks() => taskRepo.Save(tasks);
 
-        // ---------- Apply settings to UI ----------
+        // ---------- 应用设置到界面 ----------
+        /// <summary>
+        /// 将应用设置同步到界面控件（账号、任务预设、字体等）。
+        /// 在字体应用过程中若出现异常将忽略，确保主界面可继续显示。
+        /// </summary>
         private void ApplySettingsToUi()
         {
             cbAccount.Items.Clear();
@@ -999,6 +1142,76 @@ private void ShowAboutDialog()
             miAutoStart.Checked = settings.StartupOnBoot;
             miCloseExit.Checked = !settings.MinimizeOnClose;
             miCloseMinimize.Checked = settings.MinimizeOnClose;
+            UpdateAutoDeleteMenuChecks();
+            UpdateAdvanceMenuChecks();
+        }
+
+        /// <summary>
+        /// 根据当前设置更新“提前通知”菜单的勾选状态，并同步“同时准点通知”。
+        /// </summary>
+        private void UpdateAdvanceMenuChecks()
+        {
+            var secs = settings.AdvanceNotifySeconds;
+            var presets = new Dictionary<ToolStripMenuItem, int>
+            {
+                { miAdvOff, 0 },
+                { miAdv30S, 30 },
+                { miAdv1M, 60 },
+                { miAdv3M, 180 },
+                { miAdv30M, 1800 },
+                { miAdv1H, 3600 }
+            };
+
+            foreach (var kv in presets)
+                kv.Key.Checked = kv.Value == secs;
+
+            // 自定义：当为正且不在预设中时勾选
+            miAdvCustom.Checked = secs > 0 && !presets.Values.Contains(secs);
+            miAdvAlsoDue.Checked = settings.AlsoNotifyAtDue;
+        }
+
+        private void SetAdvanceSecondsAndSave(int secs)
+        {
+            if (secs < 0) secs = 0;
+            settings.AdvanceNotifySeconds = secs;
+            SaveSettings();
+            UpdateAdvanceMenuChecks();
+            // 先立即检查一次，再重新计算下次触发，防止临近提醒点被错过
+            CheckDueAndNotify();
+            RescheduleNextTick();
+        }
+
+        /// <summary>
+        /// 根据当前设置更新“已完成任务自动删除”菜单勾选状态。
+        /// </summary>
+        private void UpdateAutoDeleteMenuChecks()
+        {
+            var secs = settings.AutoDeleteCompletedSeconds;
+            var presets = new Dictionary<ToolStripMenuItem, int>
+            {
+                { miDelOff, 0 },
+                { miDel30S, 30 },
+                { miDel1M, 60 },
+                { miDel3M, 180 },
+                { miDel30M, 1800 },
+                { miDel1H, 3600 }
+            };
+
+            foreach (var kv in presets)
+                kv.Key.Checked = kv.Value == secs;
+
+            miDelCustom.Checked = secs > 0 && !presets.Values.Contains(secs);
+        }
+
+        private void SetAutoDeleteSecondsAndSave(int secs)
+        {
+            if (secs < 0) secs = 0;
+            settings.AutoDeleteCompletedSeconds = secs;
+            ApplyDeletionPolicyFromSettings();
+            SaveSettings();
+            UpdateAutoDeleteMenuChecks();
+            // 变更后立即进行一次清理尝试（非强制），以尽快反映设置
+            PurgePending(force: false);
         }
 
         private void ApplyUiFont(Font f)
@@ -1028,7 +1241,7 @@ private void ShowAboutDialog()
             }
             catch
             {
-                /* ignore */
+                // 忽略
             }
 
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
@@ -1038,7 +1251,10 @@ private void ShowAboutDialog()
             SaveSettings();
         }
 
-        // ---------- Tray ----------
+        // ---------- 托盘 ----------
+        /// <summary>
+        /// 初始化系统托盘图标与右键菜单，提供打开与退出操作，并处理双击恢复窗口。
+        /// </summary>
         private void InitTray()
         {
             tray.Icon = Icon;
@@ -1063,7 +1279,10 @@ private void ShowAboutDialog()
             tray.ContextMenuStrip = trayMenu;
         }
 
-        // ---------- List ----------
+        // ---------- 列表 ----------
+        /// <summary>
+        /// 刷新任务列表内容：根据内存中的 <see cref="tasks"/> 重建 <see cref="lv"/> 的行与样式。
+        /// </summary>
         private void RefreshTable()
         {
             lv.BeginUpdate();
@@ -1222,6 +1441,7 @@ private void ShowAboutDialog()
                 Minutes = m,
                 Finish = fin,
                 Notified = false,
+                AdvanceNotified = false,
                 Done = false,
                 PendingDelete = false,
                 DeleteMarkTime = null
@@ -1261,9 +1481,32 @@ private void ShowAboutDialog()
         private void CheckDueAndNotify()
         {
             var changed = false;
+            var now = DateTime.Now;
             foreach (var t in tasks)
             {
-                if (t.Finish > DateTime.Now || t.Notified) continue;
+                // Advance notify
+                var adv = settings.AdvanceNotifySeconds;
+                if (adv > 0 && !t.AdvanceNotified && t.Finish > now)
+                {
+                    var advTime = t.Finish.AddSeconds(-adv);
+                    if (advTime <= now)
+                    {
+                        notifier.Toast($"[提前] {t.Account}", $"{t.TaskName} 即将到点，完成时间：{t.FinishStr}");
+                        t.AdvanceNotified = true;
+                        changed = true;
+                    }
+                }
+
+                // 到点提醒
+                if (t.Finish > now || t.Notified) continue;
+
+                // 若用户关闭“同时准点通知”，且已进行过提前通知，则此处直接标记已到点通知，避免再次弹窗
+                if (!settings.AlsoNotifyAtDue && t.AdvanceNotified)
+                {
+                    t.Notified = true;
+                    changed = true;
+                    continue;
+                }
 
                 notifier.Toast($"[到点] {t.Account}", $"{t.TaskName} 完成时间：{t.FinishStr}");
                 t.Notified = true;
@@ -1271,6 +1514,61 @@ private void ShowAboutDialog()
             }
 
             if (changed) SaveTasks();
+            RescheduleNextTick();
+        }
+
+        // 自适应调度：带“提前量(guard)”与“上下限夹紧”的计时器间隔计算
+        private void RescheduleNextTick()
+        {
+            try
+            {
+                var now = DateTime.Now;
+                DateTime? next = null;
+                var adv = settings.AdvanceNotifySeconds;
+
+                foreach (var t in tasks)
+                {
+                    // 候选1：提前提醒时间点（若启用且尚未提前提醒）
+                    if (adv > 0 && !t.AdvanceNotified)
+                    {
+                        var advTime = t.Finish.AddSeconds(-adv);
+                        if (advTime > now)
+                            next = next == null || advTime < next ? advTime : next;
+                    }
+
+                    // 候选2：到点提醒时间（遵循 AlsoNotifyAtDue 设置）
+                    if (!t.Notified)
+                    {
+                        if (!settings.AlsoNotifyAtDue && t.AdvanceNotified)
+                        {
+                            // 已提前提醒且关闭了“同时准点通知” -> 跳过到点提醒的调度
+                        }
+                        else if (t.Finish > now)
+                        {
+                            next = next == null || t.Finish < next ? t.Finish : next;
+                        }
+                    }
+                }
+
+                const int minMs = 1000; // 最小间隔 1 秒
+                const int maxMs = 5000; // 最大间隔 5 秒（避免等待过久）
+                const int guardSec = 3; // 提前量 3 秒（稍早唤醒以对冲计时抖动）
+
+                int interval = maxMs;
+                if (next.HasValue)
+                {
+                    var target = next.Value.AddSeconds(-guardSec);
+                    if (target < now) target = now.AddMilliseconds(minMs); // 若已过期，则尽快（按最小间隔）检查
+                    var deltaMs = (int)Math.Max(0, (target - now).TotalMilliseconds);
+                    interval = Math.Clamp(deltaMs, minMs, maxMs);
+                }
+
+                timerTick.Interval = interval;
+            }
+            catch
+            {
+                // 忽略异常，防止影响计时器工作
+            }
         }
 
         private void PurgePending(bool force)
@@ -1338,6 +1636,13 @@ private void ShowAboutDialog()
                 SaveSettings();
                 UpdateMenuChecks();
             }
+        }
+
+        // ---------- Deletion policy toggle ----------
+        private void ApplyDeletionPolicyFromSettings()
+        {
+            var keepSecs = settings.AutoDeleteCompletedSeconds > 0 ? settings.AutoDeleteCompletedSeconds : int.MaxValue;
+            deletionPolicy = new SimpleDeletionPolicy(pendingDeleteDelaySeconds: 3, completedKeepSeconds: keepSecs);
         }
 
         // ---------- Update check helpers ----------

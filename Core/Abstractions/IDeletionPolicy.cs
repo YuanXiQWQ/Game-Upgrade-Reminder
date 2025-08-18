@@ -30,13 +30,12 @@ namespace Game_Upgrade_Reminder.Core.Abstractions
         int PendingDeleteDelaySeconds { get; }
 
         /// <summary>
-        /// 获取任务完成后保留的分钟数
+        /// 获取任务完成后保留的秒数
         /// </summary>
         /// <remarks>
-        /// 默认实现为1分钟，与原始实现保持一致。
-        /// 这表示任务完成后，将在指定时间后自动删除。
+        /// 默认实现为60秒（1分钟），用于控制任务完成后延迟删除的时间。
         /// </remarks>
-        int CompletedKeepMinutes { get; }
+        int CompletedKeepSeconds { get; }
 
         /// <summary>
         /// 确定是否应该删除指定的任务
@@ -48,7 +47,7 @@ namespace Game_Upgrade_Reminder.Core.Abstractions
         /// <remarks>
         /// 此方法根据任务的当前状态、时间限制和force参数来决定是否应该删除任务。
         /// 如果force为true，则忽略时间限制，立即删除任务。
-        /// 否则，将根据PendingDeleteDelaySeconds和CompletedKeepMinutes属性决定是否删除。
+        /// 否则，将根据PendingDeleteDelaySeconds和CompletedKeepSeconds属性决定是否删除。
         /// </remarks>
         bool ShouldRemove(TaskItem task, DateTime now, bool force);
     }

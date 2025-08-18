@@ -15,6 +15,7 @@
     <ItemGroup>
         <Compile Include="Program.cs"/>
         <Compile Include="UI\MainForm.cs"/>
+        <Compile Include="UI\AdvanceTimeDialog.cs"/>
         <Compile Include="UI\InputBox.cs"/>
         <Compile Include="UI\ManageListForm.cs"/>
 
@@ -51,9 +52,9 @@
     </PropertyGroup>
     
     <PropertyGroup>
-        <AssemblyVersion>1.0.0.2</AssemblyVersion>
-        <FileVersion>1.0.0.2</FileVersion>
-        <InformationalVersion>1.0.2</InformationalVersion>
+        <AssemblyVersion>1.1.0.0</AssemblyVersion>
+        <FileVersion>1.1.0.0</FileVersion>
+        <InformationalVersion>1.1.0</InformationalVersion>
         <Company>YuanXiQWQ</Company>
         <Product>游戏升级提醒</Product>
         <Copyright>© 2025 YuanXiQWQ</Copyright>

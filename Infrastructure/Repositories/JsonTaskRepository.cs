@@ -38,6 +38,11 @@ namespace Game_Upgrade_Reminder.Infrastructure.Repositories
         /// </summary>
         private static string TasksPath => Path.Combine(AppBaseDir, "tasks.json");
 
+        private static readonly JsonSerializerOptions SJsonOptions = new()
+        {
+            WriteIndented = true
+        };
+
         /// <summary>
         /// 从JSON文件加载任务列表
         /// </summary>
@@ -53,13 +58,13 @@ namespace Game_Upgrade_Reminder.Infrastructure.Repositories
         {
             try
             {
-                if (!File.Exists(TasksPath)) return new List<TaskItem>();
+                if (!File.Exists(TasksPath)) return [];
                 var json = File.ReadAllText(TasksPath, new UTF8Encoding(false));
-                return JsonSerializer.Deserialize<List<TaskItem>>(json) ?? new List<TaskItem>();
+                return JsonSerializer.Deserialize<List<TaskItem>>(json, SJsonOptions) ?? [];
             }
             catch
             {
-                return new List<TaskItem>();
+                return [];
             }
         }
 
@@ -78,9 +83,8 @@ namespace Game_Upgrade_Reminder.Infrastructure.Repositories
         {
             try
             {
-                var opt = new JsonSerializerOptions { WriteIndented = true };
                 var utf8Bom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
-                File.WriteAllText(TasksPath, JsonSerializer.Serialize(tasks, opt), utf8Bom);
+                File.WriteAllText(TasksPath, JsonSerializer.Serialize(tasks, SJsonOptions), utf8Bom);
             }
             catch
             {
