@@ -7,6 +7,19 @@
 
 namespace Game_Upgrade_Reminder.UI
 {
+    /// <summary>
+    /// 自定义“提前通知时间”的模态对话框。
+    /// 用户通过输入“天/时/分/秒”，点击“确定”后从 <see cref="TotalSeconds"/> 读取总秒数。
+    /// 典型用法：
+    /// <code>
+    /// using (var dlg = new AdvanceTimeDialog(currentAdvance))
+    ///     if (dlg.ShowDialog(owner) == DialogResult.OK)
+    ///     {
+    ///         int secs = dlg.TotalSeconds;
+    ///         // 持久化或应用到设置
+    ///     }
+    /// </code>
+    /// </summary>
     internal sealed class AdvanceTimeDialog : Form
     {
         private readonly NumericUpDown numDays = new() { Minimum = 0, Maximum = 3650, Width = 60 };
@@ -14,8 +27,16 @@ namespace Game_Upgrade_Reminder.UI
         private readonly NumericUpDown numMinutes = new() { Minimum = 0, Maximum = 59, Width = 60 };
         private readonly NumericUpDown numSeconds = new() { Minimum = 0, Maximum = 59, Width = 60 };
 
+        /// <summary>
+        /// 汇总得到的总秒数（单位：秒）。
+        /// 仅在用户点击“确定”时更新；点击“取消”不更新。
+        /// </summary>
         public int TotalSeconds { get; private set; }
 
+        /// <summary>
+        /// 创建对话框，并使用给定的初始秒数预填各输入框。
+        /// </summary>
+        /// <param name="initialSeconds">初始秒数；小于 0 时按 0 处理。</param>
         public AdvanceTimeDialog(int initialSeconds = 0)
         {
             Text = "自定义提前通知";
@@ -27,7 +48,7 @@ namespace Game_Upgrade_Reminder.UI
             AutoSize = true;
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
-            // Layout
+            // 布局
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -51,7 +72,7 @@ namespace Game_Upgrade_Reminder.UI
                 root.Controls.Add(lb, col, 0);
             }
 
-            // Row 0
+            // 第 0 行（输入区）：天/时/分/秒
             root.Controls.Add(numDays, 0, 0);
             AddLabel("天", 1);
             root.Controls.Add(numHours, 2, 0);
@@ -61,7 +82,7 @@ namespace Game_Upgrade_Reminder.UI
             root.Controls.Add(numSeconds, 6, 0);
             AddLabel("秒", 7);
 
-            // Buttons
+            // 按钮区（右对齐）：确定 / 取消
             var pnlButtons = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.RightToLeft,
@@ -79,25 +100,32 @@ namespace Game_Upgrade_Reminder.UI
 
             Controls.Add(root);
 
-            // Events
+            // 事件：点击“确定”时计算总秒数并设置对话结果
             btnOk.Click += (_, _) =>
             {
                 TotalSeconds = CalcTotalSeconds();
                 DialogResult = DialogResult.OK;
             };
+            // 事件：点击“取消”直接关闭，不修改 TotalSeconds
             btnCancel.Click += (_, _) => DialogResult = DialogResult.Cancel;
             AcceptButton = btnOk;
             CancelButton = btnCancel;
 
-            // Initialize from initialSeconds
+            // 根据 initialSeconds 初始化（将秒拆分为天/时/分/秒）
             if (initialSeconds < 0) initialSeconds = 0;
             var ts = TimeSpan.FromSeconds(initialSeconds);
             numDays.Value = ts.Days;
+            // 若总小时超过控件上限，则裁剪到上限（避免 UI 上的越界）
             numHours.Value = ts.Hours + ts.Days * 24 > numHours.Maximum ? numHours.Maximum : ts.Hours;
             numMinutes.Value = ts.Minutes;
             numSeconds.Value = ts.Seconds;
         }
 
+        /// <summary>
+        /// 将四个输入框的值汇总为总秒数。
+        /// 使用 <see langword="checked"/> 防止整型溢出；如发生异常，返回 <see cref="int.MaxValue"/>。
+        /// 调用方通常不应将该极值视为有效输入。
+        /// </summary>
         private int CalcTotalSeconds()
         {
             try
@@ -112,7 +140,7 @@ namespace Game_Upgrade_Reminder.UI
             }
             catch
             {
-                return int.MaxValue; // very large if overflow
+                return int.MaxValue;
             }
         }
     }

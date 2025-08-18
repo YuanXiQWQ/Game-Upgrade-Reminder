@@ -84,6 +84,7 @@ namespace Game_Upgrade_Reminder.Infrastructure.System
             catch
             {
                 // 典型失败原因：安全软件阻止了注册表写入
+                // 并不典型但十分有可能的失败原因：我又写出了一个bug
             }
         }
     }

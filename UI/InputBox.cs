@@ -13,12 +13,33 @@
 
 namespace Game_Upgrade_Reminder.UI
 {
+    /// <summary>
+    /// 简单的文本输入对话框（模态）。
+    /// 调用者传入标题与标签文本，用户输入后点击“确定”即可通过 <see cref="ResultText"/> 获取结果。
+    /// 典型用法：
+    /// <code>
+    /// using (var box = new InputBox("新增账号", label: "名称"))
+    ///     if (box.ShowDialog(owner) == DialogResult.OK)
+    ///     {
+    ///         string name = box.ResultText;
+    ///         // 使用 name 进行后续处理
+    ///     }
+    /// </code>
+    /// </summary>
     internal sealed class InputBox : Form
     {
+        /// <summary>
+        /// 输入结果（去除首尾空白）。仅在点击“确定”且非空时生效。
+        /// </summary>
         public string ResultText { get; private set; } = "";
         
         private readonly TextBox tb = new();
 
+        /// <summary>
+        /// 创建输入框并设置标题与标签文字。
+        /// </summary>
+        /// <param name="title">对话框标题。</param>
+        /// <param name="label">输入框左侧标签文字，默认为“名称”。</param>
         public InputBox(string title, string label = "名称")
         {
             Text = title;
@@ -28,23 +49,27 @@ namespace Game_Upgrade_Reminder.UI
             MaximizeBox = MinimizeBox = false;
             ShowInTaskbar = false;
 
+            // 基本控件：标签、文本框、确定/取消按钮与布局参数
             var lb = new Label { Text = label, AutoSize = true, Left = 14, Top = 18 };
             tb.SetBounds(76, 14, 250, 24);
             var ok = new Button { Text = "确定", Left = 116, Top = 54, Width = 80 };
             var cancel = new Button { Text = "取消", Left = 212, Top = 54, Width = 80 };
             
+            // 点击“确定”：读取并裁剪文本；仅在非空时设置 DialogResult.OK
             ok.Click += (_, _) =>
             {
                 ResultText = tb.Text.Trim();
                 if (ResultText.Length > 0) DialogResult = DialogResult.OK;
             };
             
+            // 点击“取消”：直接关闭对话框，不修改 ResultText
             cancel.Click += (_, _) => DialogResult = DialogResult.Cancel;
 
             Controls.Add(lb);
             Controls.Add(tb);
             Controls.Add(ok);
             Controls.Add(cancel);
+            // Enter=确定，Esc=取消（标准对话框行为）
             AcceptButton = ok;
             CancelButton = cancel;
         }

@@ -38,6 +38,11 @@ namespace Game_Upgrade_Reminder.Infrastructure.Repositories
         /// </summary>
         private static string SettingsPath => Path.Combine(AppBaseDir, "settings.json");
 
+        private static readonly JsonSerializerOptions SJsonOptions = new()
+        {
+            WriteIndented = true
+        };
+
         /// <summary>
         /// 从JSON文件加载设置
         /// </summary>
@@ -55,7 +60,7 @@ namespace Game_Upgrade_Reminder.Infrastructure.Repositories
             {
                 if (!File.Exists(SettingsPath)) return new SettingsData();
                 var json = File.ReadAllText(SettingsPath, new UTF8Encoding(false));
-                return JsonSerializer.Deserialize<SettingsData>(json) ?? new SettingsData();
+                return JsonSerializer.Deserialize<SettingsData>(json, SJsonOptions) ?? new SettingsData();
             }
             catch
             {
@@ -77,9 +82,8 @@ namespace Game_Upgrade_Reminder.Infrastructure.Repositories
         {
             try
             {
-                var opt = new JsonSerializerOptions { WriteIndented = true };
                 var utf8Bom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
-                File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings, opt), utf8Bom);
+                File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings, SJsonOptions), utf8Bom);
             }
             catch
             {
