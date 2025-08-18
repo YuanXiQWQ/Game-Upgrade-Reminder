@@ -49,8 +49,10 @@ namespace Game_Upgrade_Reminder.UI
         private readonly JsonSettingsStore settingsStore = new();
         private readonly RegistryAutostartManager autostartManager = new();
         private readonly ByFinishTimeSortStrategy sortStrategy = new();
+
         private SimpleDeletionPolicy deletionPolicy =
             new(pendingDeleteDelaySeconds: 3, completedKeepSeconds: 60);
+
         private readonly ZhCnDurationFormatter durationFormatter = new();
 
         // 状态
@@ -111,7 +113,7 @@ namespace Game_Upgrade_Reminder.UI
                 base.OnHandleCreated(e);
                 if (DesignMode) return;
                 DoubleBuffered = true;
-                AllowDrop = true;
+                AllowDrop = false;
             }
         }
 
@@ -151,9 +153,6 @@ namespace Game_Upgrade_Reminder.UI
         private readonly System.Windows.Forms.Timer timerTick = new() { Interval = 1_000 };
         private readonly System.Windows.Forms.Timer timerUi = new() { Interval = 1000 };
         private readonly System.Windows.Forms.Timer timerPurge = new() { Interval = 500 };
-
-        // 拖拽排序
-        private ListViewItem? dragItem;
 
         public MainForm()
         {
@@ -603,18 +602,6 @@ namespace Game_Upgrade_Reminder.UI
                 if (me.Button == MouseButtons.Left) HandleListClick();
             };
 
-            // 拖动以重新排序 -> 切换为自定义模式
-            lv.ItemDrag += (_, e) =>
-            {
-                if (e.Item == null) return;
-                sortMode = SortMode.Custom;
-                dragItem = (ListViewItem)e.Item;
-                DoDragDrop(e.Item, DragDropEffects.Move);
-            };
-            lv.DragEnter += (_, e) => e.Effect = DragDropEffects.Move;
-            lv.DragOver += (_, e) => e.Effect = DragDropEffects.Move;
-            lv.DragDrop += Lv_DragDrop;
-
             // 列头点击排序（文本为主，部分列有特殊处理）
             lv.ColumnClick += (_, e) =>
             {
@@ -899,33 +886,6 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
-        private void Lv_DragDrop(object? sender, DragEventArgs e)
-        {
-            if (dragItem == null) return;
-            var cp = lv.PointToClient(new Point(e.X, e.Y));
-            var dest = lv.GetItemAt(cp.X, cp.Y) ?? (lv.Items.Count > 0 ? lv.Items[^1] : null);
-            if (dest == null || dest.Index == dragItem.Index) return;
-
-            var srcIdx = dragItem.Index;
-            var dstIdx = dest.Index;
-
-            var moving = tasks[srcIdx];
-            if (srcIdx < dstIdx)
-            {
-                for (var i = srcIdx; i < dstIdx; i++) tasks[i] = tasks[i + 1];
-            }
-            else
-            {
-                for (var i = srcIdx; i > dstIdx; i--) tasks[i] = tasks[i - 1];
-            }
-
-            tasks[dstIdx] = moving;
-
-            SaveTasks();
-            RefreshTable();
-            dragItem = null;
-        }
-
         // 比较器
         private class ListViewItemComparer(int col, bool asc = true) : System.Collections.IComparer
         {
@@ -944,31 +904,28 @@ namespace Game_Upgrade_Reminder.UI
                 var xText = col < lvx.SubItems.Count ? lvx.SubItems[col].Text : string.Empty;
                 var yText = col < lvy.SubItems.Count ? lvy.SubItems[col].Text : string.Empty;
 
-                // 日期列
-                if (col == 2 || col == 4)
+                switch (col)
                 {
-                    if (DateTime.TryParse(xText, out var xDate) && DateTime.TryParse(yText, out var yDate))
+                    // 日期列
+                    case 2 or 4 when DateTime.TryParse(xText, out var xDate) && DateTime.TryParse(yText, out var yDate):
                         return asc ? xDate.CompareTo(yDate) : yDate.CompareTo(xDate);
-                }
-                // 持续时间列
-                else if (col == 3 || col == 5)
-                {
-                    var xSecs = ParseTimeSpanToSeconds(xText);
-                    var ySecs = ParseTimeSpanToSeconds(yText);
-                    return asc ? xSecs.CompareTo(ySecs) : ySecs.CompareTo(xSecs);
+                    // 持续时间列
+                    case 3 or 5:
+                    {
+                        var xSecs = ParseTimeSpanToSeconds(xText);
+                        var ySecs = ParseTimeSpanToSeconds(yText);
+                        return asc ? xSecs.CompareTo(ySecs) : ySecs.CompareTo(xSecs);
+                    }
                 }
 
                 var result = string.Compare(xText, yText, StringComparison.Ordinal);
 
                 // 次级排序：按剩余时间升序
-                if (result == 0 && col != 5)
-                {
-                    var xRemaining = ParseTimeSpanToSeconds(lvx.SubItems[5].Text);
-                    var yRemaining = ParseTimeSpanToSeconds(lvy.SubItems[5].Text);
-                    return xRemaining.CompareTo(yRemaining);
-                }
+                if (result != 0 || col == 5) return asc ? result : -result;
 
-                return asc ? result : -result;
+                var xRemaining = ParseTimeSpanToSeconds(lvx.SubItems[5].Text);
+                var yRemaining = ParseTimeSpanToSeconds(lvy.SubItems[5].Text);
+                return xRemaining.CompareTo(yRemaining);
             }
 
             private static int ParseTimeSpanToSeconds(string text)
@@ -1085,12 +1042,13 @@ namespace Game_Upgrade_Reminder.UI
                 settings.StartupOnBoot = autostartManager.IsEnabled();
                 SaveSettings();
             }
-            
+
             if (settings is { AutoDeleteCompletedSeconds: <= 0, AutoDeleteCompletedAfter1Min: true })
             {
                 settings.AutoDeleteCompletedSeconds = 60;
                 SaveSettings();
             }
+
             // 合法性：不可为负
             if (settings.AutoDeleteCompletedSeconds < 0)
             {
@@ -1354,19 +1312,14 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
-        private int SelectedIndex => lv.SelectedIndices.Count > 0 ? lv.SelectedIndices[0] : -1;
-
         private void HandleListClick()
         {
-            var idx = SelectedIndex;
-            if (idx < 0 || idx >= tasks.Count) return;
-
             var hit = lv.PointToClient(MousePosition);
             var info = lv.HitTest(hit);
             if (info.Item == null) return;
             var sub = info.Item.SubItems.IndexOf(info.SubItem);
 
-            var t = tasks[idx];
+            if (info.Item.Tag is not TaskItem t) return;
 
             switch (sub)
             {
@@ -1401,7 +1354,7 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
-        // ---------- Realtime calc ----------
+        // ---------- 新增任务 ----------
         private void RecalcFinishFromFields()
         {
             var st = dtpStart.Value;
@@ -1447,15 +1400,20 @@ namespace Game_Upgrade_Reminder.UI
                 DeleteMarkTime = null
             };
 
-            var sel = SelectedIndex;
-            if (sel >= 0 && sel < tasks.Count)
+            // 根据选中行的 Tag 精确定位要更新的任务，避免索引与显示顺序不一致导致的错位
+            var selectedTask = lv.SelectedItems.Count > 0 ? lv.SelectedItems[0].Tag as TaskItem : null;
+            if (selectedTask != null)
             {
-                tasks[sel] = t;
-                if (sortMode == SortMode.DefaultByFinish)
+                var idx = tasks.IndexOf(selectedTask);
+                if (idx >= 0)
                 {
-                    var moved = tasks[sel];
-                    tasks.RemoveAt(sel);
-                    sortStrategy.Insert(tasks, moved);
+                    tasks[idx] = t;
+                    if (sortMode == SortMode.DefaultByFinish)
+                    {
+                        var moved = tasks[idx];
+                        tasks.RemoveAt(idx);
+                        sortStrategy.Insert(tasks, moved);
+                    }
                 }
             }
             else
