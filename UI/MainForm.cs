@@ -208,42 +208,49 @@ namespace Game_Upgrade_Reminder.UI
             AccessibleName = "账号",
             AccessibleDescription = "选择账号"
         };
+
         private readonly Button btnAccountMgr = new()
         {
             Text = "账号管理(&M)",
             AccessibleName = "账号管理",
             AccessibleDescription = "打开账号管理"
         };
+
         private readonly ComboBox cbTask = new()
         {
             DropDownStyle = ComboBoxStyle.DropDown,
             AccessibleName = "任务",
             AccessibleDescription = "输入或选择任务"
         };
+
         private readonly Button btnTaskMgr = new()
         {
             Text = "任务管理(&K)",
             AccessibleName = "任务管理",
             AccessibleDescription = "打开任务管理"
         };
+
         private readonly Button btnDeleteDone = new()
         {
             Text = "删除已完成(&D)",
             AccessibleName = "删除已完成",
             AccessibleDescription = "删除已完成的任务（Ctrl+Shift+D）"
         };
+
         private readonly Button btnRefresh = new()
         {
             Text = "刷新(&R)",
             AccessibleName = "刷新",
             AccessibleDescription = "刷新列表（F5）"
         };
+
         private readonly Button btnNow = new()
         {
             Text = "当前时间(&T)",
             AccessibleName = "当前时间",
             AccessibleDescription = "将开始时间设置为当前时间"
         };
+
         private readonly NumericUpDown numDays = new()
         {
             Minimum = 0,
@@ -252,6 +259,7 @@ namespace Game_Upgrade_Reminder.UI
             AccessibleName = "天",
             AccessibleDescription = "持续时间（天）"
         };
+
         private readonly NumericUpDown numHours = new()
         {
             Minimum = 0,
@@ -260,6 +268,7 @@ namespace Game_Upgrade_Reminder.UI
             AccessibleName = "小时",
             AccessibleDescription = "持续时间（小时）"
         };
+
         private readonly NumericUpDown numMinutes = new()
         {
             Minimum = 0,
@@ -268,12 +277,14 @@ namespace Game_Upgrade_Reminder.UI
             AccessibleName = "分钟",
             AccessibleDescription = "持续时间（分钟）"
         };
+
         private readonly TextBox tbFinish = new()
         {
             ReadOnly = true,
             AccessibleName = "完成时间",
             AccessibleDescription = "根据开始时间与持续时间计算的完成时间"
         };
+
         private readonly Button btnAddSave = new()
         {
             Text = "添加(&N)",
@@ -308,12 +319,15 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripMenuItem miSettings = new() { Text = "设置(&S)" };
         private readonly ToolStripMenuItem miFont = new() { Text = "选择字体(&F)..." };
         private readonly ToolStripMenuItem miAutoStart = new() { Text = "开机自启(&A)" };
+
+        // 悬浮显示的三个菜单项
         private readonly ToolStripMenuItem miOpenConfig = new()
         {
             Text = "打开配置文件夹(&O)",
             AccessibleName = "打开配置文件夹",
             AccessibleDescription = "打开配置文件夹（Ctrl+O）"
         };
+
         private readonly ToolStripMenuItem miAutoDelete = new() { Text = "已完成任务自行删除(&D)" };
         private readonly ToolStripMenuItem miDelOff = new() { Text = "关闭" };
         private readonly ToolStripMenuItem miDel30S = new() { Text = "30秒" };
@@ -331,6 +345,7 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripMenuItem miAdv30M = new() { Text = "30分钟" };
         private readonly ToolStripMenuItem miAdv1H = new() { Text = "1小时" };
         private readonly ToolStripMenuItem miAdvCustom = new() { Text = "自定义..." };
+        private readonly ToolStripMenuItem miCloseBehavior = new() { Text = "关闭按钮行为(&C)" };
         private readonly ToolStripMenuItem miCloseExit = new() { Text = "退出程序" };
         private readonly ToolStripMenuItem miCloseMinimize = new() { Text = "最小化到托盘" };
         private readonly ToolStripMenuItem miAboutTop = new() { Text = "关于(&A)..." };
@@ -356,7 +371,12 @@ namespace Game_Upgrade_Reminder.UI
         // 计时器
         private readonly System.Windows.Forms.Timer timerTick = new() { Interval = 1_000 };
         private readonly System.Windows.Forms.Timer timerUi = new() { Interval = 1000 };
+
         private readonly System.Windows.Forms.Timer timerPurge = new() { Interval = 500 };
+
+        // 菜单悬浮自动关闭控制
+        private readonly System.Windows.Forms.Timer hoverMenuTimer = new() { Interval = 200 };
+        private ToolStripMenuItem? hoverPendingClose;
 
         public MainForm()
         {
@@ -428,8 +448,7 @@ namespace Game_Upgrade_Reminder.UI
         /// </summary>
         private void BuildMenu()
         {
-            var closeSub = new ToolStripMenuItem("关闭按钮行为(&C)");
-            closeSub.DropDownItems.AddRange([miCloseExit, miCloseMinimize]);
+            miCloseBehavior.DropDownItems.AddRange([miCloseExit, miCloseMinimize]);
 
             // 已完成任务自动删除 预设
             miAutoDelete.DropDownItems.AddRange([
@@ -465,7 +484,7 @@ namespace Game_Upgrade_Reminder.UI
             miSettings.DropDownItems.Add(miAutoDelete);
             miSettings.DropDownItems.Add(miAdvanceNotify);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
-            miSettings.DropDownItems.Add(closeSub);
+            miSettings.DropDownItems.Add(miCloseBehavior);
 
             menu.Items.Add(miSettings);
             miAboutTop.Alignment = ToolStripItemAlignment.Left;
@@ -473,6 +492,68 @@ namespace Game_Upgrade_Reminder.UI
 
             MainMenuStrip = menu;
             Controls.Add(menu);
+        }
+
+        /// <summary>
+        /// 为需要“悬浮显示/离开自动关闭”的菜单项设置统一的事件处理。
+        /// </summary>
+        private void SetupHoverDropdown(ToolStripMenuItem mi)
+        {
+            // 鼠标进入：显示此下拉并关闭其他两个，取消待关闭
+            mi.MouseEnter += (_, _) =>
+            {
+                CloseOtherHoverMenus(mi);
+                if (!mi.DropDown.Visible) mi.ShowDropDown();
+                hoverPendingClose = null;
+                hoverMenuTimer.Stop();
+            };
+
+            // 鼠标离开：启动一个短延时检测，若鼠标不在此项或其下拉上则关闭
+            mi.MouseLeave += (_, _) =>
+            {
+                hoverPendingClose = mi;
+                hoverMenuTimer.Stop();
+                hoverMenuTimer.Start();
+            };
+
+            // 移动到下拉时，取消待关闭；离开下拉后开始检测
+            mi.DropDown.MouseEnter += (_, _) =>
+            {
+                if (hoverPendingClose == mi)
+                {
+                    hoverPendingClose = null;
+                    hoverMenuTimer.Stop();
+                }
+            };
+            mi.DropDown.MouseLeave += (_, _) =>
+            {
+                hoverPendingClose = mi;
+                hoverMenuTimer.Stop();
+                hoverMenuTimer.Start();
+            };
+        }
+
+        /// <summary>
+        /// 关闭除 current 之外的其他“悬浮显示”菜单，以避免多个下拉同时可见。
+        /// </summary>
+        private void CloseOtherHoverMenus(ToolStripMenuItem current)
+        {
+            foreach (var other in new[] { miAutoDelete, miAdvanceNotify, miCloseBehavior })
+            {
+                if (other != current && other.DropDown.Visible) other.HideDropDown();
+            }
+        }
+
+        /// <summary>
+        /// 判断鼠标是否位于给定菜单项（顶层）区域内。
+        /// </summary>
+        private static bool IsMouseOverMenuItem(ToolStripMenuItem mi, Point mouseScreenPoint)
+        {
+            var owner = mi.Owner;
+            if (owner is null) return false;
+            var origin = owner.PointToScreen(mi.Bounds.Location);
+            var rect = new Rectangle(origin, mi.Bounds.Size);
+            return rect.Contains(mouseScreenPoint);
         }
 
         /// <summary>
@@ -701,10 +782,6 @@ namespace Game_Upgrade_Reminder.UI
             miOpenConfig.Click += (_, _) => OpenConfigFolder();
             // 自动删除下拉
             miAutoDelete.DropDownOpening += (_, _) => UpdateAutoDeleteMenuChecks();
-            miAutoDelete.MouseEnter += (_, _) =>
-            {
-                if (!miAutoDelete.DropDown.Visible) miAutoDelete.ShowDropDown();
-            };
             miDelOff.Click += (_, _) => SetAutoDeleteSecondsAndSave(0);
             miDel30S.Click += (_, _) => SetAutoDeleteSecondsAndSave(30);
             miDel1M.Click += (_, _) => SetAutoDeleteSecondsAndSave(60);
@@ -720,10 +797,6 @@ namespace Game_Upgrade_Reminder.UI
                 }
             };
             miAdvanceNotify.DropDownOpening += (_, _) => UpdateAdvanceMenuChecks();
-            miAdvanceNotify.MouseEnter += (_, _) =>
-            {
-                if (!miAdvanceNotify.DropDown.Visible) miAdvanceNotify.ShowDropDown();
-            };
             miAdvOff.Click += (_, _) => SetAdvanceSecondsAndSave(0);
             miAdv30S.Click += (_, _) => SetAdvanceSecondsAndSave(30);
             miAdv1M.Click += (_, _) => SetAdvanceSecondsAndSave(60);
@@ -743,6 +816,30 @@ namespace Game_Upgrade_Reminder.UI
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     SetAdvanceSecondsAndSave(dlg.TotalSeconds);
+                }
+            };
+            // 悬浮显示/自动关闭：统一设置
+            SetupHoverDropdown(miAutoDelete);
+            SetupHoverDropdown(miAdvanceNotify);
+            SetupHoverDropdown(miCloseBehavior);
+            hoverMenuTimer.Tick += (_, _) =>
+            {
+                if (hoverPendingClose is null)
+                {
+                    hoverMenuTimer.Stop();
+                    return;
+                }
+
+                var mi = hoverPendingClose;
+                var pt = Control.MousePosition;
+                // 若鼠标不在菜单项或其下拉范围内，则关闭
+                bool overItem = IsMouseOverMenuItem(mi, pt);
+                bool overDrop = mi.DropDown.Visible && mi.DropDown.Bounds.Contains(pt);
+                if (!overItem && !overDrop)
+                {
+                    mi.HideDropDown();
+                    hoverPendingClose = null;
+                    hoverMenuTimer.Stop();
                 }
             };
             miCloseExit.Click += (_, _) =>
