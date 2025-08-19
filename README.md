@@ -21,7 +21,7 @@
 ## 系统要求
 
 - [Windows 10](https://www.microsoft.com/en-ca/software-download/windows10) 或更高版本
-- [.NET Framework 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) 或更高版本
+- [.NET 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) 或更高版本
 
 > 其它版本能不能行我也不知道 :<
 
@@ -49,7 +49,7 @@
 
 ### 收不到系统通知
 
-- 把**专注助手**关了
+- 把**专注助手**关了，或者把 `Game Upgrade Reminder.exe` 放入专注助手-优先列表。如果专注助手-自动规则中开启的规则的过滤为“仅闹钟”，将其修改为“仅优先通知”
 - 除此之外就不知道了
 
 ### 其它神奇的问题
@@ -87,7 +87,7 @@ created for "Boom Beach."
 ## System Requirements
 
 - [Windows 10](https://www.microsoft.com/en-ca/software-download/windows10) or later
-- [.NET Framework 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) or later
+- [.NET 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) or later
 
 > Not sure if it works with other versions :<
 
@@ -115,7 +115,7 @@ created for "Boom Beach."
 
 ### Not receiving system notifications
 
-- Turn off **Focus Assist**
+- Turn off **Focus Assist**, or add `Game Upgrade Reminder.exe` to the Focus Assist Priority list. If a rule under Focus Assist - Automatic rules is set to "Alarms only", change it to "Priority only".
 - If that doesn't help, I'm not sure what else to suggest
 
 ### Other issues
