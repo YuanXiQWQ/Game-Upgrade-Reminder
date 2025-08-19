@@ -2050,7 +2050,7 @@ namespace Game_Upgrade_Reminder.UI
                 const int maxMs = 5000; // 最大间隔 5 秒（避免等待过久）
                 const int guardSec = 3; // 提前量 3 秒（稍早唤醒以对冲计时抖动）
 
-                int interval = maxMs;
+                var interval = maxMs;
                 if (next.HasValue)
                 {
                     var target = next.Value.AddSeconds(-guardSec);
@@ -2095,24 +2095,40 @@ namespace Game_Upgrade_Reminder.UI
         {
             using var dlg = new ManageListForm(isAccount ? "账号管理" : "任务管理",
                 isAccount ? settings.Accounts : settings.TaskPresets);
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
-
-            if (isAccount)
+            // 实时保存
+            dlg.ItemsChanged += (_, e) =>
             {
-                settings.Accounts = dlg.Items;
-                cbAccount.Items.Clear();
-                foreach (var a in settings.Accounts) cbAccount.Items.Add(a);
-                if (cbAccount.Items.Count == 0) cbAccount.Items.Add(TaskItem.DefaultAccount);
-                cbAccount.SelectedIndex = 0;
-            }
-            else
-            {
-                settings.TaskPresets = dlg.Items;
-                cbTask.Items.Clear();
-                foreach (var t in settings.TaskPresets) cbTask.Items.Add(t);
-            }
-
-            SaveSettings();
+                if (isAccount)
+                {
+                    var prev = cbAccount.SelectedItem?.ToString();
+                    settings.Accounts = e.Items;
+                    cbAccount.Items.Clear();
+                    foreach (var a in settings.Accounts) cbAccount.Items.Add(a);
+                    if (cbAccount.Items.Count == 0) cbAccount.Items.Add(TaskItem.DefaultAccount);
+                    if (!string.IsNullOrEmpty(prev) && cbAccount.Items.Contains(prev))
+                        cbAccount.SelectedItem = prev;
+                    else if (cbAccount.Items.Count > 0 && cbAccount.SelectedIndex < 0)
+                        cbAccount.SelectedIndex = 0;
+                }
+                else
+                {
+                    var text = cbTask.Text;
+                    var selStart = cbTask.SelectionStart;
+                    var selLength = cbTask.SelectionLength;
+                    settings.TaskPresets = e.Items;
+                    cbTask.Items.Clear();
+                    foreach (var t in settings.TaskPresets) cbTask.Items.Add(t);
+                    // 恢复输入体验
+                    cbTask.Text = text;
+                    if (selStart >= 0 && selStart <= cbTask.Text.Length)
+                    {
+                        cbTask.SelectionStart = selStart;
+                        cbTask.SelectionLength = selLength;
+                    }
+                }
+                SaveSettings();
+            };
+            dlg.ShowDialog(this);
         }
 
         // ---------- 开机自启 ----------

@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 提供升级任务的管理界面，支持添加、编辑、删除和排序任务
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-15
+ * 最后修改: 2025-08-18
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU Affero 通用公共许可证 (AGPL-3.0) 授权
@@ -24,12 +24,18 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ListBox lb = new() { IntegralHeight = false };
         private readonly Button btnAdd = new() { Text = "添加" };
         private readonly Button btnDel = new() { Text = "删除" };
-        private readonly Button btnClose = new() { Text = "关闭" };
+        private readonly Button btnClose = new() { Text = "完成" };
 
         /// <summary>
-        /// 当前窗口中的列表项副本。编辑操作修改此集合，点击“关闭”后由调用方读取。
+        /// 当前窗口中的列表项副本。编辑操作修改此集合；应用已采用“变更即保存”，
+        /// 调用方通过 ItemsChanged 事件同步并持久化。
         /// </summary>
-        public List<string> Items { get; private set; }
+        private List<string> Items { get; }
+
+        /// <summary>
+        /// 列表变更事件：当用户新增/删除项后立即触发，供调用方即时保存。
+        /// </summary>
+        public event EventHandler<ItemsChangedEventArgs>? ItemsChanged;
 
         /// <summary>
         /// 初始化管理窗口。
@@ -60,6 +66,7 @@ namespace Game_Upgrade_Reminder.UI
 
                 Items.Add(ib.ResultText);
                 lb.Items.Add(ib.ResultText);
+                OnItemsChanged();
             };
             btnDel.Click += (_, _) =>
             {
@@ -69,15 +76,45 @@ namespace Game_Upgrade_Reminder.UI
                 Items.RemoveAt(i);
                 lb.Items.RemoveAt(i);
 
-                // 若管理的是“账号”，且删除后为空，则回填默认账号，避免主界面没有可选账号。
-                if (Items.Count > 0 || !title.StartsWith("账号")) return;
+                // 若账号删除后为空则回填默认账号，避免主界面没有可选账号。
+                if (Items.Count == 0 && title.StartsWith("账号"))
+                {
+                    Items.Add(TaskItem.DefaultAccount);
+                    lb.Items.Add(TaskItem.DefaultAccount);
+                }
 
-                Items.Add(TaskItem.DefaultAccount);
-                lb.Items.Add(TaskItem.DefaultAccount);
+                OnItemsChanged();
             };
-            btnClose.Click += (_, _) => { DialogResult = DialogResult.OK; };
+            btnClose.Click += (_, _) => { Close(); };
 
             Controls.AddRange([lb, btnAdd, btnDel, btnClose]);
+        }
+
+        /// <summary>
+        /// 触发 <see cref="ItemsChanged"/> 事件，向订阅方发送当前列表的快照。
+        /// </summary>
+        /// <remarks>
+        /// - 始终发送列表的副本，避免订阅方修改内部状态。
+        /// - 对订阅方抛出的异常进行捕获并忽略，以避免影响 UI 交互流程。
+        /// </remarks>
+        private void OnItemsChanged()
+        {
+            try
+            {
+                ItemsChanged?.Invoke(this, new ItemsChangedEventArgs([.. Items]));
+            }
+            catch
+            {
+                // 忽略
+            }
+        }
+
+        /// <summary>
+        /// 事件参数：携带当前列表的快照。
+        /// </summary>
+        public sealed class ItemsChangedEventArgs(List<string> items) : EventArgs
+        {
+            public List<string> Items { get; } = items;
         }
     }
 }
