@@ -10,6 +10,7 @@
         <RootNamespace>Game_Upgrade_Reminder</RootNamespace>
 
         <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>
@@ -52,9 +53,9 @@
     </PropertyGroup>
     
     <PropertyGroup>
-        <AssemblyVersion>1.1.1.1</AssemblyVersion>
-        <FileVersion>1.1.1.1</FileVersion>
-        <InformationalVersion>1.1.1</InformationalVersion>
+        <AssemblyVersion>1.2.0.0</AssemblyVersion>
+        <FileVersion>1.2.0.0</FileVersion>
+        <InformationalVersion>1.2.0</InformationalVersion>
         <Company>YuanXiQWQ</Company>
         <Product>游戏升级提醒</Product>
         <Copyright>© 2025 YuanXiQWQ</Copyright>

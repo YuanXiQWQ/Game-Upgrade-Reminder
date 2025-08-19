@@ -34,6 +34,7 @@ Desktop.ini
 *.tmp
 
 # 本地
-C实现
 *.lnk
 测试
+*.json
+*计划*
