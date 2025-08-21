@@ -19,10 +19,16 @@
         <Compile Include="UI\AdvanceTimeDialog.cs"/>
         <Compile Include="UI\InputBox.cs"/>
         <Compile Include="UI\ManageListForm.cs"/>
+        <Compile Include="UI\RepeatSettingsForm.cs"/>
 
         <Compile Include="Core\Models\FontSpec.cs"/>
         <Compile Include="Core\Models\SettingsData.cs"/>
         <Compile Include="Core\Models\TaskItem.cs"/>
+
+        <Compile Include="Core\Models\RepeatMode.cs"/>
+        <Compile Include="Core\Models\RepeatCustom.cs"/>
+        <Compile Include="Core\Models\SkipRule.cs"/>
+        <Compile Include="Core\Models\RepeatSpec.cs"/>
 
         <Compile Include="Core\Abstractions\ITaskRepository.cs"/>
         <Compile Include="Core\Abstractions\ISettingsStore.cs"/>

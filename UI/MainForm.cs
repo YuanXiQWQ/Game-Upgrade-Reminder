@@ -43,6 +43,7 @@ namespace Game_Upgrade_Reminder.UI
         private const int DurationColWidth = 150;
         private const int FinishTimeColWidth = 130;
         private const int RemainingTimeColWidth = 150;
+        private const int RepeatColWidth = 240;
         private const int ActionColWidth = 50;
         private const int ExtraSpace = 50;
 
@@ -60,6 +61,7 @@ namespace Game_Upgrade_Reminder.UI
         // 状态
         private SettingsData settings = new();
         private readonly BindingList<TaskItem> tasks = [];
+        private RepeatSpec? currentRepeatSpec;
         private bool followSystemStartTime;
         private bool isUpdatingStartProgrammatically;
         private bool userEditingStart;
@@ -159,6 +161,8 @@ namespace Game_Upgrade_Reminder.UI
 
             lblNext.Text = next.HasValue ? $@"下一个: {(next.Value - now):hh\:mm\:ss}" : "下一个: -";
 
+            UpdateRepeatStatusLabel();
+
             // 同步托盘菜单状态
             UpdateTrayMenuStatus();
         }
@@ -179,12 +183,115 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
+        // ---------- 重复信息格式化与状态栏显示 ----------
+        private void UpdateRepeatStatusLabel()
+        {
+            TaskItem? selectedTask = null;
+            try
+            {
+                if (!lv.IsDisposed && lv.SelectedItems.Count > 0)
+                    selectedTask = lv.SelectedItems[0].Tag as TaskItem;
+            }
+            catch
+            {
+                // 忽略
+            }
+
+            string text;
+            if (selectedTask != null)
+            {
+                var spec = selectedTask.Repeat;
+                if (spec != null && spec.IsRepeat)
+                {
+                    text = FormatRepeatSpec(spec);
+                    if (selectedTask.RepeatCount > 0)
+                        text += $"，已重复{selectedTask.RepeatCount}次";
+                }
+                else
+                {
+                    text = "不重复";
+                }
+            }
+            else
+            {
+                text = "-";
+            }
+
+            lblRepeat.Text = $"重复: {text}";
+        }
+
+        private static string FormatRepeatSpec(RepeatSpec spec)
+        {
+            if (spec == null || !spec.IsRepeat) return "不重复";
+
+            var parts = new List<string>();
+
+            var modeStr = spec.Mode switch
+            {
+                RepeatMode.Daily => "每天",
+                RepeatMode.Weekly => "每周",
+                RepeatMode.Monthly => "每月",
+                RepeatMode.Yearly => "每年",
+                RepeatMode.Custom => FormatRepeatCustom(spec.Custom),
+                _ => "不重复"
+            };
+            parts.Add(modeStr);
+
+            if (spec.HasEnd && spec.EndAt.HasValue)
+            {
+                parts.Add("截止 " + FormatSmartDateTime(spec.EndAt.Value, DateTime.Now));
+            }
+
+            if (spec.HasSkip && spec.Skip != null)
+            {
+                parts.Add($"每提醒{spec.Skip.RemindTimes}次跳过{spec.Skip.SkipTimes}次提醒");
+            }
+
+            return string.Join("，", parts);
+        }
+
+        private static string FormatRepeatCustom(RepeatCustom? c)
+        {
+            if (c == null || c.IsEmpty) return "自定义";
+            var units = new List<string>();
+            if (c.Years > 0) units.Add($"{c.Years}年");
+            if (c.Months > 0) units.Add($"{c.Months}月");
+            if (c.Days > 0) units.Add($"{c.Days}天");
+            if (c.Hours > 0) units.Add($"{c.Hours}时");
+            if (c.Minutes > 0) units.Add($"{c.Minutes}分");
+            if (c.Seconds > 0) units.Add($"{c.Seconds}秒");
+            return units.Count > 0 ? $"每 {string.Join(" ", units)}" : "自定义";
+        }
+
+        private static string FormatSmartDateTime(DateTime dt, DateTime now)
+        {
+            var includeSeconds = dt.Second != 0;
+            var time = dt.ToString(includeSeconds ? "H:mm:ss" : "H:mm"); // 24 小时制；小时不补零
+
+            // 同日：仅显示时间
+            if (dt.Date == now.Date)
+                return time;
+
+            // 同年
+            if (dt.Year == now.Year)
+            {
+                // 同月：显示“日 + 时间”
+                if (dt.Month == now.Month)
+                    return $"{dt.Day}日{time}";
+                // 不同月：显示“月日 + 时间”
+                return $"{dt.Month}月{dt.Day}日{time}";
+            }
+
+            // 不同年：显示“年/月/日 + 时间”
+            return $"{dt.Year}年{dt.Month}月{dt.Day}日{time}";
+        }
+
         private void AdjustListViewColumns()
         {
-            if (lv.Columns.Count < 8) return;
+            if (lv.Columns.Count < 9) return;
 
             // 固定列总宽（开始、持续、完成、剩余、操作两列）
-            const int fixedSum = StartTimeColWidth + DurationColWidth + FinishTimeColWidth + RemainingTimeColWidth +
+            const int fixedSum = StartTimeColWidth + DurationColWidth + FinishTimeColWidth + RemainingTimeColWidth + RepeatColWidth +
                                  (ActionColWidth * 2);
             var available = lv.ClientSize.Width - fixedSum - 8;
             if (available < 100) available = 100;
@@ -200,8 +307,9 @@ namespace Game_Upgrade_Reminder.UI
             lv.Columns[3].Width = DurationColWidth;
             lv.Columns[4].Width = FinishTimeColWidth;
             lv.Columns[5].Width = RemainingTimeColWidth;
-            lv.Columns[6].Width = ActionColWidth;
+            lv.Columns[6].Width = RepeatColWidth;
             lv.Columns[7].Width = ActionColWidth;
+            lv.Columns[8].Width = ActionColWidth;
         }
 
         private void MainForm_KeyDown(object? sender, KeyEventArgs e)
@@ -350,6 +458,13 @@ namespace Game_Upgrade_Reminder.UI
             AccessibleDescription = "添加/保存任务（Ctrl+N）"
         };
 
+        private readonly Button btnRepeat = new()
+        {
+            Text = "重复(&P)",
+            AccessibleName = "重复设置",
+            AccessibleDescription = "配置重复提醒设置"
+        };
+
         // 双缓冲 ListView
         private class DoubleBufferedListView : ListView
         {
@@ -425,6 +540,7 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripStatusLabel lblDue = new() { Text = "已到点: 0" };
         private readonly ToolStripStatusLabel lblPending = new() { Text = "进行中: 0" };
         private readonly ToolStripStatusLabel lblNext = new() { Text = "下一个: -" };
+        private readonly ToolStripStatusLabel lblRepeat = new() { Text = "重复: -" };
 
         // 计时器
         private readonly System.Windows.Forms.Timer timerTick = new() { Interval = 1_000 };
@@ -483,8 +599,8 @@ namespace Game_Upgrade_Reminder.UI
             var sortedAsc = true;
             if (sortMode == SortMode.Custom)
             {
-                // 仅允许 0..5 这些“可排序列”显示自定义排序箭头；6/7（完成/删除）不显示
-                if (customSortColumn is >= 0 and <= 5)
+                // 仅允许 0..6 这些“可排序列”显示自定义排序箭头；7/8（完成/删除）不显示
+                if (customSortColumn is >= 0 and <= 6)
                 {
                     sortedColumn = customSortColumn;
                     sortedAsc = customSortAsc;
@@ -537,7 +653,7 @@ namespace Game_Upgrade_Reminder.UI
             }
 
             const int totalWidth = AccountColWidth + TaskColWidth + StartTimeColWidth + DurationColWidth +
-                                   FinishTimeColWidth + RemainingTimeColWidth + (ActionColWidth * 2) + ExtraSpace;
+                                   FinishTimeColWidth + RemainingTimeColWidth + RepeatColWidth + (ActionColWidth * 2) + ExtraSpace;
             ClientSize = new Size(totalWidth, 580);
             StartPosition = FormStartPosition.CenterScreen;
 
@@ -800,7 +916,7 @@ namespace Game_Upgrade_Reminder.UI
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 RowCount = 1,
-                ColumnCount = 14,
+                ColumnCount = 15,
                 Padding = new Padding(0),
                 Margin = new Padding(0)
             };
@@ -817,7 +933,9 @@ namespace Game_Upgrade_Reminder.UI
             line2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             line2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             line2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200));
-            line2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            line2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            line2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            line2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             line2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
             line2.Controls.Add(MakeAutoLabel("开始时间"), 0, 0);
@@ -858,9 +976,29 @@ namespace Game_Upgrade_Reminder.UI
             tbFinish.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             line2.Controls.Add(tbFinish, 11, 0);
 
+            // 将“添加/重复”放入同一单元格中的水平面板，避免列样式造成的额外空隙
+            var actionsPanel = new TableLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
+            actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
             btnAddSave.Text = "添加(&N)";
             StyleSmallButton(btnAddSave, new Padding(0, 2, 0, 2));
-            line2.Controls.Add(btnAddSave, 12, 0);
+            actionsPanel.Controls.Add(btnAddSave, 0, 0);
+
+            btnRepeat.Text = "重复(&P)";
+            StyleSmallButton(btnRepeat, new Padding(6, 2, 0, 2));
+            actionsPanel.Controls.Add(btnRepeat, 1, 0);
+
+            line2.Controls.Add(actionsPanel, 12, 0);
 
             gbTime.Controls.Add(line2);
             root.Controls.Add(gbTime, 0, 1);
@@ -886,6 +1024,8 @@ namespace Game_Upgrade_Reminder.UI
             status.Items.Add(lblPending);
             status.Items.Add(new ToolStripStatusLabel("|") { ForeColor = SystemColors.ControlDark });
             status.Items.Add(lblNext);
+            status.Items.Add(new ToolStripStatusLabel("|") { ForeColor = SystemColors.ControlDark });
+            status.Items.Add(lblRepeat);
             root.Controls.Add(status, 0, 3);
         }
 
@@ -903,6 +1043,7 @@ namespace Game_Upgrade_Reminder.UI
                 new ColumnHeader { Text = "持续时间", Width = DurationColWidth },
                 new ColumnHeader { Text = "完成时间", Width = FinishTimeColWidth },
                 new ColumnHeader { Text = "剩余时间", Width = RemainingTimeColWidth },
+                new ColumnHeader { Text = "重复", Width = RepeatColWidth },
                 new ColumnHeader { Text = "完成", Width = ActionColWidth },
                 new ColumnHeader { Text = "删除", Width = ActionColWidth }
             ]);
@@ -1041,6 +1182,43 @@ namespace Game_Upgrade_Reminder.UI
                 AddOrSaveTask();
             };
 
+            btnRepeat.Click += (_, _) =>
+            {
+                var selectedTask = lv.SelectedItems.Count > 0 ? lv.SelectedItems[0].Tag as TaskItem : null;
+                using var dlg = new RepeatSettingsForm();
+                dlg.CurrentSpec = selectedTask?.Repeat ?? currentRepeatSpec ?? new RepeatSpec { Mode = RepeatMode.None };
+                dlg.RepeatSpecChanged += (_, spec) =>
+                {
+                    if (selectedTask != null)
+                    {
+                        selectedTask.Repeat = spec;
+                        selectedTask.RepeatCount = 0; // 编辑重复设置后计数清零
+                        SaveTasks();
+                        RefreshTable();
+                        UpdateStatusBar();
+                    }
+                    else
+                    {
+                        currentRepeatSpec = spec; // 新增任务默认值
+                    }
+                };
+
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    var spec = dlg.CurrentSpec;
+                    currentRepeatSpec = spec; // 作为默认应用到后续新增任务
+
+                    if (selectedTask != null)
+                    {
+                        selectedTask.Repeat = spec;
+                        selectedTask.RepeatCount = 0; // 编辑重复设置后计数清零
+                        SaveTasks();
+                        RefreshTable();
+                        UpdateStatusBar();
+                    }
+                }
+            };
+
             // 测试按钮（保留）
             var btnTest = new Button { Text = "测试排序", Location = new Point(10, 10), AutoSize = true };
             btnTest.Click += (_, _) => TestSorting();
@@ -1073,13 +1251,14 @@ namespace Game_Upgrade_Reminder.UI
                 // 当列表获得焦点但没有选中项时，清除焦点项避免虚线焦点框
                 ClearListViewFocusIfNoSelection();
             };
+            lv.SelectedIndexChanged += (_, _) => UpdateRepeatStatusLabel();
 
             // 列头点击排序（文本为主，部分列有特殊处理）
             lv.ColumnClick += (_, e) =>
             {
                 var column = e.Column;
-                // 完成(6)/删除(7) 列：不参与排序，也不显示箭头
-                if (column >= 6) return;
+                // 完成(7)/删除(8) 列：不参与排序，也不显示箭头
+                if (column >= 7) return;
 
                 sortMode = SortMode.Custom;
                 var sortAscending = column != customSortColumn || !customSortAsc;
@@ -1765,6 +1944,9 @@ namespace Game_Upgrade_Reminder.UI
             foreach (var t in tasks)
             {
                 var duration = durationFormatter.Format(t.Days, t.Hours, t.Minutes);
+                var repeatText = (t.Repeat != null && t.Repeat.IsRepeat)
+                    ? FormatRepeatSpec(t.Repeat) + (t.RepeatCount > 0 ? $"，已重复{t.RepeatCount}次" : "")
+                    : "不重复";
                 var it = new ListViewItem(t.Account)
                 {
                     SubItems =
@@ -1774,6 +1956,7 @@ namespace Game_Upgrade_Reminder.UI
                         duration,
                         t.FinishStr,
                         t.RemainingStr,
+                        repeatText,
                         t.Done ? "撤销完成" : "完成",
                         t.PendingDelete ? "撤销删除" : "删除"
                     },
@@ -1841,8 +2024,8 @@ namespace Game_Upgrade_Reminder.UI
                     row.BackColor = DueBackColor;
                 }
 
-                row.SubItems[6].Text = t.Done ? "撤销完成" : "完成";
-                row.SubItems[7].Text = t.PendingDelete ? "撤销删除" : "删除";
+                row.SubItems[7].Text = t.Done ? "撤销完成" : "完成";
+                row.SubItems[8].Text = t.PendingDelete ? "撤销删除" : "删除";
             }
 
             UpdateStatusBar();
@@ -1859,14 +2042,14 @@ namespace Game_Upgrade_Reminder.UI
 
             switch (sub)
             {
-                case 6:
+                case 7:
                     t.Done = !t.Done;
                     t.CompletedTime = t.Done ? DateTime.Now : null;
                     SaveTasks();
                     RefreshTable();
                     break;
 
-                case 7:
+                case 8:
                     t.PendingDelete = !t.PendingDelete;
                     t.DeleteMarkTime = t.PendingDelete ? DateTime.Now : null;
                     SaveTasks();
@@ -1940,6 +2123,9 @@ namespace Game_Upgrade_Reminder.UI
             var selectedTask = lv.SelectedItems.Count > 0 ? lv.SelectedItems[0].Tag as TaskItem : null;
             if (selectedTask != null)
             {
+                // 编辑任务：沿用 Repeat 设置，但按规则“编辑后清零计数”
+                t.Repeat = selectedTask.Repeat;
+                t.RepeatCount = 0;
                 var idx = tasks.IndexOf(selectedTask);
                 if (idx >= 0)
                 {
@@ -1954,6 +2140,9 @@ namespace Game_Upgrade_Reminder.UI
             }
             else
             {
+                // 新增任务应用当前的“重复设置”默认值
+                t.Repeat = currentRepeatSpec;
+                t.RepeatCount = 0;
                 if (sortMode == SortMode.DefaultByFinish) sortStrategy.Insert(tasks, t);
                 else tasks.Add(t);
             }
@@ -1979,12 +2168,26 @@ namespace Game_Upgrade_Reminder.UI
             var now = DateTime.Now;
             foreach (var t in tasks)
             {
-                // Advance notify
+                var spec = t.Repeat;
+                var isRepeat = spec?.IsRepeat == true;
+
+                // 若设置了截止且当前 Finish 已超过截止，立即停止后续提醒
+                if (isRepeat && spec!.HasEnd && t.Finish > spec.EndAt!.Value)
+                {
+                    t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
+                    t.AdvanceNotified = true; // 阻止未来的提前提醒
+                    t.Notified = true;        // 阻止未来的到点提醒
+                    changed = true;
+                    continue;
+                }
+
+                // 提前提醒（仅对非跳过周期触发）
                 var adv = settings.AdvanceNotifySeconds;
                 if (adv > 0 && !t.AdvanceNotified && t.Finish > now)
                 {
                     var advTime = t.Finish.AddSeconds(-adv);
-                    if (advTime <= now)
+                    var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCount);
+                    if (!inSkipPhase && advTime <= now)
                     {
                         notifier.Toast($"[提前] {t.Account}", $"{t.TaskName} 即将到点，完成时间：{t.FinishStr}");
                         t.AdvanceNotified = true;
@@ -1992,23 +2195,48 @@ namespace Game_Upgrade_Reminder.UI
                     }
                 }
 
-                // 到点提醒
+                // 到点检查
                 if (t.Finish > now || t.Notified) continue;
 
-                // 若用户关闭“同时准点通知”，且已进行过提前通知，则此处直接标记已到点通知，避免再次弹窗
-                if (!settings.AlsoNotifyAtDue && t.AdvanceNotified)
+                var skipThis = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCount);
+
+                // 是否显示到点弹窗：非跳过阶段，且（开启到点通知或未提前通知过）
+                var showDueToast = !skipThis && (settings.AlsoNotifyAtDue || !t.AdvanceNotified);
+                if (showDueToast)
                 {
-                    t.Notified = true;
-                    changed = true;
-                    continue;
+                    notifier.Toast($"[到点] {t.Account}", $"{t.TaskName} 完成时间：{t.FinishStr}");
                 }
 
-                notifier.Toast($"[到点] {t.Account}", $"{t.TaskName} 完成时间：{t.FinishStr}");
+                // 计数：仅在非跳过阶段 +1（无论是否显示到点弹窗；若用户关闭到点但有提前提醒，也应计数）
+                if (!skipThis) t.RepeatCount++;
+
                 t.Notified = true;
                 changed = true;
+
+                // 若为重复任务，推进到下一次提醒；否则保持现状
+                if (isRepeat)
+                {
+                    var next = CalcNextOccurrence(t.Finish, spec!);
+                    // 超过截止则停止重复
+                    if (spec!.HasEnd && next > spec.EndAt!.Value)
+                    {
+                        t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
+                        // 保持 Notified=true 使其不再弹窗
+                    }
+                    else
+                    {
+                        t.Finish = next;
+                        t.Notified = false;
+                        t.AdvanceNotified = false;
+                    }
+                }
             }
 
-            if (changed) SaveTasks();
+            if (changed)
+            {
+                SaveTasks();
+                RefreshTable(); // 刷新以更新“完成时间/重复”列文本与已重复次数
+            }
             RescheduleNextTick();
             UpdateStatusBar();
         }
@@ -2065,6 +2293,56 @@ namespace Game_Upgrade_Reminder.UI
             {
                 // 忽略
             }
+        }
+
+        // ---------- 重复调度辅助 ----------
+        private static DateTime CalcNextOccurrence(DateTime current, RepeatSpec spec)
+        {
+            var next = current;
+            switch (spec.Mode)
+            {
+                case RepeatMode.Daily:
+                    next = current.AddDays(1);
+                    break;
+                case RepeatMode.Weekly:
+                    next = current.AddDays(7);
+                    break;
+                case RepeatMode.Monthly:
+                    next = current.AddMonths(1);
+                    break;
+                case RepeatMode.Yearly:
+                    next = current.AddYears(1);
+                    break;
+                case RepeatMode.Custom:
+                    var c = spec.Custom;
+                    if (c != null)
+                    {
+                        next = next.AddYears(Math.Max(0, c.Years));
+                        next = next.AddMonths(Math.Max(0, c.Months));
+                        next = next.AddDays(Math.Max(0, c.Days));
+                        next = next.AddHours(Math.Max(0, c.Hours));
+                        next = next.AddMinutes(Math.Max(0, c.Minutes));
+                        next = next.AddSeconds(Math.Max(0, c.Seconds));
+                    }
+                    break;
+                default:
+                    next = current;
+                    break;
+            }
+            // 安全兜底，避免不前进导致死循环
+            if (next <= current) next = current.AddSeconds(1);
+            return next;
+        }
+
+        private static bool ShouldSkipOccurrence(RepeatSpec spec, int repeatCountSoFar)
+        {
+            if (!spec.HasSkip || spec.Skip == null) return false;
+            var a = Math.Max(0, spec.Skip.RemindTimes);
+            var b = Math.Max(0, spec.Skip.SkipTimes);
+            var l = a + b;
+            if (a == 0 || b == 0 || l == 0) return false;
+            var idx = repeatCountSoFar % l; // 0..l-1
+            return idx >= a; // 0..a-1: 提醒；a..l-1: 跳过
         }
 
         private void PurgePending(bool force)

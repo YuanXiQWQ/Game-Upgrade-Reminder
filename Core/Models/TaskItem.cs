@@ -93,6 +93,16 @@ namespace Game_Upgrade_Reminder.Core.Models
         public DateTime? DeleteMarkTime { get; set; }
 
         /// <summary>
+        /// 重复设置（为 null 或 Mode=None 表示不重复）
+        /// </summary>
+        public RepeatSpec? Repeat { get; set; }
+
+        /// <summary>
+        /// 已重复次数（提醒触发+1；跳过不+1；编辑任务后清零）
+        /// </summary>
+        public int RepeatCount { get; set; }
+
+        /// <summary>
         /// 获取任务的剩余时间
         /// </summary>
         [JsonIgnore]
