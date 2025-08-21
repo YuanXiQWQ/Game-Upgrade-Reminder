@@ -1,7 +1,14 @@
 /*
  * 游戏升级提醒 - 提前通知时间设置对话框
  * 作者: YuanXiQWQ
+ * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 允许用户输入天/时/分/秒来设置提前通知时间
+ * 创建日期: 2025-08-17
+ * 最后修改: 2025-08-21
+ *
+ * 版权所有 (C) 2025 YuanXiQWQ
+ * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
+ * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
 
@@ -22,10 +29,10 @@ namespace Game_Upgrade_Reminder.UI
     /// </summary>
     internal sealed class AdvanceTimeDialog : Form
     {
-        private readonly NumericUpDown numDays = new() { Minimum = 0, Maximum = 3650, Width = 60 };
-        private readonly NumericUpDown numHours = new() { Minimum = 0, Maximum = 999, Width = 60 };
-        private readonly NumericUpDown numMinutes = new() { Minimum = 0, Maximum = 59, Width = 60 };
-        private readonly NumericUpDown numSeconds = new() { Minimum = 0, Maximum = 59, Width = 60 };
+        private readonly NumericUpDown _numDays = new() { Minimum = 0, Maximum = 3650, Width = 60 };
+        private readonly NumericUpDown _numHours = new() { Minimum = 0, Maximum = 999, Width = 60 };
+        private readonly NumericUpDown _numMinutes = new() { Minimum = 0, Maximum = 59, Width = 60 };
+        private readonly NumericUpDown _numSeconds = new() { Minimum = 0, Maximum = 59, Width = 60 };
 
         /// <summary>
         /// 汇总得到的总秒数（单位：秒）。
@@ -68,18 +75,19 @@ namespace Game_Upgrade_Reminder.UI
 
             void AddLabel(string text, int col)
             {
-                var lb = new Label { Text = text, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(6, 6, 6, 0) };
+                var lb = new Label
+                    { Text = text, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(6, 6, 6, 0) };
                 root.Controls.Add(lb, col, 0);
             }
 
             // 第 0 行（输入区）：天/时/分/秒
-            root.Controls.Add(numDays, 0, 0);
+            root.Controls.Add(_numDays, 0, 0);
             AddLabel("天", 1);
-            root.Controls.Add(numHours, 2, 0);
+            root.Controls.Add(_numHours, 2, 0);
             AddLabel("小时", 3);
-            root.Controls.Add(numMinutes, 4, 0);
+            root.Controls.Add(_numMinutes, 4, 0);
             AddLabel("分钟", 5);
-            root.Controls.Add(numSeconds, 6, 0);
+            root.Controls.Add(_numSeconds, 6, 0);
             AddLabel("秒", 7);
 
             // 按钮区（右对齐）：确定 / 取消
@@ -114,11 +122,11 @@ namespace Game_Upgrade_Reminder.UI
             // 根据 initialSeconds 初始化（将秒拆分为天/时/分/秒）
             if (initialSeconds < 0) initialSeconds = 0;
             var ts = TimeSpan.FromSeconds(initialSeconds);
-            numDays.Value = ts.Days;
+            _numDays.Value = ts.Days;
             // 若总小时超过控件上限，则裁剪到上限（避免 UI 上的越界）
-            numHours.Value = ts.Hours + ts.Days * 24 > numHours.Maximum ? numHours.Maximum : ts.Hours;
-            numMinutes.Value = ts.Minutes;
-            numSeconds.Value = ts.Seconds;
+            _numHours.Value = ts.Hours + ts.Days * 24 > _numHours.Maximum ? _numHours.Maximum : ts.Hours;
+            _numMinutes.Value = ts.Minutes;
+            _numSeconds.Value = ts.Seconds;
         }
 
         /// <summary>
@@ -130,10 +138,10 @@ namespace Game_Upgrade_Reminder.UI
         {
             try
             {
-                var days = (int)numDays.Value;
-                var hours = (int)numHours.Value;
-                var minutes = (int)numMinutes.Value;
-                var seconds = (int)numSeconds.Value;
+                var days = (int)_numDays.Value;
+                var hours = (int)_numHours.Value;
+                var minutes = (int)_numMinutes.Value;
+                var seconds = (int)_numSeconds.Value;
                 var total = checked(days * 24 * 3600 + hours * 3600 + minutes * 60 + seconds);
                 if (total < 0) total = 0;
                 return total;

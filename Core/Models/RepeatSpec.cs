@@ -1,5 +1,13 @@
 /*
  * 重复任务 - 规格
+ * 作者: YuanXiQWQ
+ * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
+ * 创建日期: 2025-08-21
+ * 最后修改: 2025-08-21
+ *
+ * 版权所有 (C) 2025 YuanXiQWQ
+ * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
+ * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
 using System.Text.Json.Serialization;
@@ -35,7 +43,12 @@ public sealed class RepeatSpec
     /// 是否为有效重复（Mode!=None，且当为 Custom 时 Custom 不是空周期）
     /// </summary>
     [JsonIgnore]
-    public bool IsRepeat => Mode != RepeatMode.None && (Mode != RepeatMode.Custom || (Custom != null && !Custom.IsEmpty));
+    public bool IsRepeat => Mode switch
+    {
+        RepeatMode.None => false,
+        RepeatMode.Custom => Custom is { IsEmpty: false },
+        _ => true
+    };
 
     /// <summary>
     /// 是否设置了结束时间

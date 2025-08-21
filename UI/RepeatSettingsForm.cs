@@ -1,5 +1,13 @@
 /*
- * 游戏升级提醒 - 重复设置窗口（P3+P4+P9：UI、变更即保存与校验）
+ * 重复设置窗口
+ * 作者: YuanXiQWQ
+ * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
+ * 创建日期: 2025-08-21
+ * 最后修改: 2025-08-21
+ *
+ * 版权所有 (C) 2025 YuanXiQWQ
+ * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
+ * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
 using Game_Upgrade_Reminder.Core.Models;
@@ -18,42 +26,44 @@ namespace Game_Upgrade_Reminder.UI
     internal sealed class RepeatSettingsForm : Form
     {
         // 模式选择
-        private readonly RadioButton rbNone = new() { Text = "不重复", AutoSize = true };
-        private readonly RadioButton rbDaily = new() { Text = "每天", AutoSize = true };
-        private readonly RadioButton rbWeekly = new() { Text = "每周", AutoSize = true };
-        private readonly RadioButton rbMonthly = new() { Text = "每月", AutoSize = true };
-        private readonly RadioButton rbYearly = new() { Text = "每年", AutoSize = true };
-        private readonly RadioButton rbCustom = new() { Text = "自定义", AutoSize = true };
+        private readonly RadioButton _rbNone = new() { Text = "不重复", AutoSize = true };
+        private readonly RadioButton _rbDaily = new() { Text = "每天", AutoSize = true };
+        private readonly RadioButton _rbWeekly = new() { Text = "每周", AutoSize = true };
+        private readonly RadioButton _rbMonthly = new() { Text = "每月", AutoSize = true };
+        private readonly RadioButton _rbYearly = new() { Text = "每年", AutoSize = true };
+        private readonly RadioButton _rbCustom = new() { Text = "自定义", AutoSize = true };
 
         // 自定义周期
-        private readonly NumericUpDown numYears = new() { Minimum = 0, Maximum = 1000, Width = 60 };
-        private readonly NumericUpDown numMonths = new() { Minimum = 0, Maximum = 1200, Width = 60 };
-        private readonly NumericUpDown numDays = new() { Minimum = 0, Maximum = 365000, Width = 60 };
-        private readonly NumericUpDown numHours = new() { Minimum = 0, Maximum = 100000, Width = 60 };
-        private readonly NumericUpDown numMinutes = new() { Minimum = 0, Maximum = 100000, Width = 60 };
-        private readonly NumericUpDown numSeconds = new() { Minimum = 0, Maximum = 100000, Width = 60 };
+        private readonly NumericUpDown _numYears = new() { Minimum = 0, Maximum = 1000, Width = 60, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _numMonths = new() { Minimum = 0, Maximum = 1200, Width = 60, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _numDays = new() { Minimum = 0, Maximum = 365000, Width = 60, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _numHours = new() { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _numMinutes = new() { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _numSeconds = new() { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
 
         // 结束时间
-        private readonly DateTimePicker dtEndDate = new()
+        private readonly DateTimePicker _dtEndDate = new()
         {
             Format = DateTimePickerFormat.Custom,
             CustomFormat = "yyyy-MM-dd",
             ShowUpDown = false,
-            Width = 120
+            Width = 120,
+            Anchor = AnchorStyles.Left
         };
-        private readonly NumericUpDown endHour = new() { Minimum = 0, Maximum = 23, Width = 60 };
-        private readonly NumericUpDown endMinute = new() { Minimum = 0, Maximum = 59, Width = 60 };
-        private readonly NumericUpDown endSecond = new() { Minimum = 0, Maximum = 59, Width = 60 };
+
+        private readonly NumericUpDown _endHour = new() { Minimum = 0, Maximum = 23, Width = 60, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _endMinute = new() { Minimum = 0, Maximum = 59, Width = 60, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _endSecond = new() { Minimum = 0, Maximum = 59, Width = 60, Anchor = AnchorStyles.Left };
 
         // 结束时间可选：无（默认）
-        private readonly CheckBox chkNoEnd = new() { Text = "无", AutoSize = true };
+        private readonly CheckBox _chkNoEnd = new() { Text = "无", AutoSize = true, Anchor = AnchorStyles.Left };
 
         // 跳过规则
-        private readonly NumericUpDown numRemindTimes = new() { Minimum = 0, Maximum = 100000, Width = 80 };
-        private readonly NumericUpDown numSkipTimes = new() { Minimum = 0, Maximum = 100000, Width = 80 };
+        private readonly NumericUpDown _numRemindTimes = new() { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _numSkipTimes = new() { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
 
         // 校验与提示
-        private readonly Label lblHint = new() { AutoSize = true };
+        private readonly Label _lblHint = new() { AutoSize = true };
 
         /// <summary>
         /// 当前编辑的重复设置。读取时根据 UI 组合，设置时回填 UI。
@@ -61,14 +71,14 @@ namespace Game_Upgrade_Reminder.UI
         /// </summary>
         public RepeatSpec? CurrentSpec
         {
-            get => BuildSpecFromUI();
-            set => ApplySpecToUI(value);
+            get => _BuildSpecFromUI();
+            set => _ApplySpecToUI(value);
         }
 
         // 变更即保存事件（P4）：任一控件变更时触发当前 RepeatSpec
         public event EventHandler<RepeatSpec?>? RepeatSpecChanged;
-        private bool isApplying; // 回填 UI 时抑制事件
-        private readonly System.Windows.Forms.Timer debounceTimer = new() { Interval = 250 };
+        private bool _isApplying; // 回填 UI 时抑制事件
+        private readonly System.Windows.Forms.Timer _debounceTimer = new() { Interval = 250 };
 
         public RepeatSettingsForm()
         {
@@ -82,9 +92,9 @@ namespace Game_Upgrade_Reminder.UI
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
             // 防抖定时器：空闲 250ms 后触发一次变更事件
-            debounceTimer.Tick += (_, _) =>
+            _debounceTimer.Tick += (_, _) =>
             {
-                debounceTimer.Stop();
+                _debounceTimer.Stop();
                 RaiseChanged();
             };
 
@@ -100,49 +110,66 @@ namespace Game_Upgrade_Reminder.UI
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             // 1) 模式
-            var gbMode = new GroupBox { Text = "模式", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10) };
-            var pnlModes = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Dock = DockStyle.Fill };
-            pnlModes.Controls.AddRange([ rbNone, rbDaily, rbWeekly, rbMonthly, rbYearly, rbCustom ]);
+            var gbMode = new GroupBox
+                { Text = "模式", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10) };
+            var pnlModes = new FlowLayoutPanel
+                { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Dock = DockStyle.Fill };
+            pnlModes.Controls.AddRange([_rbNone, _rbDaily, _rbWeekly, _rbMonthly, _rbYearly, _rbCustom]);
             gbMode.Controls.Add(pnlModes);
             root.Controls.Add(gbMode, 0, 0);
 
             // 2) 自定义周期
-            var gbCustom = new GroupBox { Text = "自定义周期（≥0，至少一项>0）", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10) };
+            var gbCustom = new GroupBox
+            {
+                Text = "自定义周期（≥0，至少一项>0）", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+            };
             var tlCustom = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 12 };
-            for (int i = 0; i < 12; i++) tlCustom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            tlCustom.Controls.Add(numYears, 0, 0); tlCustom.Controls.Add(MakeLabel("年"), 1, 0);
-            tlCustom.Controls.Add(numMonths, 2, 0); tlCustom.Controls.Add(MakeLabel("月"), 3, 0);
-            tlCustom.Controls.Add(numDays, 4, 0); tlCustom.Controls.Add(MakeLabel("日"), 5, 0);
-            tlCustom.Controls.Add(numHours, 6, 0); tlCustom.Controls.Add(MakeLabel("时"), 7, 0);
-            tlCustom.Controls.Add(numMinutes, 8, 0); tlCustom.Controls.Add(MakeLabel("分"), 9, 0);
-            tlCustom.Controls.Add(numSeconds, 10, 0); tlCustom.Controls.Add(MakeLabel("秒"), 11, 0);
+            for (var i = 0; i < 12; i++) tlCustom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            tlCustom.Controls.Add(_numYears, 0, 0);
+            tlCustom.Controls.Add(MakeLabel("年"), 1, 0);
+            tlCustom.Controls.Add(_numMonths, 2, 0);
+            tlCustom.Controls.Add(MakeLabel("月"), 3, 0);
+            tlCustom.Controls.Add(_numDays, 4, 0);
+            tlCustom.Controls.Add(MakeLabel("日"), 5, 0);
+            tlCustom.Controls.Add(_numHours, 6, 0);
+            tlCustom.Controls.Add(MakeLabel("时"), 7, 0);
+            tlCustom.Controls.Add(_numMinutes, 8, 0);
+            tlCustom.Controls.Add(MakeLabel("分"), 9, 0);
+            tlCustom.Controls.Add(_numSeconds, 10, 0);
+            tlCustom.Controls.Add(MakeLabel("秒"), 11, 0);
             gbCustom.Controls.Add(tlCustom);
             root.Controls.Add(gbCustom, 0, 1);
 
             // 3) 结束时间
-            var gbEnd = new GroupBox { Text = "结束时间（到此不再提醒，可选）", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10) };
+            var gbEnd = new GroupBox
+            {
+                Text = "结束时间（到此不再提醒，可选）", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+            };
             var tlEnd = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 9 };
-            for (int i = 0; i < 9; i++) tlEnd.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            for (var i = 0; i < 9; i++) tlEnd.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             tlEnd.Controls.Add(MakeLabel("日期"), 0, 0);
-            tlEnd.Controls.Add(dtEndDate, 1, 0);
-            tlEnd.Controls.Add(MakeLabel("时"), 2, 0);
-            tlEnd.Controls.Add(endHour, 3, 0);
-            tlEnd.Controls.Add(MakeLabel("分"), 4, 0);
-            tlEnd.Controls.Add(endMinute, 5, 0);
-            tlEnd.Controls.Add(MakeLabel("秒"), 6, 0);
-            tlEnd.Controls.Add(endSecond, 7, 0);
-            tlEnd.Controls.Add(chkNoEnd, 8, 0);
+            tlEnd.Controls.Add(_dtEndDate, 1, 0);
+            tlEnd.Controls.Add(_endHour, 2, 0);
+            tlEnd.Controls.Add(MakeLabel("时"), 3, 0);
+            tlEnd.Controls.Add(_endMinute, 4, 0);
+            tlEnd.Controls.Add(MakeLabel("分"), 5, 0);
+            tlEnd.Controls.Add(_endSecond, 6, 0);
+            tlEnd.Controls.Add(MakeLabel("秒"), 7, 0);
+            tlEnd.Controls.Add(_chkNoEnd, 8, 0);
             gbEnd.Controls.Add(tlEnd);
             root.Controls.Add(gbEnd, 0, 2);
 
             // 4) 跳过规则
-            var gbSkip = new GroupBox { Text = "跳过规则（每提醒A次，跳过B次）", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10) };
-            var tlSkip = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 6 };
-            for (int i = 0; i < 6; i++) tlSkip.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            tlSkip.Controls.Add(MakeLabel("A:"), 0, 0);
-            tlSkip.Controls.Add(numRemindTimes, 1, 0);
-            tlSkip.Controls.Add(MakeLabel("次，跳过 B:"), 2, 0);
-            tlSkip.Controls.Add(numSkipTimes, 3, 0);
+            var gbSkip = new GroupBox
+            {
+                Text = "跳过规则", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+            };
+            var tlSkip = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 5 };
+            for (var i = 0; i < 5; i++) tlSkip.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            tlSkip.Controls.Add(MakeLabel("每提醒"), 0, 0);
+            tlSkip.Controls.Add(_numRemindTimes, 1, 0);
+            tlSkip.Controls.Add(MakeLabel("次，跳过"), 2, 0);
+            tlSkip.Controls.Add(_numSkipTimes, 3, 0);
             tlSkip.Controls.Add(MakeLabel("次"), 4, 0);
             gbSkip.Controls.Add(tlSkip);
             root.Controls.Add(gbSkip, 0, 3);
@@ -156,9 +183,9 @@ namespace Game_Upgrade_Reminder.UI
                 Padding = new Padding(0),
                 Margin = new Padding(0, 8, 0, 0)
             };
-            lblHint.ForeColor = System.Drawing.SystemColors.GrayText;
-            lblHint.Text = string.Empty;
-            pnlHint.Controls.Add(lblHint);
+            _lblHint.ForeColor = SystemColors.GrayText;
+            _lblHint.Text = string.Empty;
+            pnlHint.Controls.Add(_lblHint);
             root.Controls.Add(pnlHint, 0, 4);
 
             // 6) 按钮区（右对齐）：确定 / 取消
@@ -179,34 +206,92 @@ namespace Game_Upgrade_Reminder.UI
             Controls.Add(root);
 
             // 默认值与事件
-            rbNone.Checked = true;
+            _rbNone.Checked = true;
             var now = DateTime.Now;
-            dtEndDate.Value = now.Date;
-            endHour.Value = now.Hour;
-            endMinute.Value = now.Minute;
-            endSecond.Value = 0; // 秒默认0
-            chkNoEnd.Checked = true; // 默认“无”，表示始终重复
+            _dtEndDate.Value = now.Date;
+            _endHour.Value = now.Hour;
+            _endMinute.Value = now.Minute;
+            _endSecond.Value = 0; // 秒默认0
+            _chkNoEnd.Checked = true; // 默认“无”，表示始终重复
 
             // 切换启用状态
-            foreach (var rb in new[] { rbNone, rbDaily, rbWeekly, rbMonthly, rbYearly, rbCustom })
+            foreach (var rb in new[] { _rbNone, _rbDaily, _rbWeekly, _rbMonthly, _rbYearly, _rbCustom })
             {
-                rb.CheckedChanged += (_, _) => { UpdateEnabledState(); CueChange(); };
+                rb.CheckedChanged += (_, _) =>
+                {
+                    UpdateEnabledState();
+                    CueChange();
+                };
             }
-            numYears.ValueChanged += (_, _) => { UpdateEnabledState(); CueChange(); };
-            numMonths.ValueChanged += (_, _) => { UpdateEnabledState(); CueChange(); };
-            numDays.ValueChanged += (_, _) => { UpdateEnabledState(); CueChange(); };
-            numHours.ValueChanged += (_, _) => { UpdateEnabledState(); CueChange(); };
-            numMinutes.ValueChanged += (_, _) => { UpdateEnabledState(); CueChange(); };
-            numSeconds.ValueChanged += (_, _) => { UpdateEnabledState(); CueChange(); };
+
+            _numYears.ValueChanged += (_, _) =>
+            {
+                UpdateEnabledState();
+                CueChange();
+            };
+            _numMonths.ValueChanged += (_, _) =>
+            {
+                UpdateEnabledState();
+                CueChange();
+            };
+            _numDays.ValueChanged += (_, _) =>
+            {
+                UpdateEnabledState();
+                CueChange();
+            };
+            _numHours.ValueChanged += (_, _) =>
+            {
+                UpdateEnabledState();
+                CueChange();
+            };
+            _numMinutes.ValueChanged += (_, _) =>
+            {
+                UpdateEnabledState();
+                CueChange();
+            };
+            _numSeconds.ValueChanged += (_, _) =>
+            {
+                UpdateEnabledState();
+                CueChange();
+            };
 
             // 结束时间与跳过：值变更即触发
-            chkNoEnd.CheckedChanged += (_, _) => { UpdateEnabledState(); UpdateValidationMessage(); CueChange(); };
-            dtEndDate.ValueChanged += (_, _) => { UpdateValidationMessage(); CueChange(); };
-            endHour.ValueChanged += (_, _) => { UpdateValidationMessage(); CueChange(); };
-            endMinute.ValueChanged += (_, _) => { UpdateValidationMessage(); CueChange(); };
-            endSecond.ValueChanged += (_, _) => { UpdateValidationMessage(); CueChange(); };
-            numRemindTimes.ValueChanged += (_, _) => { UpdateValidationMessage(); CueChange(); };
-            numSkipTimes.ValueChanged += (_, _) => { UpdateValidationMessage(); CueChange(); };
+            _chkNoEnd.CheckedChanged += (_, _) =>
+            {
+                UpdateEnabledState();
+                UpdateValidationMessage();
+                CueChange();
+            };
+            _dtEndDate.ValueChanged += (_, _) =>
+            {
+                UpdateValidationMessage();
+                CueChange();
+            };
+            _endHour.ValueChanged += (_, _) =>
+            {
+                UpdateValidationMessage();
+                CueChange();
+            };
+            _endMinute.ValueChanged += (_, _) =>
+            {
+                UpdateValidationMessage();
+                CueChange();
+            };
+            _endSecond.ValueChanged += (_, _) =>
+            {
+                UpdateValidationMessage();
+                CueChange();
+            };
+            _numRemindTimes.ValueChanged += (_, _) =>
+            {
+                UpdateValidationMessage();
+                CueChange();
+            };
+            _numSkipTimes.ValueChanged += (_, _) =>
+            {
+                UpdateValidationMessage();
+                CueChange();
+            };
 
             UpdateEnabledState();
             UpdateValidationMessage();
@@ -222,17 +307,35 @@ namespace Game_Upgrade_Reminder.UI
             {
                 try
                 {
-                    if (debounceTimer.Enabled) debounceTimer.Stop();
+                    if (_debounceTimer.Enabled) _debounceTimer.Stop();
                     RaiseChanged();
                 }
-                catch { }
+                catch
+                {
+                    // 忽略
+                }
             };
 
             // 关闭时停止并释放定时器
             FormClosed += (_, _) =>
             {
-                try { debounceTimer.Stop(); } catch { }
-                try { debounceTimer.Dispose(); } catch { }
+                try
+                {
+                    _debounceTimer.Stop();
+                }
+                catch
+                {
+                    // 忽略
+                }
+
+                try
+                {
+                    _debounceTimer.Dispose();
+                }
+                catch
+                {
+                    // 忽略
+                }
             };
         }
 
@@ -241,42 +344,43 @@ namespace Game_Upgrade_Reminder.UI
             Text = text,
             AutoSize = true,
             Anchor = AnchorStyles.Left,
-            Margin = new Padding(6, 6, 6, 0)
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(6, 0, 6, 0)
         };
 
         private void UpdateEnabledState()
         {
-            bool custom = rbCustom.Checked;
-            bool none = rbNone.Checked;
+            var custom = _rbCustom.Checked;
+            var none = _rbNone.Checked;
 
             // 自定义周期启用/禁用
-            foreach (var ctl in new Control[] { numYears, numMonths, numDays, numHours, numMinutes, numSeconds })
+            foreach (var ctl in new Control[] { _numYears, _numMonths, _numDays, _numHours, _numMinutes, _numSeconds })
                 ctl.Enabled = custom;
 
             // 是否认为“没有配置周期”：None 或（Custom 且全部为 0）
-            bool customAllZero = numYears.Value == 0 && numMonths.Value == 0 && numDays.Value == 0 &&
-                                 numHours.Value == 0 && numMinutes.Value == 0 && numSeconds.Value == 0;
-            bool noPeriod = none || (custom && customAllZero);
+            var customAllZero = _numYears.Value == 0 && _numMonths.Value == 0 && _numDays.Value == 0 &&
+                                 _numHours.Value == 0 && _numMinutes.Value == 0 && _numSeconds.Value == 0;
+            var noPeriod = none || (custom && customAllZero);
 
             // 当无周期时禁用结束时间与跳过
-            chkNoEnd.Enabled = !noPeriod;
-            var endEnabled = !noPeriod && !chkNoEnd.Checked;
-            foreach (var ctl in new Control[] { dtEndDate, endHour, endMinute, endSecond })
+            _chkNoEnd.Enabled = !noPeriod;
+            var endEnabled = !noPeriod && !_chkNoEnd.Checked;
+            foreach (var ctl in new Control[] { _dtEndDate, _endHour, _endMinute, _endSecond })
                 ctl.Enabled = endEnabled;
-            foreach (var ctl in new Control[] { numRemindTimes, numSkipTimes })
+            foreach (var ctl in new Control[] { _numRemindTimes, _numSkipTimes })
                 ctl.Enabled = !noPeriod;
 
             UpdateValidationMessage();
         }
 
-        private RepeatSpec? BuildSpecFromUI()
+        private RepeatSpec _BuildSpecFromUI()
         {
-            var mode = rbNone.Checked ? RepeatMode.None :
-                       rbDaily.Checked ? RepeatMode.Daily :
-                       rbWeekly.Checked ? RepeatMode.Weekly :
-                       rbMonthly.Checked ? RepeatMode.Monthly :
-                       rbYearly.Checked ? RepeatMode.Yearly :
-                       RepeatMode.Custom;
+            var mode = _rbNone.Checked ? RepeatMode.None :
+                _rbDaily.Checked ? RepeatMode.Daily :
+                _rbWeekly.Checked ? RepeatMode.Weekly :
+                _rbMonthly.Checked ? RepeatMode.Monthly :
+                _rbYearly.Checked ? RepeatMode.Yearly :
+                RepeatMode.Custom;
 
             if (mode == RepeatMode.None)
                 return new RepeatSpec { Mode = RepeatMode.None };
@@ -286,12 +390,12 @@ namespace Game_Upgrade_Reminder.UI
             {
                 custom = new RepeatCustom
                 {
-                    Years = (int)numYears.Value,
-                    Months = (int)numMonths.Value,
-                    Days = (int)numDays.Value,
-                    Hours = (int)numHours.Value,
-                    Minutes = (int)numMinutes.Value,
-                    Seconds = (int)numSeconds.Value
+                    Years = (int)_numYears.Value,
+                    Months = (int)_numMonths.Value,
+                    Days = (int)_numDays.Value,
+                    Hours = (int)_numHours.Value,
+                    Minutes = (int)_numMinutes.Value,
+                    Seconds = (int)_numSeconds.Value
                 };
                 // 自定义周期至少一项>0，否则等价于不重复
                 if (custom.IsEmpty)
@@ -302,12 +406,12 @@ namespace Game_Upgrade_Reminder.UI
             }
 
             DateTime? endAt = null;
-            if (dtEndDate.Enabled && !chkNoEnd.Checked)
+            if (_dtEndDate.Enabled && !_chkNoEnd.Checked)
             {
-                var date = dtEndDate.Value.Date;
-                var h = (int)endHour.Value;
-                var m = (int)endMinute.Value;
-                var s = (int)endSecond.Value;
+                var date = _dtEndDate.Value.Date;
+                var h = (int)_endHour.Value;
+                var m = (int)_endMinute.Value;
+                var s = (int)_endSecond.Value;
                 var candidate = date.AddHours(h).AddMinutes(m).AddSeconds(s);
                 // 结束时间不可为过去：若为过去则忽略
                 if (candidate > DateTime.Now)
@@ -315,11 +419,13 @@ namespace Game_Upgrade_Reminder.UI
             }
 
             SkipRule? skip = null;
-            if (numRemindTimes.Enabled)
+            if (_numRemindTimes is { Enabled: true, Value: > 0m } && _numSkipTimes is { Value: > 0m })
             {
-                var a = (int)numRemindTimes.Value;
-                var b = (int)numSkipTimes.Value;
-                if (a > 0 && b > 0) skip = new SkipRule { RemindTimes = a, SkipTimes = b };
+                skip = new SkipRule
+                {
+                    RemindTimes = (int)_numRemindTimes.Value,
+                    SkipTimes = (int)_numSkipTimes.Value
+                };
             }
 
             return new RepeatSpec
@@ -334,108 +440,113 @@ namespace Game_Upgrade_Reminder.UI
         private void UpdateValidationMessage()
         {
             var (msg, isError) = GetValidationMessage();
-            lblHint.Text = msg;
-            lblHint.ForeColor = isError ? System.Drawing.Color.Red : System.Drawing.SystemColors.GrayText;
+            _lblHint.Text = msg;
+            _lblHint.ForeColor = isError ? Color.Red : SystemColors.GrayText;
         }
 
         private (string message, bool isError) GetValidationMessage()
         {
             // 自定义周期校验
-            if (rbCustom.Checked)
+            if (_rbCustom.Checked)
             {
-                var empty = numYears.Value == 0 && numMonths.Value == 0 && numDays.Value == 0 &&
-                            numHours.Value == 0 && numMinutes.Value == 0 && numSeconds.Value == 0;
+                var empty = _numYears.Value == 0 && _numMonths.Value == 0 && _numDays.Value == 0 &&
+                            _numHours.Value == 0 && _numMinutes.Value == 0 && _numSeconds.Value == 0;
                 if (empty)
                     return ("自定义周期至少一项 > 0", true);
             }
 
             // 结束时间校验（仅在启用时）
-            if (dtEndDate.Enabled && !chkNoEnd.Checked)
+            if (_dtEndDate.Enabled && !_chkNoEnd.Checked)
             {
-                var candidate = dtEndDate.Value.Date
-                    .AddHours((int)endHour.Value)
-                    .AddMinutes((int)endMinute.Value)
-                    .AddSeconds((int)endSecond.Value);
+                var candidate = _dtEndDate.Value.Date
+                    .AddHours((int)_endHour.Value)
+                    .AddMinutes((int)_endMinute.Value)
+                    .AddSeconds((int)_endSecond.Value);
                 if (candidate <= DateTime.Now)
                     return ("结束时间不能早于当前时间（将被忽略）", true);
             }
 
             // 跳过规则提示（非错误）
-            if (numRemindTimes.Enabled)
-            {
-                if (numRemindTimes.Value == 0 || numSkipTimes.Value == 0)
-                    return ("提示：跳过规则需 A>0 且 B>0 才会生效", false);
-            }
+            if (_numRemindTimes is { Enabled: true } && !(_numRemindTimes.Value > 0m && _numSkipTimes.Value > 0m))
+                return ("提示：跳过规则需两者 > 0 才会生效", false);
 
             return (string.Empty, false);
         }
 
-        private void ApplySpecToUI(RepeatSpec? spec)
+        private void _ApplySpecToUI(RepeatSpec? spec)
         {
             // 防止回填期间触发旧的防抖事件
-            try { debounceTimer.Stop(); } catch { }
-            isApplying = true;
+            try
+            {
+                _debounceTimer.Stop();
+            }
+            catch
+            {
+                // 忽略
+            }
+
+            _isApplying = true;
             try
             {
                 spec ??= new RepeatSpec { Mode = RepeatMode.None };
-            rbNone.Checked = spec.Mode == RepeatMode.None;
-            rbDaily.Checked = spec.Mode == RepeatMode.Daily;
-            rbWeekly.Checked = spec.Mode == RepeatMode.Weekly;
-            rbMonthly.Checked = spec.Mode == RepeatMode.Monthly;
-            rbYearly.Checked = spec.Mode == RepeatMode.Yearly;
-            rbCustom.Checked = spec.Mode == RepeatMode.Custom;
+                _rbNone.Checked = spec.Mode == RepeatMode.None;
+                _rbDaily.Checked = spec.Mode == RepeatMode.Daily;
+                _rbWeekly.Checked = spec.Mode == RepeatMode.Weekly;
+                _rbMonthly.Checked = spec.Mode == RepeatMode.Monthly;
+                _rbYearly.Checked = spec.Mode == RepeatMode.Yearly;
+                _rbCustom.Checked = spec.Mode == RepeatMode.Custom;
 
-            var c = spec.Custom;
-            numYears.Value = c?.Years ?? 0;
-            numMonths.Value = c?.Months ?? 0;
-            numDays.Value = c?.Days ?? 0;
-            numHours.Value = c?.Hours ?? 0;
-            numMinutes.Value = c?.Minutes ?? 0;
-            numSeconds.Value = c?.Seconds ?? 0;
+                var c = spec.Custom;
+                _numYears.Value = c?.Years ?? 0;
+                _numMonths.Value = c?.Months ?? 0;
+                _numDays.Value = c?.Days ?? 0;
+                _numHours.Value = c?.Hours ?? 0;
+                _numMinutes.Value = c?.Minutes ?? 0;
+                _numSeconds.Value = c?.Seconds ?? 0;
 
-            if (spec.EndAt.HasValue)
-            {
-                var e = spec.EndAt.Value;
-                dtEndDate.Value = e.Date;
-                endHour.Value = e.Hour;
-                endMinute.Value = e.Minute;
-                endSecond.Value = e.Second;
-                chkNoEnd.Checked = false;
-            }
-            else
-            {
-                var now = DateTime.Now;
-                dtEndDate.Value = now.Date;
-                endHour.Value = now.Hour;
-                endMinute.Value = now.Minute;
-                endSecond.Value = 0;
-                chkNoEnd.Checked = true;
-            }
+                if (spec.EndAt.HasValue)
+                {
+                    var e = spec.EndAt.Value;
+                    _dtEndDate.Value = e.Date;
+                    _endHour.Value = e.Hour;
+                    _endMinute.Value = e.Minute;
+                    _endSecond.Value = e.Second;
+                    _chkNoEnd.Checked = false;
+                }
+                else
+                {
+                    var now = DateTime.Now;
+                    _dtEndDate.Value = now.Date;
+                    _endHour.Value = now.Hour;
+                    _endMinute.Value = now.Minute;
+                    _endSecond.Value = 0;
+                    _chkNoEnd.Checked = true;
+                }
 
-            var s = spec.Skip;
-            numRemindTimes.Value = s?.RemindTimes > 0 ? s.RemindTimes : 0;
-            numSkipTimes.Value = s?.SkipTimes > 0 ? s.SkipTimes : 0;
+                var s = spec.Skip;
+                _numRemindTimes.Value = s?.RemindTimes > 0 ? s.RemindTimes : 0;
+                _numSkipTimes.Value = s?.SkipTimes > 0 ? s.SkipTimes : 0;
 
-            UpdateEnabledState();
+                UpdateEnabledState();
             }
             finally
             {
-                isApplying = false;
+                _isApplying = false;
             }
             // 回填完成后不主动触发事件（避免外部循环），等待用户进一步更改
         }
 
         private void RaiseChanged()
         {
-            if (isApplying) return;
-            RepeatSpecChanged?.Invoke(this, BuildSpecFromUI());
+            if (_isApplying) return;
+            RepeatSpecChanged?.Invoke(this, _BuildSpecFromUI());
         }
 
         private void CueChange()
         {
-            if (isApplying) return;
-            debounceTimer.Stop();
-            debounceTimer.Start();
+            if (_isApplying) return;
+            _debounceTimer.Stop();
+            _debounceTimer.Start();
         }
     }
 }

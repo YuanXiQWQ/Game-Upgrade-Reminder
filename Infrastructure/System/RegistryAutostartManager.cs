@@ -6,7 +6,7 @@
  * 创建于: 2025-08-15
  * 最后修改: 2025-08-16
  *
- * 许可证: GNU Affero通用公共许可证 v3.0 (AGPL-3.0)
+ * 许可证: GNU 通用公共许可证 v3.0 (AGPL-3.0)
  * https://www.gnu.org/licenses/agpl-3.0.html
  */
 
@@ -18,10 +18,6 @@ namespace Game_Upgrade_Reminder.Infrastructure.System
     /// <summary>
     /// 通过Windows注册表实现应用程序自启动管理。
     /// </summary>
-    /// <remarks>
-    /// 值存储在以下位置：
-    /// HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
-    /// </remarks>
     public sealed class RegistryAutostartManager : IAutostartManager
     {
         /// <summary>
@@ -42,7 +38,7 @@ namespace Game_Upgrade_Reminder.Infrastructure.System
             try
             {
                 using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
-                if (key == null) return false;
+                if (key is null) return false;
 
                 var value = key.GetValue(AppClass) as string;
                 return !string.IsNullOrWhiteSpace(value);
