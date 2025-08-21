@@ -46,6 +46,7 @@ namespace Game_Upgrade_Reminder.UI
         private const int RepeatColWidth = 240;
         private const int ActionColWidth = 50;
         private const int ExtraSpace = 50;
+        private static readonly double InvPhi = 2.0 / (1.0 + Math.Sqrt(5.0));
 
         // 服务
         private readonly JsonTaskRepository taskRepo = new();
@@ -501,6 +502,13 @@ namespace Game_Upgrade_Reminder.UI
             AccessibleDescription = "打开配置文件夹（Ctrl+O）"
         };
 
+        private readonly ToolStripMenuItem miResetWindow = new()
+        {
+            Text = "重置窗口大小至默认(&Z)",
+            AccessibleName = "重置窗口大小至默认",
+            AccessibleDescription = "清除保存的窗口位置与大小，恢复默认布局"
+        };
+
         private readonly ToolStripMenuItem miAutoDelete = new() { Text = "已完成任务自行删除(&D)" };
         private readonly ToolStripMenuItem miDelOff = new() { Text = "关闭" };
         private readonly ToolStripMenuItem miDel30S = new() { Text = "30秒" };
@@ -654,7 +662,8 @@ namespace Game_Upgrade_Reminder.UI
 
             const int totalWidth = AccountColWidth + TaskColWidth + StartTimeColWidth + DurationColWidth +
                                    FinishTimeColWidth + RemainingTimeColWidth + RepeatColWidth + (ActionColWidth * 2) + ExtraSpace;
-            ClientSize = new Size(totalWidth, 580);
+            var defaultHeight = (int)Math.Round(totalWidth * InvPhi);
+            ClientSize = new Size(totalWidth, defaultHeight);
             StartPosition = FormStartPosition.CenterScreen;
 
             notifier = new TrayNotifier(tray);
@@ -747,6 +756,7 @@ namespace Game_Upgrade_Reminder.UI
             miSettings.DropDownItems.Add(new ToolStripSeparator());
             miSettings.DropDownItems.Add(miAutoStart);
             miSettings.DropDownItems.Add(miOpenConfig);
+            miSettings.DropDownItems.Add(miResetWindow);
             miSettings.DropDownItems.Add(miAutoDelete);
             miSettings.DropDownItems.Add(miAdvanceNotify);
             miSettings.DropDownItems.Add(new ToolStripSeparator());
@@ -1071,6 +1081,7 @@ namespace Game_Upgrade_Reminder.UI
             miFont.Click += (_, _) => DoChooseFont();
             miAutoStart.Click += (_, _) => ToggleAutostart();
             miOpenConfig.Click += (_, _) => OpenConfigFolder();
+            miResetWindow.Click += (_, _) => ResetWindowToDefault();
             // 自动删除下拉
             miAutoDelete.DropDownOpening += (_, _) => UpdateAutoDeleteMenuChecks();
             miDelOff.Click += (_, _) => SetAutoDeleteSecondsAndSave(0);
@@ -2489,6 +2500,42 @@ namespace Game_Upgrade_Reminder.UI
             catch
             {
                 /* ignore */
+            }
+        }
+
+        /// <summary>
+        /// 清除已保存的窗口位置与尺寸，并将当前窗口恢复到默认大小并居中。
+        /// </summary>
+        private void ResetWindowToDefault()
+        {
+            try
+            {
+                // 1) 清空保存字段并立即持久化
+                settings.WindowX = -1;
+                settings.WindowY = -1;
+                settings.WindowWidth = -1;
+                settings.WindowHeight = -1;
+                settings.WindowMaximized = false;
+                SaveSettings();
+
+                // 2) 恢复到默认窗口大小与位置
+                if (WindowState == FormWindowState.Maximized)
+                    WindowState = FormWindowState.Normal;
+
+                var totalWidth = AccountColWidth + TaskColWidth + StartTimeColWidth + DurationColWidth +
+                                 FinishTimeColWidth + RemainingTimeColWidth + RepeatColWidth + (ActionColWidth * 2) + ExtraSpace;
+                var defaultHeight = (int)Math.Round(totalWidth * InvPhi);
+                ClientSize = new Size(totalWidth, defaultHeight);
+
+                // 居中到屏幕
+                CenterToScreen();
+
+                // 根据新尺寸调整列表列宽
+                AdjustListViewColumns();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"重置窗口大小失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
