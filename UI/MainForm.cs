@@ -33,19 +33,55 @@ namespace Game_Upgrade_Reminder.UI
     public sealed partial class MainForm : Form
     {
         // 常量
+        /// <summary>
+        /// 应用程序主标题，用于窗口标题栏与通知文本等显示。
+        /// </summary>
         private const string AppTitle = "游戏升级提醒";
+        /// <summary>
+        /// 到点或需确认任务在列表中的背景高亮色。
+        /// </summary>
         private static readonly Color DueBackColor = Color.FromArgb(230, 230, 230);
 
         // 列宽
+        /// <summary>
+        /// “账号”列默认宽度（像素）。
+        /// </summary>
         private const int AccountColWidth = 150;
+        /// <summary>
+        /// “任务”列默认宽度（像素）。
+        /// </summary>
         private const int TaskColWidth = 150;
+        /// <summary>
+        /// “开始时间”列默认宽度（像素）。
+        /// </summary>
         private const int StartTimeColWidth = 130;
+        /// <summary>
+        /// “持续时长”列默认宽度（像素）。
+        /// </summary>
         private const int DurationColWidth = 150;
+        /// <summary>
+        /// “完成时间”列默认宽度（像素）。
+        /// </summary>
         private const int FinishTimeColWidth = 130;
+        /// <summary>
+        /// “剩余时间”列默认宽度（像素）。
+        /// </summary>
         private const int RemainingTimeColWidth = 150;
+        /// <summary>
+        /// “重复”列默认宽度（像素）。
+        /// </summary>
         private const int RepeatColWidth = 240;
+        /// <summary>
+        /// “操作”列默认宽度（像素）。
+        /// </summary>
         private const int ActionColWidth = 50;
+        /// <summary>
+        /// 额外留白宽度（像素），用于避免水平滚动条抖动。
+        /// </summary>
         private const int ExtraSpace = 50;
+        /// <summary>
+        /// 黄金分割倒数常量（2/(1+sqrt(5))），用于尺寸或布局计算时的比例参考。
+        /// </summary>
         private static readonly double InvPhi = 2.0 / (1.0 + Math.Sqrt(5.0));
 
         // 服务
@@ -131,6 +167,9 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // ---------- 工具/辅助 ----------
+        /// <summary>
+        /// 更新状态栏统计信息（总数、已到点、进行中、下一个提醒），并同步重复状态与托盘菜单显示。
+        /// </summary>
         private void UpdateStatusBar()
         {
             var now = DateTime.Now;
@@ -158,7 +197,9 @@ namespace Game_Upgrade_Reminder.UI
                 var spec = t.Repeat;
                 var isRepeat = spec?.IsRepeat == true;
                 var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
-                var targetFinish = inSkipPhase ? CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _) : t.Finish;
+                var targetFinish = inSkipPhase
+                    ? CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _)
+                    : t.Finish;
 
                 if (adv > 0 && !t.AdvanceNotified)
                 {
@@ -180,6 +221,9 @@ namespace Game_Upgrade_Reminder.UI
             UpdateTrayMenuStatus();
         }
 
+        /// <summary>
+        /// 将状态栏的统计文本同步到托盘菜单的只读项中，保持显示一致。
+        /// </summary>
         private void UpdateTrayMenuStatus()
         {
             try
@@ -197,6 +241,9 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // ---------- 重复信息格式化与状态栏显示 ----------
+        /// <summary>
+        /// 根据当前选中任务更新状态栏的“重复”说明文本；无选中时显示为 "-"。
+        /// </summary>
         private void UpdateRepeatStatusLabel()
         {
             TaskItem? selectedTask = null;
@@ -227,6 +274,11 @@ namespace Game_Upgrade_Reminder.UI
             _lblRepeat.Text = $"重复: {text}";
         }
 
+        /// <summary>
+        /// 将 <see cref="RepeatSpec"/> 格式化为人类可读的中文描述（含截止、跳过与暂停说明）。
+        /// </summary>
+        /// <param name="spec">重复规则。</param>
+        /// <returns>用于界面展示的中文描述。</returns>
         private static string FormatRepeatSpec(RepeatSpec spec)
         {
             if (!spec.IsRepeat) return "不重复";
@@ -262,6 +314,11 @@ namespace Game_Upgrade_Reminder.UI
             return string.Join("，", parts);
         }
 
+        /// <summary>
+        /// 将自定义重复间隔格式化为中文描述。
+        /// </summary>
+        /// <param name="c">自定义单位（年/月/天/时/分/秒）。</param>
+        /// <returns>形如“每 1年 2月 3天 ...”的描述；为空或无效时返回“自定义”。</returns>
         private static string FormatRepeatCustom(RepeatCustom? c)
         {
             if (c is null || c.IsEmpty) return "自定义";
@@ -275,6 +332,12 @@ namespace Game_Upgrade_Reminder.UI
             return units.Count > 0 ? $"每 {string.Join(" ", units)}" : "自定义";
         }
 
+        /// <summary>
+        /// 按“相对当前时间”的语义格式化日期时间：同日仅显示时间，同年显示“月/日+时间”，跨年显示“年/月/日+时间”。
+        /// </summary>
+        /// <param name="dt">要格式化的时间。</param>
+        /// <param name="now">用于比较的当前时间。</param>
+        /// <returns>人类友好的时间字符串（24 小时制）。</returns>
         private static string FormatSmartDateTime(DateTime dt, DateTime now)
         {
             var includeSeconds = dt.Second != 0;
@@ -292,6 +355,9 @@ namespace Game_Upgrade_Reminder.UI
             return $"{dt.Year}年{dt.Month}月{dt.Day}日{time}";
         }
 
+        /// <summary>
+        /// 根据列表可用宽度自适应调整各列宽度：固定“时间/重复/操作”列，按比例分配“账号/任务”两列。
+        /// </summary>
         private void AdjustListViewColumns()
         {
             if (_listView.Columns.Count < 9) return;
@@ -319,6 +385,11 @@ namespace Game_Upgrade_Reminder.UI
             _listView.Columns[8].Width = ActionColWidth;
         }
 
+        /// <summary>
+        /// 处理全局快捷键（F5 刷新、Ctrl+N 新增、Ctrl+Shift+D 清理完成、Ctrl+O 打开配置、Ctrl+U 更新、Ctrl+Q 退出）。
+        /// </summary>
+        /// <param name="sender">事件源。</param>
+        /// <param name="e">按键数据。</param>
         private void MainForm_KeyDown(object? sender, KeyEventArgs e)
         {
             Action? handler = e.KeyData switch
@@ -346,6 +417,9 @@ namespace Game_Upgrade_Reminder.UI
             handler();
         }
 
+        /// <summary>
+        /// 打开应用程序配置文件所在目录（AppContext.BaseDirectory）。
+        /// </summary>
         private static void OpenConfigFolder()
         {
             try
@@ -473,6 +547,9 @@ namespace Game_Upgrade_Reminder.UI
         };
 
         // 双缓冲 ListView
+        /// <summary>
+        /// 双缓冲的 ListView，开启 DoubleBuffered 以减少重绘闪烁。
+        /// </summary>
         private class DoubleBufferedListView : ListView
         {
             public DoubleBufferedListView()
@@ -567,6 +644,9 @@ namespace Game_Upgrade_Reminder.UI
         private ToolStripMenuItem? _hoverPendingClose;
 
         // ---------- 原生 Header 箭头（与系统主题同步） ----------
+        /// <summary>
+        /// 对应 Win32 HDITEM 结构，用于读取/设置列头格式（含排序箭头）。
+        /// </summary>
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         private struct HeaderItem
         {
@@ -584,22 +664,65 @@ namespace Game_Upgrade_Reminder.UI
             public uint state;
         }
 
+        /// <summary>
+        /// ListView 消息基值（LVM_FIRST）。
+        /// </summary>
         private const int LvmFirst = 0x1000;
+        /// <summary>
+        /// 获取 ListView 头部窗口句柄的消息。
+        /// </summary>
         private const int LvmGetHeader = LvmFirst + 31;
+        /// <summary>
+        /// Header 控件消息基值（HDM_FIRST）。
+        /// </summary>
         private const int HdmFirst = 0x1200;
+        /// <summary>
+        /// 获取列头项（HDITEM）的消息。
+        /// </summary>
         private const int HdmGetItem = HdmFirst + 11;
+        /// <summary>
+        /// 设置列头项（HDITEM）的消息。
+        /// </summary>
         private const int HdmSetItem = HdmFirst + 12;
 
+        /// <summary>
+        /// HDITEM 中 fmt 字段掩码（HDI_FORMAT）。
+        /// </summary>
         private const int HdiFormat = 0x0004;
+        /// <summary>
+        /// 升序箭头标志。
+        /// </summary>
         private const int HdfSortUp = 0x0400;
+        /// <summary>
+        /// 降序箭头标志。
+        /// </summary>
         private const int HdfSortDown = 0x0200;
 
+        /// <summary>
+        /// 发送窗口消息（无托管结构体版本）。
+        /// </summary>
+        /// <param name="hWnd">目标窗口句柄。</param>
+        /// <param name="msg">消息编号。</param>
+        /// <param name="wParam">消息参数1。</param>
+        /// <param name="lParam">消息参数2。</param>
+        /// <returns>消息返回值。</returns>
         [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
         private static partial IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
+        /// <summary>
+        /// 发送窗口消息（HDITEM 结构体版本）。
+        /// </summary>
+        /// <param name="hWnd">Header 句柄。</param>
+        /// <param name="msg">消息编号。</param>
+        /// <param name="wParam">列索引（IntPtr）。</param>
+        /// <param name="lParam">HDITEM 结构体引用。</param>
         [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
         private static partial void SendMessage(IntPtr hWnd, int msg, IntPtr wParam, ref HeaderItem lParam);
 
+        /// <summary>
+        /// 根据当前排序模式更新原生列头的升/降序箭头显示。
+        /// 自定义排序仅对前 7 列生效，默认排序固定为“剩余时间”升序。
+        /// </summary>
         private void UpdateListViewSortArrow()
         {
             if (_listView.IsDisposed || _listView.Handle == IntPtr.Zero || _listView.Columns.Count == 0) return;
@@ -650,6 +773,10 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
+        /// <summary>
+        /// 初始化主窗口：构建菜单与界面、加载设置与任务，
+        /// 同步自启动状态，启动计时器并初始化托盘与初始调度。
+        /// </summary>
         public MainForm()
         {
             Text = AppTitle;
@@ -1229,11 +1356,6 @@ namespace Game_Upgrade_Reminder.UI
                 UpdateStatusBar();
             };
 
-            // 测试按钮（保留）
-            var btnTest = new Button { Text = "测试排序", Location = new Point(10, 10), AutoSize = true };
-            btnTest.Click += (_, _) => TestSorting();
-            Controls.Add(btnTest);
-
             _btnDeleteDone.Click += (_, _) =>
             {
                 DeleteAllDone();
@@ -1645,76 +1767,10 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
-        private void TestSorting()
-        {
-            try
-            {
-                var originalTasks = new List<TaskItem>(_tasks);
-                _tasks.Clear();
-                var now = DateTime.Now;
-
-                _tasks.Add(new TaskItem
-                {
-                    Account = "UserB",
-                    TaskName = "Upgrade Defense",
-                    Start = now,
-                    Days = 1,
-                    Hours = 2,
-                    Minutes = 30,
-                    Finish = now.AddDays(1).AddHours(2).AddMinutes(30)
-                });
-
-                _tasks.Add(new TaskItem
-                {
-                    Account = "UserA",
-                    TaskName = "Upgrade Resource",
-                    Start = now.AddHours(-2),
-                    Days = 0,
-                    Hours = 12,
-                    Minutes = 0,
-                    Finish = now.AddHours(10)
-                });
-
-                _tasks.Add(new TaskItem
-                {
-                    Account = "UserA",
-                    TaskName = "Research",
-                    Start = now.AddHours(-1),
-                    Days = 2,
-                    Hours = 0,
-                    Minutes = 15,
-                    Finish = now.AddDays(2).AddMinutes(15)
-                });
-
-                RefreshTable();
-
-                _listView.ListViewItemSorter = new ListViewItemComparer(0);
-                _listView.Sort();
-                _listView.ListViewItemSorter = new ListViewItemComparer(1);
-                _listView.Sort();
-                _listView.ListViewItemSorter = new ListViewItemComparer(2);
-                _listView.Sort();
-                _listView.ListViewItemSorter = new ListViewItemComparer(3);
-                _listView.Sort();
-                _listView.ListViewItemSorter = new ListViewItemComparer(4);
-                _listView.Sort();
-                _listView.ListViewItemSorter = new ListViewItemComparer(5);
-                _listView.Sort();
-
-                _tasks.Clear();
-                foreach (var item in originalTasks) _tasks.Add(item);
-
-                RefreshTable();
-
-                MessageBox.Show("排序测试完成！", "测试结果", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"排序测试失败：{ex.Message}", "测试错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
         // ---------- 设置与持久化 ----------
+        /// <summary>
+        /// 读取设置并进行必要的兼容性修正（如首次运行、自启动与自动删除秒数的合理化），随后更新菜单勾选。
+        /// </summary>
         private void LoadSettings()
         {
             _settings = _settingsStore.Load();
@@ -1742,14 +1798,23 @@ namespace Game_Upgrade_Reminder.UI
             UpdateMenuChecks();
         }
 
+        /// <summary>
+        /// 将当前内存中的设置持久化到磁盘。
+        /// </summary>
         private void SaveSettings() => _settingsStore.Save(_settings);
 
+        /// <summary>
+        /// 从存储加载任务列表到内存集合。
+        /// </summary>
         private void LoadTasks()
         {
             _tasks.Clear();
             foreach (var t in _taskRepo.Load()) _tasks.Add(t);
         }
 
+        /// <summary>
+        /// 将当前任务集合保存到存储。
+        /// </summary>
         private void SaveTasks() => _taskRepo.Save(_tasks);
 
         // ---------- 应用设置到界面 ----------
@@ -1778,6 +1843,9 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
+        /// <summary>
+        /// 根据当前设置刷新菜单勾选状态（含自启动、关闭行为、自动删除、提前通知等）。
+        /// </summary>
         private void UpdateMenuChecks()
         {
             _miAutoStart.Checked = _settings.StartupOnBoot;
@@ -1811,6 +1879,10 @@ namespace Game_Upgrade_Reminder.UI
             _miAdvAlsoDue.Checked = _settings.AlsoNotifyAtDue;
         }
 
+        /// <summary>
+        /// 设置“提前通知”秒数并保存，同时立即检查一次提醒并重排定时器。
+        /// </summary>
+        /// <param name="secs">提前秒数，若小于 0 则按 0 处理。</param>
         private void SetAdvanceSecondsAndSave(int secs)
         {
             if (secs < 0) secs = 0;
@@ -1844,6 +1916,10 @@ namespace Game_Upgrade_Reminder.UI
             _miDelCustom.Checked = secs > 0 && !presets.Values.Contains(secs);
         }
 
+        /// <summary>
+        /// 设置“已完成任务自动删除”秒数并保存，随后应用删除策略并尝试立即清理一次。
+        /// </summary>
+        /// <param name="secs">自动删除的延时秒数，若小于 0 则按 0 处理。</param>
         private void SetAutoDeleteSecondsAndSave(int secs)
         {
             if (secs < 0) secs = 0;
@@ -1855,6 +1931,10 @@ namespace Game_Upgrade_Reminder.UI
             PurgePending(force: false);
         }
 
+        /// <summary>
+        /// 应用指定字体到整个窗口及子控件，并构造用于“删除线”显示的派生字体。
+        /// </summary>
+        /// <param name="f">要应用的字体。</param>
         private void ApplyUiFont(Font f)
         {
             Font = f;
@@ -1863,6 +1943,11 @@ namespace Game_Upgrade_Reminder.UI
             _strikeFont = new Font(f, f.Style | FontStyle.Strikeout);
         }
 
+        /// <summary>
+        /// 递归地将字体应用到所有子控件。
+        /// </summary>
+        /// <param name="parent">起始父控件。</param>
+        /// <param name="f">字体。</param>
         private static void ApplyFontRecursive(Control parent, Font f)
         {
             foreach (Control c in parent.Controls)
@@ -1872,6 +1957,9 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
+        /// <summary>
+        /// 打开字体选择对话框并应用选择结果到界面与设置。
+        /// </summary>
         private void DoChooseFont()
         {
             using var dlg = new FontDialog();
@@ -2003,6 +2091,9 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
+        /// <summary>
+        /// 遍历列表行，按任务的当前状态刷新“剩余时间”单元格文本。
+        /// </summary>
         private void UpdateRemainingCells()
         {
             foreach (ListViewItem row in _listView.Items)
@@ -2011,6 +2102,9 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
+        /// <summary>
+        /// 按任务状态（待删除、已完成、到点/等待确认）刷新列表行的前景/背景色与字体样式。
+        /// </summary>
         private void RepaintStyles()
         {
             foreach (ListViewItem row in _listView.Items)
@@ -2030,11 +2124,7 @@ namespace Game_Upgrade_Reminder.UI
                     row.ForeColor = Color.Gray;
                     row.BackColor = Color.White;
                 }
-                else if (t.AwaitingAck)
-                {
-                    row.BackColor = DueBackColor;
-                }
-                else if (t.Finish <= DateTime.Now)
+                else if (t is { AwaitingAck: true } || t.Finish <= DateTime.Now)
                 {
                     row.BackColor = DueBackColor;
                 }
@@ -2046,6 +2136,13 @@ namespace Game_Upgrade_Reminder.UI
             UpdateStatusBar();
         }
 
+        /// <summary>
+        /// 处理列表点击：
+        /// - 第7列（操作1）：完成/撤销或“确认完成”（暂停模式）。
+        /// - 第8列（操作2）：标记/撤销删除。
+        /// - 其他前6列：将该行任务载入编辑区。
+        /// 操作后自动刷新列表并重排定时器。
+        /// </summary>
         private void HandleListClick()
         {
             var hit = _listView.PointToClient(MousePosition);
@@ -2064,29 +2161,23 @@ namespace Game_Upgrade_Reminder.UI
                         t.AwaitingAck = false;
                         t.Notified = false;
                         t.AdvanceNotified = false;
-                        if (t.Repeat is { IsRepeat: true } spec)
+                        if (t.Repeat is { IsRepeat: true, IsPauseUntilDone: true } spec)
                         {
-                            if (spec.PauseUntilDone)
+                            // 暂停模式：从“现在”起开始下一次计时，并跨越跳过段
+                            t.RepeatCount++;
+                            var first = CalcNextOccurrence(DateTime.Now, spec);
+                            var nextEff = CalcNextEffectiveOccurrence(first, spec, t.RepeatCursor, out var adv);
+                            if (spec is { EndAt: not null } && nextEff > spec.EndAt!.Value)
                             {
-                                // 暂停模式：从“现在”起开始下一次计时，并跨越跳过段
-                                t.RepeatCount++;
-                                var first = CalcNextOccurrence(DateTime.Now, spec);
-                                var nextEff = CalcNextEffectiveOccurrence(first, spec, t.RepeatCursor, out var adv);
-                                if (spec.HasEnd && nextEff > spec.EndAt!.Value)
-                                {
-                                    t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
-                                }
-                                else
-                                {
-                                    t.Finish = nextEff;
-                                    t.RepeatCursor += adv;
-                                }
+                                t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
                             }
                             else
                             {
-                                // 非暂停模式：到点时已推进到下一实际发生；此处无需二次推进与计数
+                                t.Finish = nextEff;
+                                t.RepeatCursor += adv;
                             }
                         }
+
                         SaveTasks();
                         RefreshTable();
                         RescheduleNextTick();
@@ -2126,6 +2217,9 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // ---------- 新增任务 ----------
+        /// <summary>
+        /// 基于开始时间与“天/时/分”输入，重新计算完成时间并更新显示。
+        /// </summary>
         private void RecalcFinishFromFields()
         {
             var st = _dtpStart.Value;
@@ -2137,12 +2231,22 @@ namespace Game_Upgrade_Reminder.UI
             _tbFinish.Text = fin.ToString(TaskItem.TimeFormat);
         }
 
+        /// <summary>
+        /// 获取当前选择的账号文本；若未选择或为空则返回默认账号。
+        /// </summary>
+        /// <returns>账号名称。</returns>
         private string GetAccountText()
         {
             if (_cbAccount.SelectedItem is string s && !string.IsNullOrWhiteSpace(s)) return s;
             return TaskItem.DefaultAccount;
         }
 
+        /// <summary>
+        /// 新增或保存任务：
+        /// - 若选中了列表项，则编辑并覆盖该任务（保留重复设置但重置计数）。
+        /// - 否则按表单输入新增任务（使用当前默认重复设置）。
+        /// 完成后保存并刷新界面。
+        /// </summary>
         private void AddOrSaveTask()
         {
             var acc = GetAccountText();
@@ -2204,6 +2308,9 @@ namespace Game_Upgrade_Reminder.UI
             UpdateStatusBar();
         }
 
+        /// <summary>
+        /// 删除所有已完成的任务。
+        /// </summary>
         private void DeleteAllDone()
         {
             for (var i = 0; i < _tasks.Count;)
@@ -2214,6 +2321,11 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // ---------- 到点提醒 ----------
+        /// <summary>
+        /// 检查任务的提前/到点提醒触发条件并弹出通知；根据重复规则推进发生指针与完成时间。
+        /// 同时处理“跳过段”“暂停直到确认”“截止时间”等规则。
+        /// 发生变化时保存并刷新列表，然后重排定时器与状态栏。
+        /// </summary>
         private void CheckDueAndNotify()
         {
             var changed = false;
@@ -2274,8 +2386,10 @@ namespace Game_Upgrade_Reminder.UI
                             t.Notified = false;
                             t.AdvanceNotified = false;
                         }
+
                         t.RepeatCursor += advanced;
                     }
+
                     continue;
                 }
 
@@ -2330,7 +2444,10 @@ namespace Game_Upgrade_Reminder.UI
             UpdateStatusBar();
         }
 
-        // 自适应调度：带“提前量(guard)”与“上下限夹紧”的计时器间隔计算
+        /// <summary>
+        /// 自适应调度：根据下一次提醒时间点（包含提前提醒与到点）计算计时器间隔，
+        /// 在固定“提前量”前唤醒并将间隔夹紧到安全范围，避免过于频繁或过久的轮询。
+        /// </summary>
         private void RescheduleNextTick()
         {
             try
@@ -2349,7 +2466,9 @@ namespace Game_Upgrade_Reminder.UI
                     var spec = t.Repeat;
                     var isRepeat = spec?.IsRepeat == true;
                     var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
-                    var targetFinish = inSkipPhase ? CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _) : t.Finish;
+                    var targetFinish = inSkipPhase
+                        ? CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _)
+                        : t.Finish;
 
                     // 候选1：提前提醒时间点（若启用且尚未提前提醒）
                     if (adv > 0 && !t.AdvanceNotified)
@@ -2395,6 +2514,12 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // ---------- 重复调度辅助 ----------
+        /// <summary>
+        /// 基于重复模式计算给定发生时间的下一次发生时间（不考虑“跳过段”和“暂停”）。
+        /// </summary>
+        /// <param name="current">当前发生时间。</param>
+        /// <param name="spec">重复规则。</param>
+        /// <returns>下一次发生时间。</returns>
         private static DateTime CalcNextOccurrence(DateTime current, RepeatSpec spec)
         {
             var next = current;
@@ -2436,7 +2561,8 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // 计算下一次“会实际提醒”的时间（跳过所有处于 Skip 段的发生），不改变 RepeatCount；返回跳过的发生次数 advanced
-        private static DateTime CalcNextEffectiveOccurrence(DateTime current, RepeatSpec spec, int repeatCursor, out int advanced)
+        private static DateTime CalcNextEffectiveOccurrence(DateTime current, RepeatSpec spec, int repeatCursor,
+            out int advanced)
         {
             var next = current;
             advanced = 0;
@@ -2449,6 +2575,7 @@ namespace Game_Upgrade_Reminder.UI
                 advanced++;
                 guard++;
             }
+
             return next;
         }
 
