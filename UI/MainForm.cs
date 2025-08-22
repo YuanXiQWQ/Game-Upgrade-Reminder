@@ -242,7 +242,9 @@ namespace Game_Upgrade_Reminder.UI
 
         // ---------- 重复信息格式化与状态栏显示 ----------
         /// <summary>
-        /// 根据当前选中任务更新状态栏的“重复”说明文本；无选中时显示为 "-"。
+        /// 更新状态栏“重复”说明文本：
+        /// 始终显示“默认重复设置”（来源于 <see cref="_currentRepeatSpec"/>）；
+        /// 若有选中任务，追加显示“选中”任务的重复信息。
         /// </summary>
         private void UpdateRepeatStatusLabel()
         {
@@ -258,17 +260,21 @@ namespace Game_Upgrade_Reminder.UI
                 // 忽略
             }
 
+            var defaultSpec = _currentRepeatSpec ?? new RepeatSpec { Mode = RepeatMode.None };
+            var defaultText = defaultSpec is { IsRepeat: true } ? FormatRepeatSpec(defaultSpec) : "";
+
             string text;
             if (selectedTask is not null)
             {
                 var spec = selectedTask.Repeat;
-                text = spec is { IsRepeat: true }
+                var selectedText = spec is { IsRepeat: true }
                     ? FormatRepeatSpec(spec) + (selectedTask.RepeatCount > 0 ? $"，已重复{selectedTask.RepeatCount}次" : "")
-                    : "不重复";
+                    : "";
+                text = $"默认: {defaultText} | 选中: {selectedText}";
             }
             else
             {
-                text = "-";
+                text = $"默认: {defaultText}";
             }
 
             _lblRepeat.Text = $"重复: {text}";
@@ -544,6 +550,13 @@ namespace Game_Upgrade_Reminder.UI
             Text = "重复(&P)",
             AccessibleName = "重复设置",
             AccessibleDescription = "配置重复提醒设置"
+        };
+
+        private readonly Button _btnClear = new()
+        {
+            Text = "清除(&C)",
+            AccessibleName = "清除设置",
+            AccessibleDescription = "将开始时间清空，且清空重复任务设置"
         };
 
         // 双缓冲 ListView
@@ -1127,11 +1140,12 @@ namespace Game_Upgrade_Reminder.UI
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
+                ColumnCount = 3,
                 RowCount = 1,
                 Margin = new Padding(0),
                 Padding = new Padding(0)
             };
+            actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
@@ -1142,6 +1156,10 @@ namespace Game_Upgrade_Reminder.UI
             _btnRepeat.Text = "重复(&P)";
             StyleSmallButton(_btnRepeat, new Padding(6, 2, 0, 2));
             actionsPanel.Controls.Add(_btnRepeat, 1, 0);
+
+            _btnClear.Text = "清除(&C)";
+            StyleSmallButton(_btnClear, new Padding(6, 2, 0, 2));
+            actionsPanel.Controls.Add(_btnClear, 2, 0);
 
             line2.Controls.Add(actionsPanel, 12, 0);
 
@@ -1341,6 +1359,7 @@ namespace Game_Upgrade_Reminder.UI
                     else
                     {
                         _currentRepeatSpec = spec; // 新增任务默认值
+                        UpdateRepeatStatusLabel(); // 即时刷新状态栏中的“默认”显示
                     }
                 };
 
@@ -1354,6 +1373,15 @@ namespace Game_Upgrade_Reminder.UI
                 SaveTasks();
                 RefreshTable();
                 UpdateStatusBar();
+            };
+
+            _btnClear.Click += (_, _) =>
+            {
+                // 清空持续时长输入（天/小时/分钟）——仅作用于输入控件
+                _numDays.Value = 0;
+                _numHours.Value = 0;
+                _numMinutes.Value = 0;
+                RecalcFinishFromFields();
             };
 
             _btnDeleteDone.Click += (_, _) =>
