@@ -1149,17 +1149,17 @@ namespace Game_Upgrade_Reminder.UI
             actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-            _btnAddSave.Text = "添加(&N)";
-            StyleSmallButton(_btnAddSave, new Padding(0, 2, 0, 2));
-            actionsPanel.Controls.Add(_btnAddSave, 0, 0);
-
             _btnRepeat.Text = "重复(&P)";
-            StyleSmallButton(_btnRepeat, new Padding(6, 2, 0, 2));
-            actionsPanel.Controls.Add(_btnRepeat, 1, 0);
+            StyleSmallButton(_btnRepeat, new Padding(0, 2, 0, 2));
+            actionsPanel.Controls.Add(_btnRepeat, 0, 0);
 
             _btnClear.Text = "清除(&C)";
             StyleSmallButton(_btnClear, new Padding(6, 2, 0, 2));
-            actionsPanel.Controls.Add(_btnClear, 2, 0);
+            actionsPanel.Controls.Add(_btnClear, 1, 0);
+
+            _btnAddSave.Text = "添加(&N)";
+            StyleSmallButton(_btnAddSave, new Padding(6, 2, 0, 2));
+            actionsPanel.Controls.Add(_btnAddSave, 2, 0);
 
             line2.Controls.Add(actionsPanel, 12, 0);
 
@@ -1187,8 +1187,6 @@ namespace Game_Upgrade_Reminder.UI
             _status.Items.Add(_lblPending);
             _status.Items.Add(new ToolStripStatusLabel("|") { ForeColor = SystemColors.ControlDark });
             _status.Items.Add(_lblNext);
-            _status.Items.Add(new ToolStripStatusLabel("|") { ForeColor = SystemColors.ControlDark });
-            _status.Items.Add(_lblRepeat);
             root.Controls.Add(_status, 0, 3);
         }
 
