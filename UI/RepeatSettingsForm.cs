@@ -62,6 +62,9 @@ namespace Game_Upgrade_Reminder.UI
         private readonly NumericUpDown _numRemindTimes = new() { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
         private readonly NumericUpDown _numSkipTimes = new() { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
 
+        // 提醒后暂停直到用户确认
+        private readonly CheckBox _chkPause = new() { Text = "提醒后暂停计时，直到确认", AutoSize = true, Anchor = AnchorStyles.Left };
+
         // 校验与提示
         private readonly Label _lblHint = new() { AutoSize = true };
 
@@ -174,6 +177,16 @@ namespace Game_Upgrade_Reminder.UI
             gbSkip.Controls.Add(tlSkip);
             root.Controls.Add(gbSkip, 0, 3);
 
+            // 4.5) 暂停规则
+            var gbPause = new GroupBox
+            {
+                Text = "暂停规则", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+            };
+            var tlPause = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Dock = DockStyle.Fill };
+            tlPause.Controls.Add(_chkPause);
+            gbPause.Controls.Add(tlPause);
+            root.Controls.Add(gbPause, 0, 4);
+
             // 5) 提示区（左对齐）：显示校验/提示信息
             var pnlHint = new FlowLayoutPanel
             {
@@ -186,7 +199,7 @@ namespace Game_Upgrade_Reminder.UI
             _lblHint.ForeColor = SystemColors.GrayText;
             _lblHint.Text = string.Empty;
             pnlHint.Controls.Add(_lblHint);
-            root.Controls.Add(pnlHint, 0, 4);
+            root.Controls.Add(pnlHint, 0, 5);
 
             // 6) 按钮区（右对齐）：确定 / 取消
             var pnlButtons = new FlowLayoutPanel
@@ -201,7 +214,7 @@ namespace Game_Upgrade_Reminder.UI
             var btnCancel = new Button { Text = "取消", AutoSize = true };
             pnlButtons.Controls.Add(btnOk);
             pnlButtons.Controls.Add(btnCancel);
-            root.Controls.Add(pnlButtons, 0, 5);
+            root.Controls.Add(pnlButtons, 0, 6);
 
             Controls.Add(root);
 
@@ -293,6 +306,12 @@ namespace Game_Upgrade_Reminder.UI
                 CueChange();
             };
 
+            _chkPause.CheckedChanged += (_, _) =>
+            {
+                UpdateEnabledState();
+                CueChange();
+            };
+
             UpdateEnabledState();
             UpdateValidationMessage();
 
@@ -370,6 +389,9 @@ namespace Game_Upgrade_Reminder.UI
             foreach (var ctl in new Control[] { _numRemindTimes, _numSkipTimes })
                 ctl.Enabled = !noPeriod;
 
+            // 暂停选项
+            _chkPause.Enabled = !noPeriod;
+
             UpdateValidationMessage();
         }
 
@@ -433,7 +455,8 @@ namespace Game_Upgrade_Reminder.UI
                 Mode = mode,
                 Custom = mode == RepeatMode.Custom ? custom : null,
                 EndAt = endAt,
-                Skip = skip
+                Skip = skip,
+                PauseUntilDone = _chkPause.Checked
             };
         }
 
@@ -526,6 +549,8 @@ namespace Game_Upgrade_Reminder.UI
                 var s = spec.Skip;
                 _numRemindTimes.Value = s?.RemindTimes > 0 ? s.RemindTimes : 0;
                 _numSkipTimes.Value = s?.SkipTimes > 0 ? s.SkipTimes : 0;
+
+                _chkPause.Checked = spec.PauseUntilDone;
 
                 UpdateEnabledState();
             }

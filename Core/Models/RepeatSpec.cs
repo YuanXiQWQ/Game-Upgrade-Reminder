@@ -40,6 +40,11 @@ public sealed class RepeatSpec
     public SkipRule? Skip { get; init; }
 
     /// <summary>
+    /// 提醒后暂停计时，直到用户点击“确认”才开始下一次计时。
+    /// </summary>
+    public bool PauseUntilDone { get; init; }
+
+    /// <summary>
     /// 是否为有效重复（Mode!=None，且当为 Custom 时 Custom 不是空周期）
     /// </summary>
     [JsonIgnore]
@@ -61,4 +66,10 @@ public sealed class RepeatSpec
     /// </summary>
     [JsonIgnore]
     public bool HasSkip => Skip?.IsActive == true;
+
+    /// <summary>
+    /// 是否暂停计时直到用户完成任务
+    /// </summary>
+    [JsonIgnore]
+    public bool IsPauseUntilDone => PauseUntilDone;
 }

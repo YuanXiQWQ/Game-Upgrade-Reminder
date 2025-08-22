@@ -148,15 +148,27 @@ namespace Game_Upgrade_Reminder.UI
             var adv = _settings.AdvanceNotifySeconds;
             foreach (var t in _tasks)
             {
+                // 与调度逻辑保持一致：跳过已完成或待删除的任务
+                if (t is { PendingDelete: true } || t is { Done: true }) continue;
+                var spec0 = t.Repeat;
+                var isRepeat0 = spec0?.IsRepeat == true;
+                // 仅当开启了“提醒后暂停”时，AwaitingAck 才阻断“下一个”时间的计算
+                if (t.AwaitingAck && isRepeat0 && spec0!.PauseUntilDone) continue;
+
+                var spec = t.Repeat;
+                var isRepeat = spec?.IsRepeat == true;
+                var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
+                var targetFinish = inSkipPhase ? CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _) : t.Finish;
+
                 if (adv > 0 && !t.AdvanceNotified)
                 {
-                    var advTime = t.Finish.AddSeconds(-adv);
+                    var advTime = targetFinish.AddSeconds(-adv);
                     if (advTime > now) next = next is null || advTime < next ? advTime : next;
                 }
 
-                if (!t.Notified && t.Finish > now && (_settings.AlsoNotifyAtDue || !t.AdvanceNotified))
+                if (!t.Notified && targetFinish > now && (_settings.AlsoNotifyAtDue || !t.AdvanceNotified))
                 {
-                    next = next is null || t.Finish < next ? t.Finish : next;
+                    next = next is null || targetFinish < next ? targetFinish : next;
                 }
             }
 
@@ -240,6 +252,11 @@ namespace Game_Upgrade_Reminder.UI
             if (spec is { HasSkip: true, Skip: var s and not null })
             {
                 parts.Add($"每提醒{s.RemindTimes}次跳过{s.SkipTimes}次提醒");
+            }
+
+            if (spec.PauseUntilDone)
+            {
+                parts.Add("提醒后暂停直到确认");
             }
 
             return string.Join("，", parts);
@@ -1940,6 +1957,7 @@ namespace Game_Upgrade_Reminder.UI
                 var repeatText = t.Repeat is { IsRepeat: true } r
                     ? FormatRepeatSpec(r) + (t.RepeatCount > 0 ? $"，已重复{t.RepeatCount}次" : "")
                     : "";
+                var actionText = t.AwaitingAck ? "确认完成" : (t.Done ? "撤销完成" : "完成");
                 var it = new ListViewItem(t.Account)
                 {
                     SubItems =
@@ -1950,7 +1968,7 @@ namespace Game_Upgrade_Reminder.UI
                         t.FinishStr,
                         t.RemainingStr,
                         repeatText,
-                        t.Done ? "撤销完成" : "完成",
+                        actionText,
                         t.PendingDelete ? "撤销删除" : "删除"
                     },
                     Tag = t
@@ -2012,12 +2030,16 @@ namespace Game_Upgrade_Reminder.UI
                     row.ForeColor = Color.Gray;
                     row.BackColor = Color.White;
                 }
+                else if (t.AwaitingAck)
+                {
+                    row.BackColor = DueBackColor;
+                }
                 else if (t.Finish <= DateTime.Now)
                 {
                     row.BackColor = DueBackColor;
                 }
 
-                row.SubItems[7].Text = t.Done ? "撤销完成" : "完成";
+                row.SubItems[7].Text = t.AwaitingAck ? "确认完成" : (t.Done ? "撤销完成" : "完成");
                 row.SubItems[8].Text = t.PendingDelete ? "撤销删除" : "删除";
             }
 
@@ -2036,10 +2058,46 @@ namespace Game_Upgrade_Reminder.UI
             switch (sub)
             {
                 case 7:
+                    if (t.AwaitingAck)
+                    {
+                        // 确认本次提醒已处理
+                        t.AwaitingAck = false;
+                        t.Notified = false;
+                        t.AdvanceNotified = false;
+                        if (t.Repeat is { IsRepeat: true } spec)
+                        {
+                            if (spec.PauseUntilDone)
+                            {
+                                // 暂停模式：从“现在”起开始下一次计时，并跨越跳过段
+                                t.RepeatCount++;
+                                var first = CalcNextOccurrence(DateTime.Now, spec);
+                                var nextEff = CalcNextEffectiveOccurrence(first, spec, t.RepeatCursor, out var adv);
+                                if (spec.HasEnd && nextEff > spec.EndAt!.Value)
+                                {
+                                    t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
+                                }
+                                else
+                                {
+                                    t.Finish = nextEff;
+                                    t.RepeatCursor += adv;
+                                }
+                            }
+                            else
+                            {
+                                // 非暂停模式：到点时已推进到下一实际发生；此处无需二次推进与计数
+                            }
+                        }
+                        SaveTasks();
+                        RefreshTable();
+                        RescheduleNextTick();
+                        break;
+                    }
+
                     t.Done = !t.Done;
                     t.CompletedTime = t.Done ? DateTime.Now : null;
                     SaveTasks();
                     RefreshTable();
+                    RescheduleNextTick();
                     break;
 
                 case 8:
@@ -2047,6 +2105,7 @@ namespace Game_Upgrade_Reminder.UI
                     t.DeleteMarkTime = t.PendingDelete ? DateTime.Now : null;
                     SaveTasks();
                     RefreshTable();
+                    RescheduleNextTick();
                     break;
 
                 case >= 0 and < 6:
@@ -2161,8 +2220,12 @@ namespace Game_Upgrade_Reminder.UI
             var now = DateTime.Now;
             foreach (var t in _tasks)
             {
+                // 已完成或待删除的任务不再参与提醒
+                if (t is { PendingDelete: true } || t is { Done: true }) continue;
                 var spec = t.Repeat;
                 var isRepeat = spec?.IsRepeat == true;
+                // 暂停等待用户确认的任务（仅当开启“提醒后暂停”时）不再推进或重复弹窗
+                if (t.AwaitingAck && isRepeat && spec!.PauseUntilDone) continue;
 
                 // 若设置了截止且当前 Finish 已超过截止，立即停止后续提醒
                 if (isRepeat && spec!.HasEnd && t.Finish > spec.EndAt!.Value)
@@ -2179,7 +2242,7 @@ namespace Game_Upgrade_Reminder.UI
                 if (adv > 0 && !t.AdvanceNotified && t.Finish > now)
                 {
                     var advTime = t.Finish.AddSeconds(-adv);
-                    var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCount);
+                    var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
                     if (!inSkipPhase && advTime <= now)
                     {
                         _notifier.Toast($"[提前] {t.Account}", $"{t.TaskName} 即将到点，完成时间：{t.FinishStr}");
@@ -2191,36 +2254,68 @@ namespace Game_Upgrade_Reminder.UI
                 // 到点检查
                 if (t.Finish > now || t.Notified) continue;
 
-                var skipThis = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCount);
+                var skipThis = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
 
-                // 是否显示到点弹窗：非跳过阶段，且（开启到点通知或未提前通知过）
-                var showDueToast = !skipThis && (_settings.AlsoNotifyAtDue || !t.AdvanceNotified);
+                if (skipThis)
+                {
+                    // 跳过阶段：不弹窗、不计数，直接推进到下一次“会提醒”的发生
+                    t.Notified = true;
+                    changed = true;
+                    if (isRepeat)
+                    {
+                        var nextEff = CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out var advanced);
+                        if (spec!.HasEnd && nextEff > spec.EndAt!.Value)
+                        {
+                            t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
+                        }
+                        else
+                        {
+                            t.Finish = nextEff;
+                            t.Notified = false;
+                            t.AdvanceNotified = false;
+                        }
+                        t.RepeatCursor += advanced;
+                    }
+                    continue;
+                }
+
+                // 非跳过阶段
+                var showDueToast = _settings.AlsoNotifyAtDue || !t.AdvanceNotified;
                 if (showDueToast)
                 {
                     _notifier.Toast($"[到点] {t.Account}", $"{t.TaskName} 完成时间：{t.FinishStr}");
                 }
 
-                // 计数：仅在非跳过阶段 +1（无论是否显示到点弹窗；若用户关闭到点但有提前提醒，也应计数）
-                if (!skipThis) t.RepeatCount++;
-
                 t.Notified = true;
                 changed = true;
 
-                // 若为重复任务，推进到下一次提醒；否则保持现状
-                if (isRepeat)
+                if (isRepeat && spec!.PauseUntilDone)
                 {
-                    var next = CalcNextOccurrence(t.Finish, spec!);
-                    // 超过截止则停止重复
-                    if (spec!.HasEnd && next > spec.EndAt!.Value)
+                    // 暂停计时：等待用户确认，保持 Finish 不变（显示“到点”并高亮）
+                    t.AwaitingAck = true;
+                    // 本次“发生”已完成（提醒触发），推进总光标
+                    t.RepeatCursor++;
+                }
+                else if (isRepeat)
+                {
+                    // 正常模式：到点后仍然高亮等待确认，但计时立即进入“下一次会提醒”的时点
+                    t.AwaitingAck = true;
+                    // 发生光标+1（本次发生）与提醒计数+1
+                    t.RepeatCursor++;
+                    t.RepeatCount++;
+                    // 基于下一次发生时间，跨越所有处于跳过段的发生
+                    var first = CalcNextOccurrence(t.Finish, spec!);
+                    var nextEff = CalcNextEffectiveOccurrence(first, spec!, t.RepeatCursor, out var adv2);
+                    if (spec!.HasEnd && nextEff > spec.EndAt!.Value)
                     {
                         t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
-                        // 保持 Notified=true 使其不再弹窗
                     }
                     else
                     {
-                        t.Finish = next;
+                        t.Finish = nextEff;
                         t.Notified = false;
                         t.AdvanceNotified = false;
+                        t.RepeatCursor += adv2; // 累计被跳过的发生
                     }
                 }
             }
@@ -2246,10 +2341,20 @@ namespace Game_Upgrade_Reminder.UI
 
                 foreach (var t in _tasks)
                 {
+                    // 已完成或待删除的任务不参与后续调度
+                    if (t is { PendingDelete: true } || t is { Done: true }) continue;
+                    // 等待确认的任务不推进调度（保持“到点”）
+                    if (t.AwaitingAck) continue;
+
+                    var spec = t.Repeat;
+                    var isRepeat = spec?.IsRepeat == true;
+                    var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
+                    var targetFinish = inSkipPhase ? CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _) : t.Finish;
+
                     // 候选1：提前提醒时间点（若启用且尚未提前提醒）
                     if (adv > 0 && !t.AdvanceNotified)
                     {
-                        var advTime = t.Finish.AddSeconds(-adv);
+                        var advTime = targetFinish.AddSeconds(-adv);
                         if (advTime > now)
                             next = next is null || advTime < next ? advTime : next;
                     }
@@ -2261,9 +2366,9 @@ namespace Game_Upgrade_Reminder.UI
                         {
                             // 已提前提醒且关闭了“同时准点通知” -> 跳过到点提醒的调度
                         }
-                        else if (t.Finish > now)
+                        else if (targetFinish > now)
                         {
-                            next = next is null || t.Finish < next ? t.Finish : next;
+                            next = next is null || targetFinish < next ? targetFinish : next;
                         }
                     }
                 }
@@ -2327,6 +2432,23 @@ namespace Game_Upgrade_Reminder.UI
 
             // 安全兜底，避免不前进导致死循环
             if (next <= current) next = current.AddSeconds(1);
+            return next;
+        }
+
+        // 计算下一次“会实际提醒”的时间（跳过所有处于 Skip 段的发生），不改变 RepeatCount；返回跳过的发生次数 advanced
+        private static DateTime CalcNextEffectiveOccurrence(DateTime current, RepeatSpec spec, int repeatCursor, out int advanced)
+        {
+            var next = current;
+            advanced = 0;
+            // 逐个推进 occurrence，直到来到一个需要提醒的 occurrence
+            var guard = 0;
+            while (ShouldSkipOccurrence(spec, repeatCursor) && guard < 1000)
+            {
+                next = CalcNextOccurrence(next, spec);
+                repeatCursor++;
+                advanced++;
+                guard++;
+            }
             return next;
         }
 
