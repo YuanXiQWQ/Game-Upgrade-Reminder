@@ -4,10 +4,10 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 定义任务项的数据结构和相关操作
  * 创建日期: 2025-08-14
- * 最后修改: 2025-08-15
+ * 最后修改: 2025-08-21
  *
  * 版权所有 (C) 2025 YuanXiQWQ
- * 根据 GNU Affero 通用公共许可证 (AGPL-3.0) 授权
+ * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
@@ -73,6 +73,12 @@ namespace Game_Upgrade_Reminder.Core.Models
         public bool AdvanceNotified { get; set; }
 
         /// <summary>
+        /// 获取或设置一个值，指示最近一次提醒是否正等待用户点击“完成”进行确认。
+        /// 用于控制行高亮与“暂停计时直到确认”的逻辑。
+        /// </summary>
+        public bool AwaitingAck { get; set; }
+
+        /// <summary>
         /// 获取或设置一个值，指示任务是否已完成
         /// </summary>
         public bool Done { get; set; }
@@ -91,6 +97,22 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// 获取或设置任务标记为删除的时间
         /// </summary>
         public DateTime? DeleteMarkTime { get; set; }
+
+        /// <summary>
+        /// 重复设置（为 null 或 Mode=None 表示不重复）
+        /// </summary>
+        public RepeatSpec? Repeat { get; set; }
+
+        /// <summary>
+        /// 已重复次数（提醒触发+1；跳过不+1；编辑任务后清零）
+        /// </summary>
+        public int RepeatCount { get; set; }
+
+        /// <summary>
+        /// 发生过的总次数光标（包括跳过与提醒），用于根据跳过规则推进周期。
+        /// 注意：与 <see cref="RepeatCount"/> 不同，后者仅在实际提醒时+1。
+        /// </summary>
+        public int RepeatCursor { get; set; }
 
         /// <summary>
         /// 获取任务的剩余时间

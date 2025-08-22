@@ -11,12 +11,12 @@
 ## 功能特点
 
 - 🕒 追踪多个账号的升级任务
-- ⏰ 设置升级完成时间，自动倒计时
+- ⏰ 与日历/闹钟不同的是，计时方式与游戏同步为倒计时，省去了每次计算时间的麻烦
 - 🔔 升级完成时显示系统通知
+- ♻️ 重复任务：每天/每周/每月/每年/自定义；结束时间可选（默认无）；支持跳过规则
 
 > 计划实现（~~但大概率会鸽~~）：
 > - 多语言支持
-> - 循环任务
 
 ## 系统要求
 
@@ -77,12 +77,12 @@ created for "Boom Beach."
 ## Features
 
 - 🕒 Track upgrade tasks across multiple accounts
-- ⏰ Set completion time with automatic countdown
+- ⏰ A countdown synced with in-game timers (unlike calendars/alarms), eliminating manual time calculations
 - 🔔 Receive system notifications when upgrades complete
+- ♻️ Recurring tasks: daily/weekly/monthly/yearly/custom; optional end time (None by default); skip rules
 
 > Planned features (~~but might be delayed~~):
 > - Multi-language support
-> - Recurring tasks
 
 ## System Requirements
 
