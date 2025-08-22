@@ -37,6 +37,7 @@ namespace Game_Upgrade_Reminder.UI
         /// 应用程序主标题，用于窗口标题栏与通知文本等显示。
         /// </summary>
         private const string AppTitle = "游戏升级提醒";
+
         /// <summary>
         /// 到点或需确认任务在列表中的背景高亮色。
         /// </summary>
@@ -47,38 +48,47 @@ namespace Game_Upgrade_Reminder.UI
         /// “账号”列默认宽度（像素）。
         /// </summary>
         private const int AccountColWidth = 150;
+
         /// <summary>
         /// “任务”列默认宽度（像素）。
         /// </summary>
         private const int TaskColWidth = 150;
+
         /// <summary>
         /// “开始时间”列默认宽度（像素）。
         /// </summary>
         private const int StartTimeColWidth = 130;
+
         /// <summary>
         /// “持续时长”列默认宽度（像素）。
         /// </summary>
         private const int DurationColWidth = 150;
+
         /// <summary>
         /// “完成时间”列默认宽度（像素）。
         /// </summary>
         private const int FinishTimeColWidth = 130;
+
         /// <summary>
         /// “剩余时间”列默认宽度（像素）。
         /// </summary>
         private const int RemainingTimeColWidth = 150;
+
         /// <summary>
         /// “重复”列默认宽度（像素）。
         /// </summary>
         private const int RepeatColWidth = 240;
+
         /// <summary>
         /// “操作”列默认宽度（像素）。
         /// </summary>
         private const int ActionColWidth = 50;
+
         /// <summary>
         /// 额外留白宽度（像素），用于避免水平滚动条抖动。
         /// </summary>
         private const int ExtraSpace = 50;
+
         /// <summary>
         /// 黄金分割倒数常量（2/(1+sqrt(5))），用于尺寸或布局计算时的比例参考。
         /// </summary>
@@ -215,7 +225,6 @@ namespace Game_Upgrade_Reminder.UI
 
             _lblNext.Text = next.HasValue ? $@"下一个: {(next.Value - now):hh\:mm\:ss}" : "下一个: -";
 
-            UpdateRepeatStatusLabel();
 
             // 同步托盘菜单状态
             UpdateTrayMenuStatus();
@@ -240,46 +249,11 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
-        // ---------- 重复信息格式化与状态栏显示 ----------
         /// <summary>
         /// 更新状态栏“重复”说明文本：
         /// 始终显示“默认重复设置”（来源于 <see cref="_currentRepeatSpec"/>）；
         /// 若有选中任务，追加显示“选中”任务的重复信息。
         /// </summary>
-        private void UpdateRepeatStatusLabel()
-        {
-            TaskItem? selectedTask = null;
-            try
-            {
-                if (_listView is { IsDisposed: false, SelectedItems: { Count: > 0 } } &&
-                    _listView.SelectedItems[0].Tag is TaskItem ti)
-                    selectedTask = ti;
-            }
-            catch
-            {
-                // 忽略
-            }
-
-            var defaultSpec = _currentRepeatSpec ?? new RepeatSpec { Mode = RepeatMode.None };
-            var defaultText = defaultSpec is { IsRepeat: true } ? FormatRepeatSpec(defaultSpec) : "";
-
-            string text;
-            if (selectedTask is not null)
-            {
-                var spec = selectedTask.Repeat;
-                var selectedText = spec is { IsRepeat: true }
-                    ? FormatRepeatSpec(spec) + (selectedTask.RepeatCount > 0 ? $"，已重复{selectedTask.RepeatCount}次" : "")
-                    : "";
-                text = $"默认: {defaultText} | 选中: {selectedText}";
-            }
-            else
-            {
-                text = $"默认: {defaultText}";
-            }
-
-            _lblRepeat.Text = $"重复: {text}";
-        }
-
         /// <summary>
         /// 将 <see cref="RepeatSpec"/> 格式化为人类可读的中文描述（含截止、跳过与暂停说明）。
         /// </summary>
@@ -644,7 +618,7 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripStatusLabel _lblDue = new() { Text = "已到点: 0" };
         private readonly ToolStripStatusLabel _lblPending = new() { Text = "进行中: 0" };
         private readonly ToolStripStatusLabel _lblNext = new() { Text = "下一个: -" };
-        private readonly ToolStripStatusLabel _lblRepeat = new() { Text = "重复: -" };
+        private readonly ToolStripStatusLabel _lblCellContent = new() { Text = "" };
 
         // 计时器
         private readonly System.Windows.Forms.Timer _timerTick = new() { Interval = 1_000 };
@@ -681,18 +655,22 @@ namespace Game_Upgrade_Reminder.UI
         /// ListView 消息基值（LVM_FIRST）。
         /// </summary>
         private const int LvmFirst = 0x1000;
+
         /// <summary>
         /// 获取 ListView 头部窗口句柄的消息。
         /// </summary>
         private const int LvmGetHeader = LvmFirst + 31;
+
         /// <summary>
         /// Header 控件消息基值（HDM_FIRST）。
         /// </summary>
         private const int HdmFirst = 0x1200;
+
         /// <summary>
         /// 获取列头项（HDITEM）的消息。
         /// </summary>
         private const int HdmGetItem = HdmFirst + 11;
+
         /// <summary>
         /// 设置列头项（HDITEM）的消息。
         /// </summary>
@@ -702,10 +680,12 @@ namespace Game_Upgrade_Reminder.UI
         /// HDITEM 中 fmt 字段掩码（HDI_FORMAT）。
         /// </summary>
         private const int HdiFormat = 0x0004;
+
         /// <summary>
         /// 升序箭头标志。
         /// </summary>
         private const int HdfSortUp = 0x0400;
+
         /// <summary>
         /// 降序箭头标志。
         /// </summary>
@@ -1149,17 +1129,17 @@ namespace Game_Upgrade_Reminder.UI
             actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-            _btnAddSave.Text = "添加(&N)";
-            StyleSmallButton(_btnAddSave, new Padding(0, 2, 0, 2));
-            actionsPanel.Controls.Add(_btnAddSave, 0, 0);
-
             _btnRepeat.Text = "重复(&P)";
-            StyleSmallButton(_btnRepeat, new Padding(6, 2, 0, 2));
-            actionsPanel.Controls.Add(_btnRepeat, 1, 0);
+            StyleSmallButton(_btnRepeat, new Padding(0, 2, 0, 2));
+            actionsPanel.Controls.Add(_btnRepeat, 0, 0);
 
             _btnClear.Text = "清除(&C)";
             StyleSmallButton(_btnClear, new Padding(6, 2, 0, 2));
-            actionsPanel.Controls.Add(_btnClear, 2, 0);
+            actionsPanel.Controls.Add(_btnClear, 1, 0);
+
+            _btnAddSave.Text = "添加(&N)";
+            StyleSmallButton(_btnAddSave, new Padding(6, 2, 0, 2));
+            actionsPanel.Controls.Add(_btnAddSave, 2, 0);
 
             line2.Controls.Add(actionsPanel, 12, 0);
 
@@ -1188,7 +1168,7 @@ namespace Game_Upgrade_Reminder.UI
             _status.Items.Add(new ToolStripStatusLabel("|") { ForeColor = SystemColors.ControlDark });
             _status.Items.Add(_lblNext);
             _status.Items.Add(new ToolStripStatusLabel("|") { ForeColor = SystemColors.ControlDark });
-            _status.Items.Add(_lblRepeat);
+            _status.Items.Add(_lblCellContent);
             root.Controls.Add(_status, 0, 3);
         }
 
@@ -1359,7 +1339,6 @@ namespace Game_Upgrade_Reminder.UI
                     else
                     {
                         _currentRepeatSpec = spec; // 新增任务默认值
-                        UpdateRepeatStatusLabel(); // 即时刷新状态栏中的“默认”显示
                     }
                 };
 
@@ -1405,13 +1384,14 @@ namespace Game_Upgrade_Reminder.UI
             {
                 if (me.Button == MouseButtons.Left) HandleListClick();
             };
+            _listView.MouseClick += HandleListViewCellClick;
             _listView.Resize += (_, _) => AdjustListViewColumns();
             _listView.GotFocus += (_, _) =>
             {
                 // 当列表获得焦点但没有选中项时，清除焦点项避免虚线焦点框
                 ClearListViewFocusIfNoSelection();
             };
-            _listView.SelectedIndexChanged += (_, _) => UpdateRepeatStatusLabel();
+            _listView.SelectedIndexChanged += (_, _) => { };
 
             // 列头点击排序（文本为主，部分列有特殊处理）
             _listView.ColumnClick += (_, e) =>
@@ -1474,6 +1454,48 @@ namespace Game_Upgrade_Reminder.UI
             // 快捷键
             KeyPreview = true;
             KeyDown += MainForm_KeyDown;
+        }
+
+        // ---------- ListView 单元格点击处理 ----------
+        /// <summary>
+        /// 处理ListView单元格点击事件，在状态栏显示点击单元格的完整内容。
+        /// </summary>
+        /// <param name="sender">事件源。</param>
+        /// <param name="e">鼠标点击事件参数。</param>
+        private void HandleListViewCellClick(object? sender, MouseEventArgs e)
+        {
+            if (_listView.IsDisposed || e.Button != MouseButtons.Left) return;
+
+            try
+            {
+                // 获取点击位置的项和子项信息
+                var hitTest = _listView.HitTest(e.Location);
+                if (hitTest.Item is null)
+                {
+                    _lblCellContent.Text = "";
+                    return;
+                }
+
+                var item = hitTest.Item;
+                var subItemIndex = hitTest.SubItem is not null ? item.SubItems.IndexOf(hitTest.SubItem) : 0;
+
+                // 确保子项索引在有效范围内
+                if (subItemIndex < 0 || subItemIndex >= item.SubItems.Count)
+                {
+                    _lblCellContent.Text = "";
+                    return;
+                }
+
+                // 获取单元格内容
+                var cellContent = item.SubItems[subItemIndex].Text;
+
+                // 在状态栏显示内容
+                _lblCellContent.Text = string.IsNullOrWhiteSpace(cellContent) ? "" : cellContent;
+            }
+            catch
+            {
+                _lblCellContent.Text = "";
+            }
         }
 
         // ---------- 关于对话框（可点击链接 + 检查更新按钮） ----------
