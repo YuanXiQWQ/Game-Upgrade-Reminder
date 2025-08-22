@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-21
+ * 最后修改: 2025-08-22
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -301,14 +301,25 @@ namespace Game_Upgrade_Reminder.UI
         /// <returns>形如“每 1年 2月 3天 ...”的描述；为空或无效时返回“自定义”。</returns>
         private static string FormatRepeatCustom(RepeatCustom? c)
         {
-            if (c is null || c.IsEmpty) return "自定义";
+            if (c is null or { IsEmpty: true }) return "自定义";
+
+            // 非负拷贝
+            var years = Math.Max(0, c.Years);
+            var months = Math.Max(0, c.Months);
+            var days = Math.Max(0, c.Days);
+            var hours = Math.Max(0, c.Hours);
+            var minutes = Math.Max(0, c.Minutes);
+            var seconds = Math.Max(0, c.Seconds);
+
+            DurationUtils.NormalizeYmDhms(ref years, ref months, ref days, ref hours, ref minutes, ref seconds);
+
             var units = new List<string>();
-            if (c.Years > 0) units.Add($"{c.Years}年");
-            if (c.Months > 0) units.Add($"{c.Months}月");
-            if (c.Days > 0) units.Add($"{c.Days}天");
-            if (c.Hours > 0) units.Add($"{c.Hours}时");
-            if (c.Minutes > 0) units.Add($"{c.Minutes}分");
-            if (c.Seconds > 0) units.Add($"{c.Seconds}秒");
+            if (years > 0) units.Add($"{years}年");
+            if (months > 0) units.Add($"{months}月");
+            if (days > 0) units.Add($"{days}天");
+            if (hours > 0) units.Add($"{hours}时");
+            if (minutes > 0) units.Add($"{minutes}分");
+            if (seconds > 0) units.Add($"{seconds}秒");
             return units.Count > 0 ? $"每 {string.Join(" ", units)}" : "自定义";
         }
 
