@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 定义任务项的数据结构和相关操作
  * 创建日期: 2025-08-14
- * 最后修改: 2025-08-21
+ * 最后修改: 2025-08-22
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -12,6 +12,7 @@
  */
 
 using System.Text.Json.Serialization;
+using Game_Upgrade_Reminder.Core.Services;
 
 namespace Game_Upgrade_Reminder.Core.Models
 {
@@ -167,19 +168,10 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// <param name="showSeconds">是否显示秒数</param>
         /// <param name="seconds">秒数</param>
         /// <returns>格式化后的时间字符串</returns>
-        /// <remarks>
-        /// 根据时间长度自动选择合适的显示格式：
-        /// - 大于1天：显示天、时、分
-        /// - 大于1小时：显示时、分（可选秒）
-        /// - 其他：显示分（可选秒）
-        /// </remarks>
         public static string FormatTime(int days, int hours, int minutes, bool showSeconds = false, int seconds = 0)
         {
-            if (days > 0) return $"{days}天 {hours}时 {minutes}分";
-
-            if (hours > 0) return showSeconds ? $"{hours}时 {minutes}分 {seconds}秒" : $"{hours}时 {minutes}分";
-
-            return showSeconds ? $"{minutes}分 {seconds}秒" : $"{minutes}分";
+            var formatter = new ZhCnDurationFormatter();
+            return formatter.Format(days, hours, minutes, seconds, showSeconds);
         }
 
         /// <summary>

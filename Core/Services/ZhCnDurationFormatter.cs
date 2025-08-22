@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 提供中文格式的时长格式化功能，用于显示游戏升级剩余时间
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-15
+ * 最后修改: 2025-08-22
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -36,76 +36,43 @@ namespace Game_Upgrade_Reminder.Core.Services
         /// <returns>格式化后的中文字符串</returns>
         /// <remarks>
         /// 格式化规则：
-        /// 1. 只显示非零的时间单位
-        /// 2. 如果showSeconds为true，则始终显示秒数
+        /// 1. 只显示非零的时间单位，跳过所有为0的时间单位
+        /// 2. 如果showSeconds为true且秒数大于0，则显示秒数
         /// 3. 时间单位之间用空格分隔
         /// 4. 如果所有时间单位都为零，则返回"0分"或"0秒"（根据showSeconds参数）
         /// </remarks>
         public string Format(int days, int hours, int minutes, int seconds = 0, bool showSeconds = false)
         {
-            var parts = new List<string>();
+            var d = days;
+            var h = hours;
+            var m = minutes;
+            var s = seconds;
+            DurationUtils.NormalizeDhms(ref d, ref h, ref m, ref s);
 
-            if (days > 0)
+            var parts = new List<string>();
+            
+            if (d > 0)
             {
-                parts.Add($"{days}天");
-                if (hours > 0 || (hours == 0 && (minutes > 0 || (showSeconds && seconds > 0))))
-                {
-                    parts.Add($"{hours}时");
-                    if (minutes > 0 || (showSeconds && seconds > 0))
-                    {
-                        parts.Add($"{minutes}分");
-                        if (showSeconds && seconds > 0)
-                        {
-                            parts.Add($"{seconds}秒");
-                        }
-                    }
-                    else if (showSeconds && seconds > 0)
-                    {
-                        parts.Add($"0分 {seconds}秒");
-                    }
-                }
-                else if (minutes > 0 || (showSeconds && seconds > 0))
-                {
-                    parts.Add($"0时 {minutes}分");
-                    if (showSeconds && seconds > 0)
-                    {
-                        parts.Add($"{seconds}秒");
-                    }
-                }
-                else if (showSeconds && seconds > 0)
-                {
-                    parts.Add($"0时 0分 {seconds}秒");
-                }
+                parts.Add($"{d}天");
             }
-            else if (hours > 0)
+
+            if (h > 0)
             {
-                parts.Add($"{hours}时");
-                if (minutes > 0 || (showSeconds && seconds > 0))
-                {
-                    parts.Add($"{minutes}分");
-                    if (showSeconds && seconds > 0)
-                    {
-                        parts.Add($"{seconds}秒");
-                    }
-                }
-                else if (showSeconds && seconds > 0)
-                {
-                    parts.Add($"0分 {seconds}秒");
-                }
+                parts.Add($"{h}时");
             }
-            else if (minutes > 0)
+
+            if (m > 0)
             {
-                parts.Add($"{minutes}分");
-                if (showSeconds && seconds > 0)
-                {
-                    parts.Add($"{seconds}秒");
-                }
+                parts.Add($"{m}分");
             }
-            else if (showSeconds && seconds > 0)
+
+            if (showSeconds && s > 0)
             {
-                return $"{seconds}秒";
+                parts.Add($"{s}秒");
             }
-            else
+
+            // 如果所有单位都为0，返回默认值
+            if (parts.Count == 0)
             {
                 return showSeconds ? "0秒" : "0分";
             }
