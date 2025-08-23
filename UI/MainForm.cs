@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-22
+ * 最后修改: 2025-08-23
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -23,6 +23,7 @@ using Game_Upgrade_Reminder.Infrastructure.Repositories;
 using Game_Upgrade_Reminder.Infrastructure.System;
 using Game_Upgrade_Reminder.Infrastructure.UI;
 using Game_Upgrade_Reminder.Core.Models;
+using Game_Upgrade_Reminder.Core.Abstractions;
 
 namespace Game_Upgrade_Reminder.UI
 {
@@ -60,7 +61,7 @@ namespace Game_Upgrade_Reminder.UI
         private const int StartTimeColWidth = 130;
 
         /// <summary>
-        /// “持续时长”列默认宽度（像素）。
+        /// “持续时间”列默认宽度（像素）。
         /// </summary>
         private const int DurationColWidth = 150;
 
@@ -99,11 +100,11 @@ namespace Game_Upgrade_Reminder.UI
         private readonly JsonSettingsStore _settingsStore = new();
         private readonly RegistryAutostartManager _autostartManager = new();
         private readonly ByFinishTimeSortStrategy _sortStrategy = new();
+        private readonly ILocalizationService _localizationService = new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
+        private IDurationFormatter? _durationFormatter;
 
         private SimpleDeletionPolicy _deletionPolicy =
             new(pendingDeleteDelaySeconds: 3, completedKeepSeconds: 60);
-
-        private readonly ZhCnDurationFormatter _durationFormatter = new();
 
         // 状态
         private SettingsData _settings = new();
@@ -188,9 +189,9 @@ namespace Game_Upgrade_Reminder.UI
             var due = _tasks.Count(t => t is { PendingDelete: false, Done: false } && t.Finish <= now);
             var pending = _tasks.Count(t => t is { PendingDelete: false, Done: false } && t.Finish > now);
 
-            _lblTotal.Text = $"总数: {total}";
-            _lblDue.Text = $"已到点: {due}";
-            _lblPending.Text = $"进行中: {pending}";
+            _lblTotal.Text = _localizationService.GetFormattedText("Status.Total", total);
+            _lblDue.Text = _localizationService.GetFormattedText("Status.Due", due);
+            _lblPending.Text = _localizationService.GetFormattedText("Status.Pending", pending);
 
             // 计算下一个提醒点（包含提前提醒或到点提醒）
             DateTime? next = null;
@@ -223,8 +224,9 @@ namespace Game_Upgrade_Reminder.UI
                 }
             }
 
-            _lblNext.Text = next.HasValue ? $@"下一个: {(next.Value - now):hh\:mm\:ss}" : "下一个: -";
-
+            _lblNext.Text = next.HasValue 
+                ? _localizationService.GetFormattedText("Status.Next", $@"{(next.Value - now):hh\:mm\:ss}")
+                : _localizationService.GetText("Status.NextEmpty", "下一个: -");
 
             // 同步托盘菜单状态
             UpdateTrayMenuStatus();
@@ -259,36 +261,36 @@ namespace Game_Upgrade_Reminder.UI
         /// </summary>
         /// <param name="spec">重复规则。</param>
         /// <returns>用于界面展示的中文描述。</returns>
-        private static string FormatRepeatSpec(RepeatSpec spec)
+        private string FormatRepeatSpec(RepeatSpec spec)
         {
-            if (!spec.IsRepeat) return "不重复";
+            if (!spec.IsRepeat) return _localizationService.GetText("Repeat.None", "不重复");
 
             var parts = new List<string>();
 
             var modeStr = spec.Mode switch
             {
-                RepeatMode.Daily => "每天",
-                RepeatMode.Weekly => "每周",
-                RepeatMode.Monthly => "每月",
-                RepeatMode.Yearly => "每年",
+                RepeatMode.Daily => _localizationService.GetText("Repeat.Daily", "每天"),
+                RepeatMode.Weekly => _localizationService.GetText("Repeat.Weekly", "每周"),
+                RepeatMode.Monthly => _localizationService.GetText("Repeat.Monthly", "每月"),
+                RepeatMode.Yearly => _localizationService.GetText("Repeat.Yearly", "每年"),
                 RepeatMode.Custom => FormatRepeatCustom(spec.Custom),
-                _ => "不重复"
+                _ => _localizationService.GetText("Repeat.None", "不重复")
             };
             parts.Add(modeStr);
 
             if (spec.EndAt is not null)
             {
-                parts.Add("截止 " + FormatSmartDateTime(spec.EndAt.Value, DateTime.Now));
+                parts.Add(_localizationService.GetFormattedText("Repeat.EndAt", FormatSmartDateTime(spec.EndAt.Value, DateTime.Now)));
             }
 
             if (spec is { HasSkip: true, Skip: var s and not null })
             {
-                parts.Add($"每提醒{s.RemindTimes}次跳过{s.SkipTimes}次提醒");
+                parts.Add(_localizationService.GetFormattedText("Repeat.Skip", s.RemindTimes, s.SkipTimes));
             }
 
             if (spec.PauseUntilDone)
             {
-                parts.Add("提醒后暂停直到确认");
+                parts.Add(_localizationService.GetText("Repeat.PauseUntilDone", "提醒后暂停直到确认"));
             }
 
             return string.Join("，", parts);
@@ -299,9 +301,9 @@ namespace Game_Upgrade_Reminder.UI
         /// </summary>
         /// <param name="c">自定义单位（年/月/天/时/分/秒）。</param>
         /// <returns>形如“每 1年 2月 3天 ...”的描述；为空或无效时返回“自定义”。</returns>
-        private static string FormatRepeatCustom(RepeatCustom? c)
+        private string FormatRepeatCustom(RepeatCustom? c)
         {
-            if (c is null or { IsEmpty: true }) return "自定义";
+            if (c is null or { IsEmpty: true }) return _localizationService.GetText("Repeat.Custom", "自定义");
 
             // 非负拷贝
             var years = Math.Max(0, c.Years);
@@ -314,13 +316,15 @@ namespace Game_Upgrade_Reminder.UI
             DurationUtils.NormalizeYmDhms(ref years, ref months, ref days, ref hours, ref minutes, ref seconds);
 
             var units = new List<string>();
-            if (years > 0) units.Add($"{years}年");
-            if (months > 0) units.Add($"{months}月");
-            if (days > 0) units.Add($"{days}天");
-            if (hours > 0) units.Add($"{hours}时");
-            if (minutes > 0) units.Add($"{minutes}分");
-            if (seconds > 0) units.Add($"{seconds}秒");
-            return units.Count > 0 ? $"每 {string.Join(" ", units)}" : "自定义";
+            if (years > 0) units.Add(_localizationService.GetFormattedText("Time.Years", years));
+            if (months > 0) units.Add(_localizationService.GetFormattedText("Time.Months", months));
+            if (days > 0) units.Add(_localizationService.GetFormattedText("Time.Days", days));
+            if (hours > 0) units.Add(_localizationService.GetFormattedText("Time.Hours", hours));
+            if (minutes > 0) units.Add(_localizationService.GetFormattedText("Time.Minutes", minutes));
+            if (seconds > 0) units.Add(_localizationService.GetFormattedText("Time.Seconds", seconds));
+            return units.Count > 0 
+                ? _localizationService.GetFormattedText("Repeat.Every", string.Join(" ", units))
+                : _localizationService.GetText("Repeat.Custom", "自定义");
         }
 
         /// <summary>
@@ -411,7 +415,7 @@ namespace Game_Upgrade_Reminder.UI
         /// <summary>
         /// 打开应用程序配置文件所在目录（AppContext.BaseDirectory）。
         /// </summary>
-        private static void OpenConfigFolder()
+        private void OpenConfigFolder()
         {
             try
             {
@@ -420,7 +424,11 @@ namespace Game_Upgrade_Reminder.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"无法打开配置文件夹：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    _localizationService.GetFormattedText("Error.FailedToOpenConfigFolder", ex.Message),
+                    _localizationService.GetText("Error.Title", "错误"), 
+                    MessageBoxButtons.OK, 
+                    MessageBoxIcon.Error);
             }
         }
 
@@ -439,110 +447,67 @@ namespace Game_Upgrade_Reminder.UI
         // 字体
         private Font? _strikeFont;
 
-        // 控件
+        // Controls
         private readonly ComboBox _cbAccount = new()
         {
-            DropDownStyle = ComboBoxStyle.DropDownList,
-            AccessibleName = "账号",
-            AccessibleDescription = "选择账号"
+            DropDownStyle = ComboBoxStyle.DropDownList
         };
 
-        private readonly Button _btnAccountMgr = new()
-        {
-            Text = "账号管理(&M)",
-            AccessibleName = "账号管理",
-            AccessibleDescription = "打开账号管理"
-        };
+        private readonly Button _btnAccountMgr = new();
 
         private readonly ComboBox _cbTask = new()
         {
-            DropDownStyle = ComboBoxStyle.DropDown,
-            AccessibleName = "任务",
-            AccessibleDescription = "输入或选择任务"
+            DropDownStyle = ComboBoxStyle.DropDown
         };
 
-        private readonly Button _btnTaskMgr = new()
-        {
-            Text = "任务管理(&K)",
-            AccessibleName = "任务管理",
-            AccessibleDescription = "打开任务管理"
-        };
+        private readonly Button _btnTaskMgr = new();
 
-        private readonly Button _btnDeleteDone = new()
-        {
-            Text = "删除已完成(&D)",
-            AccessibleName = "删除已完成",
-            AccessibleDescription = "删除已完成的任务（Ctrl+Shift+D）"
-        };
+        private readonly Button _btnDeleteDone = new();
 
-        private readonly Button _btnRefresh = new()
-        {
-            Text = "刷新(&R)",
-            AccessibleName = "刷新",
-            AccessibleDescription = "刷新列表（F5）"
-        };
+        private readonly Button _btnRefresh = new();
 
-        private readonly Button _btnNow = new()
-        {
-            Text = "当前时间(&T)",
-            AccessibleName = "当前时间",
-            AccessibleDescription = "将开始时间设置为当前时间"
-        };
+        private readonly Button _btnNow = new();
 
         private readonly NumericUpDown _numDays = new()
         {
             Minimum = 0,
             Maximum = 3650,
-            Width = 40,
-            AccessibleName = "天",
-            AccessibleDescription = "持续时间（天）"
+            Width = 40
         };
 
         private readonly NumericUpDown _numHours = new()
         {
             Minimum = 0,
             Maximum = 1000,
-            Width = 40,
-            AccessibleName = "小时",
-            AccessibleDescription = "持续时间（小时）"
+            Width = 40
         };
 
         private readonly NumericUpDown _numMinutes = new()
         {
             Minimum = 0,
             Maximum = 59,
-            Width = 40,
-            AccessibleName = "分钟",
-            AccessibleDescription = "持续时间（分钟）"
+            Width = 40
         };
 
         private readonly TextBox _tbFinish = new()
         {
-            ReadOnly = true,
-            AccessibleName = "完成时间",
-            AccessibleDescription = "根据开始时间与持续时间计算的完成时间"
+            ReadOnly = true
         };
 
-        private readonly Button _btnAddSave = new()
-        {
-            Text = "添加(&N)",
-            AccessibleName = "添加",
-            AccessibleDescription = "添加/保存任务（Ctrl+N）"
-        };
+        private readonly Button _btnAddSave = new();
 
-        private readonly Button _btnRepeat = new()
-        {
-            Text = "重复(&P)",
-            AccessibleName = "重复设置",
-            AccessibleDescription = "配置重复提醒设置"
-        };
+        private readonly Button _btnRepeat = new();
 
-        private readonly Button _btnClear = new()
-        {
-            Text = "清除(&C)",
-            AccessibleName = "清除设置",
-            AccessibleDescription = "将开始时间清空，且清空重复任务设置"
-        };
+        private readonly Button _btnClear = new();
+
+        // 可本地化标签字段（用于语言切换时动态更新）
+        private Label _lbAccount = new();
+        private Label _lbTask = new();
+        private Label _lbStartTime = new();
+        private Label _lbDays = new();
+        private Label _lbHours = new();
+        private Label _lbMinutes = new();
+        private Label _lbFinishTime = new();
 
         // 双缓冲 ListView
         /// <summary>
@@ -574,6 +539,7 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripMenuItem _miSettings = new() { Text = "设置(&S)" };
         private readonly ToolStripMenuItem _miFont = new() { Text = "选择字体(&F)..." };
         private readonly ToolStripMenuItem _miAutoStart = new() { Text = "开机自启(&A)" };
+        private readonly ToolStripMenuItem _miLanguage = new() { Text = "语言(&L)" };
 
         // 悬浮显示的三个菜单项
         private readonly ToolStripMenuItem _miOpenConfig = new()
@@ -590,46 +556,53 @@ namespace Game_Upgrade_Reminder.UI
             AccessibleDescription = "清除保存的窗口位置与大小，恢复默认布局"
         };
 
-        private readonly ToolStripMenuItem _miAutoDelete = new() { Text = "已完成任务自行删除(&D)" };
-        private readonly ToolStripMenuItem _miDelOff = new() { Text = "关闭" };
-        private readonly ToolStripMenuItem _miDel30S = new() { Text = "30秒" };
-        private readonly ToolStripMenuItem _miDel1M = new() { Text = "1分钟" };
-        private readonly ToolStripMenuItem _miDel3M = new() { Text = "3分钟" };
-        private readonly ToolStripMenuItem _miDel30M = new() { Text = "30分钟" };
-        private readonly ToolStripMenuItem _miDel1H = new() { Text = "1小时" };
-        private readonly ToolStripMenuItem _miDelCustom = new() { Text = "自定义..." };
-        private readonly ToolStripMenuItem _miAdvanceNotify = new() { Text = "提前通知(&N)" };
-        private readonly ToolStripMenuItem _miAdvOff = new() { Text = "关闭" };
-        private readonly ToolStripMenuItem _miAdvAlsoDue = new() { Text = "同时准点通知" };
-        private readonly ToolStripMenuItem _miAdv30S = new() { Text = "30秒" };
-        private readonly ToolStripMenuItem _miAdv1M = new() { Text = "1分钟" };
-        private readonly ToolStripMenuItem _miAdv3M = new() { Text = "3分钟" };
-        private readonly ToolStripMenuItem _miAdv30M = new() { Text = "30分钟" };
-        private readonly ToolStripMenuItem _miAdv1H = new() { Text = "1小时" };
-        private readonly ToolStripMenuItem _miAdvCustom = new() { Text = "自定义..." };
-        private readonly ToolStripMenuItem _miCloseBehavior = new() { Text = "关闭按钮行为(&C)" };
-        private readonly ToolStripMenuItem _miCloseExit = new() { Text = "退出程序" };
-        private readonly ToolStripMenuItem _miCloseMinimize = new() { Text = "最小化到托盘" };
-        private readonly ToolStripMenuItem _miAboutTop = new() { Text = "关于(&A)..." };
+        private readonly ToolStripMenuItem _miAutoDelete = new();
+        private readonly ToolStripMenuItem _miDelOff = new();
+        private readonly ToolStripMenuItem _miDel30S = new();
+        private readonly ToolStripMenuItem _miDel1M = new();
+        private readonly ToolStripMenuItem _miDel3M = new();
+        private readonly ToolStripMenuItem _miDel30M = new();
+        private readonly ToolStripMenuItem _miDel1H = new();
+        private readonly ToolStripMenuItem _miDelCustom = new();
+        private readonly ToolStripMenuItem _miAdvanceNotify = new();
+        private readonly ToolStripMenuItem _miAdvOff = new();
+        private readonly ToolStripMenuItem _miAdvAlsoDue = new();
+        private readonly ToolStripMenuItem _miAdv30S = new();
+        private readonly ToolStripMenuItem _miAdv1M = new();
+        private readonly ToolStripMenuItem _miAdv3M = new();
+        private readonly ToolStripMenuItem _miAdv30M = new();
+        private readonly ToolStripMenuItem _miAdv1H = new();
+        private readonly ToolStripMenuItem _miAdvCustom = new();
+        private readonly ToolStripMenuItem _miCloseBehavior = new();
+        private readonly ToolStripMenuItem _miCloseExit = new();
+        private readonly ToolStripMenuItem _miCloseMinimize = new();
+        private readonly ToolStripMenuItem _miAboutTop = new();
 
         private readonly NotifyIcon _tray = new();
         private readonly ContextMenuStrip _trayMenu = new();
         private readonly TrayNotifier _notifier;
 
         // 托盘状态项
-        private readonly ToolStripMenuItem _miStatHeader = new() { Text = "状态", Enabled = false };
-        private readonly ToolStripMenuItem _miStatTotal = new() { Text = "总数: 0", Enabled = false };
-        private readonly ToolStripMenuItem _miStatDue = new() { Text = "已到点: 0", Enabled = false };
-        private readonly ToolStripMenuItem _miStatPending = new() { Text = "进行中: 0", Enabled = false };
-        private readonly ToolStripMenuItem _miStatNext = new() { Text = "下一个: -", Enabled = false };
+        private readonly ToolStripMenuItem _miStatHeader = new() { Enabled = false };
+        private readonly ToolStripMenuItem _miStatTotal = new() { Enabled = false };
+        private readonly ToolStripMenuItem _miStatDue = new() { Enabled = false };
+        private readonly ToolStripMenuItem _miStatPending = new() { Enabled = false };
+        private readonly ToolStripMenuItem _miStatNext = new() { Enabled = false };
+
+        // 托盘操作项（可复用，便于动态更新文本）
+        private readonly ToolStripMenuItem _miTrayOpen = new();
+        private readonly ToolStripMenuItem _miTrayRefresh = new();
+        private readonly ToolStripMenuItem _miTrayCheckUpdate = new();
+        private readonly ToolStripMenuItem _miTrayOpenConfig = new();
+        private readonly ToolStripMenuItem _miTrayExit = new();
 
         // 底部状态栏
         private readonly StatusStrip _status = new();
-        private readonly ToolStripStatusLabel _lblTotal = new() { Text = "总数: 0" };
-        private readonly ToolStripStatusLabel _lblDue = new() { Text = "已到点: 0" };
-        private readonly ToolStripStatusLabel _lblPending = new() { Text = "进行中: 0" };
-        private readonly ToolStripStatusLabel _lblNext = new() { Text = "下一个: -" };
-        private readonly ToolStripStatusLabel _lblCellContent = new() { Text = "" };
+        private readonly ToolStripStatusLabel _lblTotal = new();
+        private readonly ToolStripStatusLabel _lblDue = new();
+        private readonly ToolStripStatusLabel _lblPending = new();
+        private readonly ToolStripStatusLabel _lblNext = new();
+        private readonly ToolStripStatusLabel _lblCellContent = new();
 
         // 计时器
         private readonly System.Windows.Forms.Timer _timerTick = new() { Interval = 1_000 };
@@ -816,6 +789,9 @@ namespace Game_Upgrade_Reminder.UI
             ApplyDeletionPolicyFromSettings();
             ApplySettingsToUi();
             RestoreWindowBoundsFromSettings();
+            
+            // 初始化本地化
+            InitializeLocalization();
             LoadTasks();
             if (_sortMode == SortMode.DefaultByFinish) _sortStrategy.Sort(_tasks);
             RefreshTable();
@@ -891,7 +867,11 @@ namespace Game_Upgrade_Reminder.UI
                 _miAdvCustom
             ]);
 
+            // 构建语言菜单
+            BuildLanguageMenu();
+
             _miSettings.DropDownItems.Add(_miFont);
+            _miSettings.DropDownItems.Add(_miLanguage);
             _miSettings.DropDownItems.Add(new ToolStripSeparator());
             _miSettings.DropDownItems.Add(_miAutoStart);
             _miSettings.DropDownItems.Add(_miOpenConfig);
@@ -1019,35 +999,30 @@ namespace Game_Upgrade_Reminder.UI
             line1.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             line1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
-            var lbAcc = MakeAutoLabel("账号");
-            line1.Controls.Add(lbAcc, 0, 0);
+            _lbAccount = MakeAutoLabel(_localizationService.GetText("Control.Account.Name", "账号"));
+            line1.Controls.Add(_lbAccount, 0, 0);
 
             _cbAccount.Width = 220;
             _cbAccount.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             _cbAccount.Margin = new Padding(0, 2, 6, 2);
             line1.Controls.Add(_cbAccount, 1, 0);
-            _btnAccountMgr.Text = "管理账号(&M)";
             _btnAccountMgr.AutoSize = true;
             _btnAccountMgr.Anchor = AnchorStyles.Left;
             _btnAccountMgr.Margin = new Padding(0, 2, 0, 2);
             line1.Controls.Add(_btnAccountMgr, 2, 0);
 
-            var lbTask = MakeAutoLabel("任务");
-            line1.Controls.Add(lbTask, 4, 0);
+            _lbTask = MakeAutoLabel(_localizationService.GetText("Control.Task.Name", "任务"));
+            line1.Controls.Add(_lbTask, 4, 0);
 
             _cbTask.Width = 240;
             _cbTask.Anchor = AnchorStyles.Left | AnchorStyles.Right;
             _cbTask.Margin = new Padding(0, 2, 6, 2);
             line1.Controls.Add(_cbTask, 5, 0);
 
-            _btnTaskMgr.Text = "管理任务(&K)";
             _btnTaskMgr.AutoSize = true;
             _btnTaskMgr.Anchor = AnchorStyles.Left;
             _btnTaskMgr.Margin = new Padding(0, 2, 0, 2);
             line1.Controls.Add(_btnTaskMgr, 6, 0);
-
-            _btnDeleteDone.Text = "删除已完成(&D)";
-            _btnRefresh.Text = "刷新(&R)";
             StyleSmallButton(_btnDeleteDone);
             StyleSmallButton(_btnRefresh);
 
@@ -1087,7 +1062,8 @@ namespace Game_Upgrade_Reminder.UI
             line2.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             line2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
-            line2.Controls.Add(MakeAutoLabel("开始时间"), 0, 0);
+            _lbStartTime = MakeAutoLabel(_localizationService.GetText("UI.StartTime", "开始时间"));
+            line2.Controls.Add(_lbStartTime, 0, 0);
 
             _dtpStart.Format = DateTimePickerFormat.Custom;
             _dtpStart.CustomFormat = "yyyy-MM-dd HH:mm";
@@ -1096,7 +1072,6 @@ namespace Game_Upgrade_Reminder.UI
             _dtpStart.Anchor = AnchorStyles.Left;
             line2.Controls.Add(_dtpStart, 1, 0);
 
-            _btnNow.Text = "当前时间(&T)";
             _btnNow.AutoSize = true;
             _btnNow.Anchor = AnchorStyles.Left;
             _btnNow.Margin = new Padding(0, 0, 0, 0);
@@ -1113,13 +1088,17 @@ namespace Game_Upgrade_Reminder.UI
             _numMinutes.Anchor = AnchorStyles.Left;
 
             line2.Controls.Add(_numDays, 4, 0);
-            line2.Controls.Add(MakeAutoLabel("天"), 5, 0);
+            _lbDays = MakeAutoLabel(_localizationService.GetText("UI.Days", "天"));
+            line2.Controls.Add(_lbDays, 5, 0);
             line2.Controls.Add(_numHours, 6, 0);
-            line2.Controls.Add(MakeAutoLabel("小时"), 7, 0);
+            _lbHours = MakeAutoLabel(_localizationService.GetText("UI.Hours", "小时"));
+            line2.Controls.Add(_lbHours, 7, 0);
             line2.Controls.Add(_numMinutes, 8, 0);
-            line2.Controls.Add(MakeAutoLabel("分钟"), 9, 0);
+            _lbMinutes = MakeAutoLabel(_localizationService.GetText("UI.Minutes", "分钟"));
+            line2.Controls.Add(_lbMinutes, 9, 0);
 
-            line2.Controls.Add(MakeAutoLabel("完成时间"), 10, 0);
+            _lbFinishTime = MakeAutoLabel(_localizationService.GetText("UI.FinishTime", "完成时间"));
+            line2.Controls.Add(_lbFinishTime, 10, 0);
             _tbFinish.ReadOnly = true;
             _tbFinish.Margin = new Padding(0, 2, 6, 2);
             _tbFinish.Anchor = AnchorStyles.Left | AnchorStyles.Right;
@@ -1140,15 +1119,12 @@ namespace Game_Upgrade_Reminder.UI
             actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-            _btnRepeat.Text = "重复(&P)";
             StyleSmallButton(_btnRepeat, new Padding(0, 2, 0, 2));
             actionsPanel.Controls.Add(_btnRepeat, 0, 0);
 
-            _btnClear.Text = "清除(&C)";
             StyleSmallButton(_btnClear, new Padding(6, 2, 0, 2));
             actionsPanel.Controls.Add(_btnClear, 1, 0);
 
-            _btnAddSave.Text = "添加(&N)";
             StyleSmallButton(_btnAddSave, new Padding(6, 2, 0, 2));
             actionsPanel.Controls.Add(_btnAddSave, 2, 0);
 
@@ -1191,15 +1167,15 @@ namespace Game_Upgrade_Reminder.UI
             _listView.Columns.Clear();
             _listView.Columns.AddRange(
             [
-                new ColumnHeader { Text = "账号", Width = AccountColWidth },
-                new ColumnHeader { Text = "任务", Width = TaskColWidth },
-                new ColumnHeader { Text = "开始时间", Width = StartTimeColWidth },
-                new ColumnHeader { Text = "持续时间", Width = DurationColWidth },
-                new ColumnHeader { Text = "完成时间", Width = FinishTimeColWidth },
-                new ColumnHeader { Text = "剩余时间", Width = RemainingTimeColWidth },
-                new ColumnHeader { Text = "重复", Width = RepeatColWidth },
-                new ColumnHeader { Text = "完成", Width = ActionColWidth },
-                new ColumnHeader { Text = "删除", Width = ActionColWidth }
+                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Account", "账号"), Width = AccountColWidth },
+                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Task", "任务"), Width = TaskColWidth },
+                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.StartTime", "开始时间"), Width = StartTimeColWidth },
+                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Duration", "持续时间"), Width = DurationColWidth },
+                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.FinishTime", "完成时间"), Width = FinishTimeColWidth },
+                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.RemainingTime", "剩余时间"), Width = RemainingTimeColWidth },
+                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Repeat", "重复"), Width = RepeatColWidth },
+                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Complete", "完成"), Width = ActionColWidth },
+                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Delete", "删除"), Width = ActionColWidth }
             ]);
         }
 
@@ -1236,7 +1212,7 @@ namespace Game_Upgrade_Reminder.UI
             _miDel1H.Click += (_, _) => SetAutoDeleteSecondsAndSave(3600);
             _miDelCustom.Click += (_, _) =>
             {
-                using var dlg = new AdvanceTimeDialog(_settings.AutoDeleteCompletedSeconds);
+                using var dlg = new AdvanceTimeDialog(_localizationService, _settings.AutoDeleteCompletedSeconds);
                 if (dlg.ShowDialog(this) is DialogResult.OK)
                 {
                     SetAutoDeleteSecondsAndSave(dlg.TotalSeconds);
@@ -1258,7 +1234,7 @@ namespace Game_Upgrade_Reminder.UI
             };
             _miAdvCustom.Click += (_, _) =>
             {
-                using var dlg = new AdvanceTimeDialog(_settings.AdvanceNotifySeconds);
+                using var dlg = new AdvanceTimeDialog(_localizationService, _settings.AdvanceNotifySeconds);
                 if (dlg.ShowDialog(this) is DialogResult.OK)
                 {
                     SetAdvanceSecondsAndSave(dlg.TotalSeconds);
@@ -1278,7 +1254,7 @@ namespace Game_Upgrade_Reminder.UI
 
                 var mi = _hoverPendingClose;
                 var pt = Control.MousePosition;
-                // 若鼠标不在菜单项或其下拉范围内，则关闭
+                // 若鼠标不在菜单项或其下拉上则关闭
                 var overItem = IsMouseOverMenuItem(mi, pt);
                 var overDrop = mi.DropDown.Visible && mi.DropDown.Bounds.Contains(pt);
                 if (overItem || overDrop) return;
@@ -1334,7 +1310,7 @@ namespace Game_Upgrade_Reminder.UI
                 var selectedTask = _listView.SelectedItems.Count > 0
                     ? _listView.SelectedItems[0].Tag as TaskItem
                     : null;
-                using var dlg = new RepeatSettingsForm();
+                using var dlg = new RepeatSettingsForm(_localizationService);
                 dlg.CurrentSpec = selectedTask?.Repeat ??
                                   _currentRepeatSpec ?? new RepeatSpec { Mode = RepeatMode.None };
                 dlg.RepeatSpecChanged += (_, spec) =>
@@ -1516,15 +1492,15 @@ namespace Game_Upgrade_Reminder.UI
         /// </summary>
         private void ShowAboutDialog()
         {
-            const string appDisplayName = "游戏升级提醒";
+            var appDisplayName = _localizationService.GetText("About.AppName", "游戏升级提醒");
             const string gitHubUrl = "https://github.com/YuanXiQWQ/Game-Upgrade-Reminder";
             const string licenseUrl = "https://www.gnu.org/licenses/agpl-3.0.html";
 
             var ver = GetCurrentVersion();
-            var versionText = $"版本 v{ver.Major}.{ver.Minor}.{ver.Build}" + (ver.Revision > 0 ? $".{ver.Revision}" : "");
+            var versionText = string.Format(_localizationService.GetText("About.VersionText", "版本 v{0}"), $"{ver.Major}.{ver.Minor}.{ver.Build}" + (ver.Revision > 0 ? $".{ver.Revision}" : ""));
 
             using var dlg = new Form();
-            dlg.Text = "关于";
+            dlg.Text = _localizationService.GetText("About.Title", "关于");
             dlg.StartPosition = FormStartPosition.CenterParent;
             dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
             dlg.MinimizeBox = false;
@@ -1601,7 +1577,7 @@ namespace Game_Upgrade_Reminder.UI
             var subLabel = new Label
             {
                 AutoSize = true,
-                Text = "游戏升级计时与提醒工具（说不定还能拿来干点其它的:>）",
+                Text = _localizationService.GetText("About.Description", "游戏升级计时与提醒工具（说不定还能拿来干点其它的:>）"),
                 ForeColor = SystemColors.GrayText,
                 Margin = new Padding(0, 0, 0, 8)
             };
@@ -1631,13 +1607,13 @@ namespace Game_Upgrade_Reminder.UI
             card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
 
-            card.Controls.Add(CreateMetaLabel("版本"));
+            card.Controls.Add(CreateMetaLabel(_localizationService.GetText("About.Version", "版本")));
             card.Controls.Add(CreateMetaValue(versionText));
 
-            card.Controls.Add(CreateMetaLabel("版权"));
-            card.Controls.Add(CreateMetaValue("© 2025 YuanXiQWQ  •  AGPL-3.0"));
+            card.Controls.Add(CreateMetaLabel(_localizationService.GetText("About.Copyright", "版权")));
+            card.Controls.Add(CreateMetaValue(" 2025 YuanXiQWQ  •  AGPL-3.0"));
 
-            card.Controls.Add(CreateMetaLabel("许可证"));
+            card.Controls.Add(CreateMetaLabel(_localizationService.GetText("About.License", "许可证")));
             var linkLicense = new LinkLabel
             {
                 AutoSize = true,
@@ -1664,13 +1640,13 @@ namespace Game_Upgrade_Reminder.UI
             content.Controls.Add(card); // 第 1 行
 
             // ===== 3) 底部按钮条：左两右一 =====
-            var btnGitHub = new Button { AutoSize = true, Text = "打开 GitHub" };
+            var btnGitHub = new Button { AutoSize = true, Text = _localizationService.GetText("About.BtnGitHub", "打开 GitHub") };
             btnGitHub.Click += (_, _) => Process.Start(new ProcessStartInfo(gitHubUrl) { UseShellExecute = true });
 
-            var btnUpdate = new Button { AutoSize = true, Text = "检查更新" };
+            var btnUpdate = new Button { AutoSize = true, Text = _localizationService.GetText("About.BtnUpdate", "检查更新") };
             btnUpdate.Click += async (_, _) => await CheckForUpdatesAsync(this);
 
-            var btnClose = new Button { AutoSize = true, Text = "关闭", DialogResult = DialogResult.OK };
+            var btnClose = new Button { AutoSize = true, Text = _localizationService.GetText("About.BtnClose", "关闭"), DialogResult = DialogResult.OK };
 
             var btnLayout = new TableLayoutPanel
             {
@@ -1738,8 +1714,8 @@ namespace Game_Upgrade_Reminder.UI
             {
                 e.Cancel = true;
                 Hide();
-                _tray.BalloonTipTitle = "仍在运行";
-                _tray.BalloonTipText = "已最小化到托盘，双击图标可恢复。";
+                _tray.BalloonTipTitle = _localizationService.GetText("Tray.StillRunning.Title", "仍在运行");
+                _tray.BalloonTipText = _localizationService.GetText("Tray.StillRunning.Text", "已最小化到托盘，双击图标可恢复。");
                 _tray.ShowBalloonTip(2000);
             }
             else
@@ -2048,7 +2024,7 @@ namespace Game_Upgrade_Reminder.UI
         private void InitTray()
         {
             _tray.Icon = Icon;
-            _tray.Text = "升级提醒";
+            _tray.Text = _localizationService.GetText("Tray.Title", "升级提醒");
             _tray.Visible = true;
             _tray.DoubleClick += (_, _) =>
             {
@@ -2062,32 +2038,60 @@ namespace Game_Upgrade_Reminder.UI
 
             // 状态区（只读项）
             _miStatHeader.Font = new Font(Font, FontStyle.Bold);
+
+            // 绑定托盘操作项事件（一次性）
+            _miTrayOpen.Click += (_, _) =>
+            {
+                Show();
+                Activate();
+            };
+            _miTrayRefresh.Click += (_, _) =>
+            {
+                PurgePending(force: true);
+                RefreshTable();
+            };
+            _miTrayCheckUpdate.Click += (_, _) => { _ = CheckForUpdatesAsync(this); };
+            _miTrayOpenConfig.Click += (_, _) => OpenConfigFolder();
+            _miTrayExit.Click += (_, _) =>
+            {
+                _settings.MinimizeOnClose = false;
+                Close();
+            };
+
+            // 构建/重建托盘菜单（根据当前语言）
+            RebuildTrayMenu();
+
+            _tray.ContextMenuStrip = _trayMenu;
+        }
+
+        /// <summary>
+        /// 依据当前语言重建托盘菜单（仅重排/更新项文本，复用项实例以避免重复绑定事件）。
+        /// </summary>
+        private void RebuildTrayMenu()
+        {
+            // 更新状态区与操作项文本
+            _miStatHeader.Text = _localizationService.GetText("Tray.Status", "状态");
+            _miTrayOpen.Text = _localizationService.GetText("Tray.Menu.Open", "打开(&O)");
+            _miTrayRefresh.Text = _localizationService.GetText("Tray.Menu.Refresh", "刷新(&R)");
+            _miTrayCheckUpdate.Text = _localizationService.GetText("Tray.Menu.CheckUpdate", "检查更新(&U)");
+            _miTrayOpenConfig.Text = _localizationService.GetText("Tray.Menu.OpenConfigFolder", "打开配置文件夹(&F)");
+            _miTrayExit.Text = _localizationService.GetText("Tray.Menu.Exit", "退出(&X)");
+
+            // 清空并按顺序重新添加
+            _trayMenu.Items.Clear();
             _trayMenu.Items.Add(_miStatHeader);
             _trayMenu.Items.Add(_miStatTotal);
             _trayMenu.Items.Add(_miStatDue);
             _trayMenu.Items.Add(_miStatPending);
             _trayMenu.Items.Add(_miStatNext);
             _trayMenu.Items.Add(new ToolStripSeparator());
+            _trayMenu.Items.Add(_miTrayOpen);
+            _trayMenu.Items.Add(_miTrayRefresh);
+            _trayMenu.Items.Add(_miTrayCheckUpdate);
+            _trayMenu.Items.Add(_miTrayOpenConfig);
+            _trayMenu.Items.Add(_miTrayExit);
 
-            _trayMenu.Items.Add("打开(&O)", null, (_, _) =>
-            {
-                Show();
-                Activate();
-            });
-            _trayMenu.Items.Add("刷新(&R)", null, (_, _) =>
-            {
-                PurgePending(force: true);
-                RefreshTable();
-            });
-            _trayMenu.Items.Add("检查更新(&U)", null, (_, _) => { _ = CheckForUpdatesAsync(this, openOnNew: true); });
-            _trayMenu.Items.Add("打开配置文件夹(&F)", null, (_, _) => OpenConfigFolder());
-            _trayMenu.Items.Add("退出(&X)", null, (_, _) =>
-            {
-                _settings.MinimizeOnClose = false;
-                Close();
-            });
-            _tray.ContextMenuStrip = _trayMenu;
-
+            // 同步状态区文本
             UpdateTrayMenuStatus();
         }
 
@@ -2102,11 +2106,17 @@ namespace Game_Upgrade_Reminder.UI
 
             foreach (var t in _tasks)
             {
-                var duration = _durationFormatter.Format(t.Days, t.Hours, t.Minutes);
+                var duration = _durationFormatter?.Format(t.Days, t.Hours, t.Minutes) ?? "";
                 var repeatText = t.Repeat is { IsRepeat: true } r
-                    ? FormatRepeatSpec(r) + (t.RepeatCount > 0 ? $"，已重复{t.RepeatCount}次" : "")
+                    ? FormatRepeatSpec(r) + (t.RepeatCount > 0 
+                        ? "，" + _localizationService.GetFormattedText("Status.RepeatedTimes", t.RepeatCount) 
+                        : "")
                     : "";
-                var actionText = t.AwaitingAck ? "确认完成" : (t.Done ? "撤销完成" : "完成");
+                var actionText = t.AwaitingAck
+                    ? _localizationService.GetText("Action.Acknowledge", "确认完成")
+                    : (t.Done
+                        ? _localizationService.GetText("Action.UndoComplete", "撤销完成")
+                        : _localizationService.GetText("Action.Complete", "完成"));
                 var it = new ListViewItem(t.Account)
                 {
                     SubItems =
@@ -2115,10 +2125,10 @@ namespace Game_Upgrade_Reminder.UI
                         t.StartStr,
                         duration,
                         t.FinishStr,
-                        t.RemainingStr,
+                        _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours, t.Remaining.Minutes, t.Remaining.Seconds, true) ?? "",
                         repeatText,
                         actionText,
-                        t.PendingDelete ? "撤销删除" : "删除"
+                        t.PendingDelete ? _localizationService.GetText("Action.UndoDelete", "撤销删除") : _localizationService.GetText("Action.Delete", "删除")
                     },
                     Tag = t
                 };
@@ -2159,7 +2169,7 @@ namespace Game_Upgrade_Reminder.UI
         {
             foreach (ListViewItem row in _listView.Items)
             {
-                if (row.Tag is TaskItem t) row.SubItems[5].Text = t.RemainingStr;
+                if (row.Tag is TaskItem t) row.SubItems[5].Text = _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours, t.Remaining.Minutes, t.Remaining.Seconds, true) ?? "";
             }
         }
 
@@ -2190,8 +2200,14 @@ namespace Game_Upgrade_Reminder.UI
                     row.BackColor = DueBackColor;
                 }
 
-                row.SubItems[7].Text = t.AwaitingAck ? "确认完成" : (t.Done ? "撤销完成" : "完成");
-                row.SubItems[8].Text = t.PendingDelete ? "撤销删除" : "删除";
+                row.SubItems[7].Text = t.AwaitingAck
+                    ? _localizationService.GetText("Action.Acknowledge", "确认完成")
+                    : (t.Done
+                        ? _localizationService.GetText("Action.UndoComplete", "撤销完成")
+                        : _localizationService.GetText("Action.Complete", "完成"));
+                row.SubItems[8].Text = t.PendingDelete
+                    ? _localizationService.GetText("Action.UndoDelete", "撤销删除")
+                    : _localizationService.GetText("Action.Delete", "删除");
             }
 
             UpdateStatusBar();
@@ -2262,7 +2278,6 @@ namespace Game_Upgrade_Reminder.UI
 
                 case >= 0 and < 6:
                     _cbAccount.Text = t.Account;
-                    _cbTask.Text = t.TaskName;
 
                     _isUpdatingStartProgrammatically = true;
                     _dtpStart.Value = t.Start ?? DateTime.Now;
@@ -2418,7 +2433,9 @@ namespace Game_Upgrade_Reminder.UI
                     var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
                     if (!inSkipPhase && advTime <= now)
                     {
-                        _notifier.Toast($"[提前] {t.Account}", $"{t.TaskName} 即将到点，完成时间：{t.FinishStr}");
+                        var title = string.Format(_localizationService.GetText("Toast.Advance.Title", "[提前] {0}"), t.Account);
+                        var body = string.Format(_localizationService.GetText("Toast.Advance.Body", "{0} 即将到点，完成时间：{1}"), t.TaskName, t.FinishStr);
+                        _notifier.Toast(title, body);
                         t.AdvanceNotified = true;
                         changed = true;
                     }
@@ -2458,7 +2475,9 @@ namespace Game_Upgrade_Reminder.UI
                 var showDueToast = _settings.AlsoNotifyAtDue || !t.AdvanceNotified;
                 if (showDueToast)
                 {
-                    _notifier.Toast($"[到点] {t.Account}", $"{t.TaskName} 完成时间：{t.FinishStr}");
+                    var title = string.Format(_localizationService.GetText("Toast.Due.Title", "[到点] {0}"), t.Account);
+                    var body = string.Format(_localizationService.GetText("Toast.Due.Body", "{0} 完成时间：{1}"), t.TaskName, t.FinishStr);
+                    _notifier.Toast(title, body);
                 }
 
                 t.Notified = true;
@@ -2535,8 +2554,7 @@ namespace Game_Upgrade_Reminder.UI
                     if (adv > 0 && !t.AdvanceNotified)
                     {
                         var advTime = targetFinish.AddSeconds(-adv);
-                        if (advTime > now)
-                            next = next is null || advTime < next ? advTime : next;
+                        if (advTime > now) next = next is null || advTime < next ? advTime : next;
                     }
 
                     // 候选2：到点提醒时间（遵循 AlsoNotifyAtDue 设置）
@@ -2677,8 +2695,11 @@ namespace Game_Upgrade_Reminder.UI
         // ---------- 管理列表 ----------
         private void ShowManager(bool isAccount)
         {
-            using var dlg = new ManageListForm(isAccount ? "账号管理" : "任务管理",
-                isAccount ? _settings.Accounts : _settings.TaskPresets);
+            var title = isAccount 
+                ? _localizationService.GetText("UI.ManageAccount", "账号管理")
+                : _localizationService.GetText("UI.ManageTask", "任务管理");
+            using var dlg = new ManageListForm(title, isAccount,
+                isAccount ? _settings.Accounts : _settings.TaskPresets, _localizationService);
             // 实时保存
             dlg.ItemsChanged += (_, e) =>
             {
@@ -2726,7 +2747,11 @@ namespace Game_Upgrade_Reminder.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"设置开机自启失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    _localizationService.GetFormattedText("Error.FailedToSetAutostart", ex.Message),
+                    _localizationService.GetText("Error.Title", "错误"), 
+                    MessageBoxButtons.OK, 
+                    MessageBoxIcon.Error);
             }
             finally
             {
@@ -2834,7 +2859,11 @@ namespace Game_Upgrade_Reminder.UI
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"重置窗口大小失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    _localizationService.GetFormattedText("Error.FailedToResetWindowSize", ex.Message),
+                    _localizationService.GetText("Error.Title", "错误"), 
+                    MessageBoxButtons.OK, 
+                    MessageBoxIcon.Error);
             }
         }
 
@@ -2896,12 +2925,14 @@ namespace Game_Upgrade_Reminder.UI
                 var resp = await http.GetAsync(apiUrl);
                 if (!resp.IsSuccessStatusCode)
                 {
-                    if (MessageBox.Show(owner, "无法从 GitHub 获取最新版本信息，是否打开发布页？",
-                            "检查更新", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) is DialogResult.Yes)
+                    if (MessageBox.Show(owner, 
+                            _localizationService.GetText("Update.CheckFailedGetInfo", "无法从 GitHub 获取最新版本信息，是否打开发布页？"),
+                            _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"), 
+                            MessageBoxButtons.YesNo, 
+                            MessageBoxIcon.Warning) is DialogResult.Yes)
                     {
                         Process.Start(new ProcessStartInfo(releasesPage) { UseShellExecute = true });
                     }
-
                     return;
                 }
 
@@ -2909,23 +2940,27 @@ namespace Game_Upgrade_Reminder.UI
                 var latest = JsonSerializer.Deserialize<GitHubLatestRelease>(json);
                 if (latest is null || string.IsNullOrWhiteSpace(latest.TagName))
                 {
-                    MessageBox.Show(owner, "未能解析最新版本信息。", "检查更新", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show(owner, 
+                        _localizationService.GetText("Update.ParseFailed", "未能解析最新版本信息。" ), 
+                        _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"), 
+                        MessageBoxButtons.OK, 
+                        MessageBoxIcon.Information);
                     return;
                 }
 
-                var current = NormalizeVersion(GetCurrentVersion());
                 var tag = latest.TagName.Trim();
-                var normalized = tag.TrimStart('v', 'V');
+                var normalized = tag.StartsWith('v') ? tag[1..] : tag;
 
                 if (!Version.TryParse(normalized, out var latestVer))
                 {
                     if (MessageBox.Show(owner,
-                            $"检测到最新版本标记：{tag}\n无法解析为标准版本号，是否打开发布页？",
-                            "检查更新", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes)
+                            _localizationService.GetFormattedText("Update.InvalidVersionFormat", tag),
+                            _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"), 
+                            MessageBoxButtons.YesNo, 
+                            MessageBoxIcon.Information) != DialogResult.Yes)
                     {
                         return;
                     }
-
                     var url = string.IsNullOrWhiteSpace(latest.HtmlUrl) ? releasesPage : latest.HtmlUrl;
                     Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
                     return;
@@ -2933,12 +2968,15 @@ namespace Game_Upgrade_Reminder.UI
 
                 latestVer = NormalizeVersion(latestVer);
 
-                if (latestVer > current)
+                if (latestVer > NormalizeVersion(GetCurrentVersion()))
                 {
-                    var msg =
-                        $"发现新版本：v{FormatVersionForDisplay(latestVer)}\n当前版本：v{FormatVersionForDisplay(current)}\n是否前往下载？";
+                    var msg = _localizationService.GetFormattedText("Update.NewVersionFound", 
+                        FormatVersionForDisplay(latestVer), 
+                        FormatVersionForDisplay(GetCurrentVersion()));
                     if (!openOnNew ||
-                        MessageBox.Show(owner, msg, "有可用更新", MessageBoxButtons.YesNo, MessageBoxIcon.Information) ==
+                        MessageBox.Show(owner, msg, 
+                            _localizationService.GetText("Update.UpdateAvailableTitle", "有可用更新"), 
+                            MessageBoxButtons.YesNo, MessageBoxIcon.Information) ==
                         DialogResult.Yes)
                     {
                         var url = string.IsNullOrWhiteSpace(latest.HtmlUrl) ? releasesPage : latest.HtmlUrl;
@@ -2947,15 +2985,20 @@ namespace Game_Upgrade_Reminder.UI
                 }
                 else
                 {
-                    MessageBox.Show(owner, $"已是最新版本（当前 v{FormatVersionForDisplay(current)}）。", "检查更新",
+                    MessageBox.Show(owner, 
+                        _localizationService.GetFormattedText("Update.AlreadyLatest", FormatVersionForDisplay(GetCurrentVersion())), 
+                        _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"),
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                if (MessageBox.Show(owner, $"检查更新失败：{ex.Message}\n是否打开发布页？",
-                        "检查更新", MessageBoxButtons.YesNo, MessageBoxIcon.Error) is DialogResult.Yes)
+                if (MessageBox.Show(owner, 
+                        _localizationService.GetFormattedText("Update.CheckFailedGeneral", ex.Message),
+                        _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"), 
+                        MessageBoxButtons.YesNo, 
+                        MessageBoxIcon.Error) is DialogResult.Yes)
                 {
                     Process.Start(new ProcessStartInfo(releasesPage) { UseShellExecute = true });
                 }

@@ -1,4 +1,4 @@
-﻿# Rider
+# Rider
 .idea/
 *~
 ~*
@@ -36,5 +36,5 @@ Desktop.ini
 # 本地
 *.lnk
 测试
-*.json
+/*.json
 *计划*

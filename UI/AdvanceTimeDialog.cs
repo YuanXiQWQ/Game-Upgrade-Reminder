@@ -4,13 +4,15 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 允许用户输入天/时/分/秒来设置提前通知时间
  * 创建日期: 2025-08-17
- * 最后修改: 2025-08-21
+ * 最后修改: 2025-08-23
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
+
+using Game_Upgrade_Reminder.Core.Abstractions;
 
 namespace Game_Upgrade_Reminder.UI
 {
@@ -43,10 +45,11 @@ namespace Game_Upgrade_Reminder.UI
         /// <summary>
         /// 创建对话框，并使用给定的初始秒数预填各输入框。
         /// </summary>
+        /// <param name="localizationService">用于本地化 UI 文本的服务。</param>
         /// <param name="initialSeconds">初始秒数；小于 0 时按 0 处理。</param>
-        public AdvanceTimeDialog(int initialSeconds = 0)
+        public AdvanceTimeDialog(ILocalizationService localizationService, int initialSeconds = 0)
         {
-            Text = "自定义提前通知";
+            Text = localizationService.GetText("AdvanceTimeDialog.Title", "自定义提前通知");
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
@@ -82,13 +85,13 @@ namespace Game_Upgrade_Reminder.UI
 
             // 第 0 行（输入区）：天/时/分/秒
             root.Controls.Add(_numDays, 0, 0);
-            AddLabel("天", 1);
+            AddLabel(localizationService.GetText("AdvanceTimeDialog.Day", "天"), 1);
             root.Controls.Add(_numHours, 2, 0);
-            AddLabel("小时", 3);
+            AddLabel(localizationService.GetText("AdvanceTimeDialog.Hour", "小时"), 3);
             root.Controls.Add(_numMinutes, 4, 0);
-            AddLabel("分钟", 5);
+            AddLabel(localizationService.GetText("AdvanceTimeDialog.Minute", "分钟"), 5);
             root.Controls.Add(_numSeconds, 6, 0);
-            AddLabel("秒", 7);
+            AddLabel(localizationService.GetText("AdvanceTimeDialog.Second", "秒"), 7);
 
             // 按钮区（右对齐）：确定 / 取消
             var pnlButtons = new FlowLayoutPanel
@@ -99,8 +102,8 @@ namespace Game_Upgrade_Reminder.UI
                 Padding = new Padding(0),
                 Margin = new Padding(0, 10, 0, 0)
             };
-            var btnOk = new Button { Text = "确定", AutoSize = true };
-            var btnCancel = new Button { Text = "取消", AutoSize = true };
+            var btnOk = new Button { Text = localizationService.GetText("Common.OK", "确定"), AutoSize = true };
+            var btnCancel = new Button { Text = localizationService.GetText("Common.Cancel", "取消"), AutoSize = true };
             pnlButtons.Controls.Add(btnOk);
             pnlButtons.Controls.Add(btnCancel);
             root.SetColumnSpan(pnlButtons, 8);

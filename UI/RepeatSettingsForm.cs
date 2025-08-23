@@ -3,7 +3,7 @@
  * 作者: YuanXiQWQ
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 创建日期: 2025-08-21
- * 最后修改: 2025-08-21
+ * 最后修改: 2025-08-23
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -11,6 +11,7 @@
  */
 
 using Game_Upgrade_Reminder.Core.Models;
+using Game_Upgrade_Reminder.Core.Abstractions;
 
 namespace Game_Upgrade_Reminder.UI
 {
@@ -25,48 +26,42 @@ namespace Game_Upgrade_Reminder.UI
     /// </summary>
     internal sealed class RepeatSettingsForm : Form
     {
+        private readonly ILocalizationService _localizationService;
+
         // 模式选择
-        private readonly RadioButton _rbNone = new() { Text = "不重复", AutoSize = true };
-        private readonly RadioButton _rbDaily = new() { Text = "每天", AutoSize = true };
-        private readonly RadioButton _rbWeekly = new() { Text = "每周", AutoSize = true };
-        private readonly RadioButton _rbMonthly = new() { Text = "每月", AutoSize = true };
-        private readonly RadioButton _rbYearly = new() { Text = "每年", AutoSize = true };
-        private readonly RadioButton _rbCustom = new() { Text = "自定义", AutoSize = true };
+        private readonly RadioButton _rbNone;
+        private readonly RadioButton _rbDaily;
+        private readonly RadioButton _rbWeekly;
+        private readonly RadioButton _rbMonthly;
+        private readonly RadioButton _rbYearly;
+        private readonly RadioButton _rbCustom;
 
         // 自定义周期
-        private readonly NumericUpDown _numYears = new() { Minimum = 0, Maximum = 1000, Width = 60, Anchor = AnchorStyles.Left };
-        private readonly NumericUpDown _numMonths = new() { Minimum = 0, Maximum = 1200, Width = 60, Anchor = AnchorStyles.Left };
-        private readonly NumericUpDown _numDays = new() { Minimum = 0, Maximum = 365000, Width = 60, Anchor = AnchorStyles.Left };
-        private readonly NumericUpDown _numHours = new() { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
-        private readonly NumericUpDown _numMinutes = new() { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
-        private readonly NumericUpDown _numSeconds = new() { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _numYears;
+        private readonly NumericUpDown _numMonths;
+        private readonly NumericUpDown _numDays;
+        private readonly NumericUpDown _numHours;
+        private readonly NumericUpDown _numMinutes;
+        private readonly NumericUpDown _numSeconds;
 
         // 结束时间
-        private readonly DateTimePicker _dtEndDate = new()
-        {
-            Format = DateTimePickerFormat.Custom,
-            CustomFormat = "yyyy-MM-dd",
-            ShowUpDown = false,
-            Width = 120,
-            Anchor = AnchorStyles.Left
-        };
-
-        private readonly NumericUpDown _endHour = new() { Minimum = 0, Maximum = 23, Width = 60, Anchor = AnchorStyles.Left };
-        private readonly NumericUpDown _endMinute = new() { Minimum = 0, Maximum = 59, Width = 60, Anchor = AnchorStyles.Left };
-        private readonly NumericUpDown _endSecond = new() { Minimum = 0, Maximum = 59, Width = 60, Anchor = AnchorStyles.Left };
+        private readonly DateTimePicker _dtEndDate;
+        private readonly NumericUpDown _endHour;
+        private readonly NumericUpDown _endMinute;
+        private readonly NumericUpDown _endSecond;
 
         // 结束时间可选：无（默认）
-        private readonly CheckBox _chkNoEnd = new() { Text = "无", AutoSize = true, Anchor = AnchorStyles.Left };
+        private readonly CheckBox _chkNoEnd;
 
         // 跳过规则
-        private readonly NumericUpDown _numRemindTimes = new() { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
-        private readonly NumericUpDown _numSkipTimes = new() { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
+        private readonly NumericUpDown _numRemindTimes;
+        private readonly NumericUpDown _numSkipTimes;
 
         // 提醒后暂停直到用户确认
-        private readonly CheckBox _chkPause = new() { Text = "提醒后暂停计时，直到确认", AutoSize = true, Anchor = AnchorStyles.Left };
+        private readonly CheckBox _chkPause;
 
         // 校验与提示
-        private readonly Label _lblHint = new() { AutoSize = true };
+        private readonly Label _lblHint;
 
         /// <summary>
         /// 当前编辑的重复设置。读取时根据 UI 组合，设置时回填 UI。
@@ -83,9 +78,48 @@ namespace Game_Upgrade_Reminder.UI
         private bool _isApplying; // 回填 UI 时抑制事件
         private readonly System.Windows.Forms.Timer _debounceTimer = new() { Interval = 250 };
 
-        public RepeatSettingsForm()
+        public RepeatSettingsForm(ILocalizationService localizationService)
         {
-            Text = "重复设置";
+            _localizationService = localizationService;
+
+            // 初始化本地化文本
+            _rbNone = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.None", "不重复"), AutoSize = true };
+            _rbDaily = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Daily", "每天"), AutoSize = true };
+            _rbWeekly = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Weekly", "每周"), AutoSize = true };
+            _rbMonthly = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Monthly", "每月"), AutoSize = true };
+            _rbYearly = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Yearly", "每年"), AutoSize = true };
+            _rbCustom = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Custom", "自定义"), AutoSize = true };
+
+            _numYears = new NumericUpDown { Minimum = 0, Maximum = 1000, Width = 60, Anchor = AnchorStyles.Left };
+            _numMonths = new NumericUpDown { Minimum = 0, Maximum = 1200, Width = 60, Anchor = AnchorStyles.Left };
+            _numDays = new NumericUpDown { Minimum = 0, Maximum = 365000, Width = 60, Anchor = AnchorStyles.Left };
+            _numHours = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+            _numMinutes = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+            _numSeconds = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+
+            _dtEndDate = new DateTimePicker
+            {
+                Format = DateTimePickerFormat.Custom,
+                CustomFormat = "yyyy-MM-dd",
+                ShowUpDown = false,
+                Width = 120,
+                Anchor = AnchorStyles.Left
+            };
+
+            _endHour = new NumericUpDown { Minimum = 0, Maximum = 23, Width = 60, Anchor = AnchorStyles.Left };
+            _endMinute = new NumericUpDown { Minimum = 0, Maximum = 59, Width = 60, Anchor = AnchorStyles.Left };
+            _endSecond = new NumericUpDown { Minimum = 0, Maximum = 59, Width = 60, Anchor = AnchorStyles.Left };
+
+            _chkNoEnd = new CheckBox { Text = _localizationService.GetText("RepeatSettings.End.NoEnd", "无"), AutoSize = true, Anchor = AnchorStyles.Left };
+
+            _numRemindTimes = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
+            _numSkipTimes = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
+
+            _chkPause = new CheckBox { Text = _localizationService.GetText("RepeatSettings.Pause.PauseAfterReminder", "提醒后暂停计时，直到确认"), AutoSize = true, Anchor = AnchorStyles.Left };
+
+            _lblHint = new Label { AutoSize = true };
+
+            Text = _localizationService.GetText("RepeatSettings.Title", "重复设置");
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
@@ -114,50 +148,50 @@ namespace Game_Upgrade_Reminder.UI
 
             // 1) 模式
             var gbMode = new GroupBox
-                { Text = "模式", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10) };
+                { Text = _localizationService.GetText("RepeatSettings.Group.Mode", "模式"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10) };
             var pnlModes = new FlowLayoutPanel
                 { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Dock = DockStyle.Fill };
-            pnlModes.Controls.AddRange([_rbNone, _rbDaily, _rbWeekly, _rbMonthly, _rbYearly, _rbCustom]);
+            pnlModes.Controls.AddRange([ _rbNone, _rbDaily, _rbWeekly, _rbMonthly, _rbYearly, _rbCustom ]);
             gbMode.Controls.Add(pnlModes);
             root.Controls.Add(gbMode, 0, 0);
 
             // 2) 自定义周期
             var gbCustom = new GroupBox
             {
-                Text = "自定义周期（≥0，至少一项>0）", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+                Text = _localizationService.GetText("RepeatSettings.Group.CustomCycle", "自定义周期（≥0，至少一项>0）"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
             };
             var tlCustom = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 12 };
             for (var i = 0; i < 12; i++) tlCustom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             tlCustom.Controls.Add(_numYears, 0, 0);
-            tlCustom.Controls.Add(MakeLabel("年"), 1, 0);
+            tlCustom.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Year", "年")), 1, 0);
             tlCustom.Controls.Add(_numMonths, 2, 0);
-            tlCustom.Controls.Add(MakeLabel("月"), 3, 0);
+            tlCustom.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Month", "月")), 3, 0);
             tlCustom.Controls.Add(_numDays, 4, 0);
-            tlCustom.Controls.Add(MakeLabel("日"), 5, 0);
+            tlCustom.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Day", "日")), 5, 0);
             tlCustom.Controls.Add(_numHours, 6, 0);
-            tlCustom.Controls.Add(MakeLabel("时"), 7, 0);
+            tlCustom.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Hour", "时")), 7, 0);
             tlCustom.Controls.Add(_numMinutes, 8, 0);
-            tlCustom.Controls.Add(MakeLabel("分"), 9, 0);
+            tlCustom.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Minute", "分")), 9, 0);
             tlCustom.Controls.Add(_numSeconds, 10, 0);
-            tlCustom.Controls.Add(MakeLabel("秒"), 11, 0);
+            tlCustom.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Second", "秒")), 11, 0);
             gbCustom.Controls.Add(tlCustom);
             root.Controls.Add(gbCustom, 0, 1);
 
             // 3) 结束时间
             var gbEnd = new GroupBox
             {
-                Text = "结束时间（到此不再提醒，可选）", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+                Text = _localizationService.GetText("RepeatSettings.Group.EndTime", "结束时间（到此不再提醒，可选）"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
             };
             var tlEnd = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 9 };
             for (var i = 0; i < 9; i++) tlEnd.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            tlEnd.Controls.Add(MakeLabel("日期"), 0, 0);
+            tlEnd.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.End.Date", "日期")), 0, 0);
             tlEnd.Controls.Add(_dtEndDate, 1, 0);
             tlEnd.Controls.Add(_endHour, 2, 0);
-            tlEnd.Controls.Add(MakeLabel("时"), 3, 0);
+            tlEnd.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Hour", "时")), 3, 0);
             tlEnd.Controls.Add(_endMinute, 4, 0);
-            tlEnd.Controls.Add(MakeLabel("分"), 5, 0);
+            tlEnd.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Minute", "分")), 5, 0);
             tlEnd.Controls.Add(_endSecond, 6, 0);
-            tlEnd.Controls.Add(MakeLabel("秒"), 7, 0);
+            tlEnd.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Second", "秒")), 7, 0);
             tlEnd.Controls.Add(_chkNoEnd, 8, 0);
             gbEnd.Controls.Add(tlEnd);
             root.Controls.Add(gbEnd, 0, 2);
@@ -165,22 +199,22 @@ namespace Game_Upgrade_Reminder.UI
             // 4) 跳过规则
             var gbSkip = new GroupBox
             {
-                Text = "跳过规则", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+                Text = _localizationService.GetText("RepeatSettings.Group.SkipRule", "跳过规则"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
             };
             var tlSkip = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 5 };
             for (var i = 0; i < 5; i++) tlSkip.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            tlSkip.Controls.Add(MakeLabel("每提醒"), 0, 0);
+            tlSkip.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Skip.Every", "每提醒")), 0, 0);
             tlSkip.Controls.Add(_numRemindTimes, 1, 0);
-            tlSkip.Controls.Add(MakeLabel("次，跳过"), 2, 0);
+            tlSkip.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Skip.TimesSkip", "次，跳过")), 2, 0);
             tlSkip.Controls.Add(_numSkipTimes, 3, 0);
-            tlSkip.Controls.Add(MakeLabel("次"), 4, 0);
+            tlSkip.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Skip.Times", "次")), 4, 0);
             gbSkip.Controls.Add(tlSkip);
             root.Controls.Add(gbSkip, 0, 3);
 
             // 4.5) 暂停规则
             var gbPause = new GroupBox
             {
-                Text = "暂停规则", AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+                Text = _localizationService.GetText("RepeatSettings.Group.PauseRule", "暂停规则"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
             };
             var tlPause = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Dock = DockStyle.Fill };
             tlPause.Controls.Add(_chkPause);
@@ -210,8 +244,8 @@ namespace Game_Upgrade_Reminder.UI
                 Padding = new Padding(0),
                 Margin = new Padding(0, 10, 0, 0)
             };
-            var btnOk = new Button { Text = "确定", AutoSize = true };
-            var btnCancel = new Button { Text = "取消", AutoSize = true };
+            var btnOk = new Button { Text = _localizationService.GetText("Common.OK", "确定"), AutoSize = true };
+            var btnCancel = new Button { Text = _localizationService.GetText("Common.Cancel", "取消"), AutoSize = true };
             pnlButtons.Controls.Add(btnOk);
             pnlButtons.Controls.Add(btnCancel);
             root.Controls.Add(pnlButtons, 0, 6);
@@ -462,38 +496,38 @@ namespace Game_Upgrade_Reminder.UI
 
         private void UpdateValidationMessage()
         {
-            var (msg, isError) = GetValidationMessage();
-            _lblHint.Text = msg;
-            _lblHint.ForeColor = isError ? Color.Red : SystemColors.GrayText;
-        }
-
-        private (string message, bool isError) GetValidationMessage()
-        {
-            // 自定义周期校验
-            if (_rbCustom.Checked)
+            var customAllZero = _rbCustom.Checked && _numYears.Value == 0 && _numMonths.Value == 0 &&
+                                _numDays.Value == 0 && _numHours.Value == 0 && _numMinutes.Value == 0 &&
+                                _numSeconds.Value == 0;
+            if (customAllZero)
             {
-                var empty = _numYears.Value == 0 && _numMonths.Value == 0 && _numDays.Value == 0 &&
-                            _numHours.Value == 0 && _numMinutes.Value == 0 && _numSeconds.Value == 0;
-                if (empty)
-                    return ("自定义周期至少一项 > 0", true);
+                _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.CustomCycleCannotBeAllZero", "自定义周期至少一项必须大于0");
+                return;
             }
 
-            // 结束时间校验（仅在启用时）
-            if (_dtEndDate.Enabled && !_chkNoEnd.Checked)
+            if (!_chkNoEnd.Checked)
             {
-                var candidate = _dtEndDate.Value.Date
-                    .AddHours((int)_endHour.Value)
-                    .AddMinutes((int)_endMinute.Value)
-                    .AddSeconds((int)_endSecond.Value);
-                if (candidate <= DateTime.Now)
-                    return ("结束时间不能早于当前时间（将被忽略）", true);
+                var end = _dtEndDate.Value.Date + new TimeSpan((int)_endHour.Value, (int)_endMinute.Value, (int)_endSecond.Value);
+                if (end <= DateTime.Now)
+                {
+                    _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.EndTimeMustBeInFuture", "结束时间必须晚于当前时间");
+                    return;
+                }
             }
 
-            // 跳过规则提示（非错误）
-            if (_numRemindTimes is { Enabled: true } && !(_numRemindTimes.Value > 0m && _numSkipTimes.Value > 0m))
-                return ("提示：跳过规则需两者 > 0 才会生效", false);
+            if (_numRemindTimes.Value > 0 && _numSkipTimes.Value == 0)
+            {
+                _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.SkipTimesMustBeGreaterThanZero", "“跳过次数”必须大于0");
+                return;
+            }
 
-            return (string.Empty, false);
+            if (_numRemindTimes.Value == 0 && _numSkipTimes.Value > 0)
+            {
+                _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.RemindTimesMustBeGreaterThanZero", "“提醒次数”必须大于0");
+                return;
+            }
+
+            _lblHint.Text = string.Empty;
         }
 
         private void _ApplySpecToUI(RepeatSpec? spec)
