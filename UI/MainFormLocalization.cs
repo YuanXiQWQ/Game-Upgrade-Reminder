@@ -157,7 +157,14 @@ namespace Game_Upgrade_Reminder.UI
             _miLanguage.Text = _localizationService.GetText("Menu.Language", "语言(&L)");
             _miAutoStart.Text = _localizationService.GetText("Menu.AutoStart", "开机自启(&A)");
             _miOpenConfig.Text = _localizationService.GetText("Menu.OpenConfig", "打开配置文件夹(&O)");
+            _miOpenConfig.AccessibleName = _localizationService.GetText("Menu.OpenConfig.Name", "打开配置文件夹");
+            _miOpenConfig.AccessibleDescription =
+                _localizationService.GetText("Menu.OpenConfig.Description", "打开配置文件夹（Ctrl+O）");
+
             _miResetWindow.Text = _localizationService.GetText("Menu.ResetWindow", "重置窗口大小至默认(&Z)");
+            _miResetWindow.AccessibleName = _localizationService.GetText("Menu.ResetWindow.Name", "重置窗口大小至默认");
+            _miResetWindow.AccessibleDescription =
+                _localizationService.GetText("Menu.ResetWindow.Description", "清除保存的窗口位置与大小，恢复默认布局");
             _miAutoDelete.Text = _localizationService.GetText("Menu.AutoDelete", "已完成任务自行删除(&D)");
             _miAdvanceNotify.Text = _localizationService.GetText("Menu.AdvanceNotify", "提前通知(&N)");
             _miCloseBehavior.Text = _localizationService.GetText("Menu.CloseBehavior", "关闭按钮行为(&C)");

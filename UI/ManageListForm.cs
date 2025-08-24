@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 提供升级任务的管理界面，支持添加、编辑、删除和排序任务
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-23
+ * 最后修改: 2025-08-24
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -24,9 +24,9 @@ namespace Game_Upgrade_Reminder.UI
     internal sealed class ManageListForm : Form
     {
         private readonly ListBox _lb = new() { IntegralHeight = false };
-        private readonly Button _btnAdd = new() { Text = "添加" };
-        private readonly Button _btnDel = new() { Text = "删除" };
-        private readonly Button _btnClose = new() { Text = "完成" };
+        private readonly Button _btnAdd = new();
+        private readonly Button _btnDel = new();
+        private readonly Button _btnClose = new();
 
         /// <summary>
         /// 当前窗口中的列表项副本。编辑操作修改此集合；应用已采用“变更即保存”，

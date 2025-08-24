@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-23
+ * 最后修改: 2025-08-24
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -15,7 +15,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Game_Upgrade_Reminder.Core.Services;
@@ -100,7 +99,10 @@ namespace Game_Upgrade_Reminder.UI
         private readonly JsonSettingsStore _settingsStore = new();
         private readonly RegistryAutostartManager _autostartManager = new();
         private readonly ByFinishTimeSortStrategy _sortStrategy = new();
-        private readonly ILocalizationService _localizationService = new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
+
+        private readonly ILocalizationService _localizationService =
+            new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
+
         private IDurationFormatter? _durationFormatter;
 
         private SimpleDeletionPolicy _deletionPolicy =
@@ -224,7 +226,7 @@ namespace Game_Upgrade_Reminder.UI
                 }
             }
 
-            _lblNext.Text = next.HasValue 
+            _lblNext.Text = next.HasValue
                 ? _localizationService.GetFormattedText("Status.Next", $@"{(next.Value - now):hh\:mm\:ss}")
                 : _localizationService.GetText("Status.NextEmpty", "下一个: -");
 
@@ -280,7 +282,8 @@ namespace Game_Upgrade_Reminder.UI
 
             if (spec.EndAt is not null)
             {
-                parts.Add(_localizationService.GetFormattedText("Repeat.EndAt", FormatSmartDateTime(spec.EndAt.Value, DateTime.Now)));
+                parts.Add(_localizationService.GetFormattedText("Repeat.EndAt",
+                    FormatSmartDateTime(spec.EndAt.Value, DateTime.Now)));
             }
 
             if (spec is { HasSkip: true, Skip: var s and not null })
@@ -322,7 +325,7 @@ namespace Game_Upgrade_Reminder.UI
             if (hours > 0) units.Add(_localizationService.GetFormattedText("Time.Hours", hours));
             if (minutes > 0) units.Add(_localizationService.GetFormattedText("Time.Minutes", minutes));
             if (seconds > 0) units.Add(_localizationService.GetFormattedText("Time.Seconds", seconds));
-            return units.Count > 0 
+            return units.Count > 0
                 ? _localizationService.GetFormattedText("Repeat.Every", string.Join(" ", units))
                 : _localizationService.GetText("Repeat.Custom", "自定义");
         }
@@ -426,8 +429,8 @@ namespace Game_Upgrade_Reminder.UI
             {
                 MessageBox.Show(
                     _localizationService.GetFormattedText("Error.FailedToOpenConfigFolder", ex.Message),
-                    _localizationService.GetText("Error.Title", "错误"), 
-                    MessageBoxButtons.OK, 
+                    _localizationService.GetText("Error.Title", "错误"),
+                    MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
         }
@@ -536,25 +539,15 @@ namespace Game_Upgrade_Reminder.UI
 
         // 菜单与托盘
         private readonly MenuStrip _menu = new();
-        private readonly ToolStripMenuItem _miSettings = new() { Text = "设置(&S)" };
-        private readonly ToolStripMenuItem _miFont = new() { Text = "选择字体(&F)..." };
-        private readonly ToolStripMenuItem _miAutoStart = new() { Text = "开机自启(&A)" };
-        private readonly ToolStripMenuItem _miLanguage = new() { Text = "语言(&L)" };
+        private readonly ToolStripMenuItem _miSettings = new();
+        private readonly ToolStripMenuItem _miFont = new();
+        private readonly ToolStripMenuItem _miAutoStart = new();
+        private readonly ToolStripMenuItem _miLanguage = new();
 
         // 悬浮显示的三个菜单项
-        private readonly ToolStripMenuItem _miOpenConfig = new()
-        {
-            Text = "打开配置文件夹(&O)",
-            AccessibleName = "打开配置文件夹",
-            AccessibleDescription = "打开配置文件夹（Ctrl+O）"
-        };
+        private readonly ToolStripMenuItem _miOpenConfig = new();
 
-        private readonly ToolStripMenuItem _miResetWindow = new()
-        {
-            Text = "重置窗口大小至默认(&Z)",
-            AccessibleName = "重置窗口大小至默认",
-            AccessibleDescription = "清除保存的窗口位置与大小，恢复默认布局"
-        };
+        private readonly ToolStripMenuItem _miResetWindow = new();
 
         private readonly ToolStripMenuItem _miAutoDelete = new();
         private readonly ToolStripMenuItem _miDelOff = new();
@@ -791,7 +784,7 @@ namespace Game_Upgrade_Reminder.UI
             ApplyDeletionPolicyFromSettings();
             ApplySettingsToUi();
             RestoreWindowBoundsFromSettings();
-            
+
             // 初始化本地化
             InitializeLocalization();
             LoadTasks();
@@ -1170,15 +1163,34 @@ namespace Game_Upgrade_Reminder.UI
             _listView.Columns.Clear();
             _listView.Columns.AddRange(
             [
-                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Account", "账号"), Width = AccountColWidth },
-                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Task", "任务"), Width = TaskColWidth },
-                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.StartTime", "开始时间"), Width = StartTimeColWidth },
-                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Duration", "持续时间"), Width = DurationColWidth },
-                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.FinishTime", "完成时间"), Width = FinishTimeColWidth },
-                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.RemainingTime", "剩余时间"), Width = RemainingTimeColWidth },
-                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Repeat", "重复"), Width = RepeatColWidth },
-                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Complete", "完成"), Width = ActionColWidth },
-                new ColumnHeader { Text = _localizationService.GetText("ListView.Column.Delete", "删除"), Width = ActionColWidth }
+                new ColumnHeader
+                    { Text = _localizationService.GetText("ListView.Column.Account", "账号"), Width = AccountColWidth },
+                new ColumnHeader
+                    { Text = _localizationService.GetText("ListView.Column.Task", "任务"), Width = TaskColWidth },
+                new ColumnHeader
+                {
+                    Text = _localizationService.GetText("ListView.Column.StartTime", "开始时间"), Width = StartTimeColWidth
+                },
+                new ColumnHeader
+                {
+                    Text = _localizationService.GetText("ListView.Column.Duration", "持续时间"), Width = DurationColWidth
+                },
+                new ColumnHeader
+                {
+                    Text = _localizationService.GetText("ListView.Column.FinishTime", "完成时间"),
+                    Width = FinishTimeColWidth
+                },
+                new ColumnHeader
+                {
+                    Text = _localizationService.GetText("ListView.Column.RemainingTime", "剩余时间"),
+                    Width = RemainingTimeColWidth
+                },
+                new ColumnHeader
+                    { Text = _localizationService.GetText("ListView.Column.Repeat", "重复"), Width = RepeatColWidth },
+                new ColumnHeader
+                    { Text = _localizationService.GetText("ListView.Column.Complete", "完成"), Width = ActionColWidth },
+                new ColumnHeader
+                    { Text = _localizationService.GetText("ListView.Column.Delete", "删除"), Width = ActionColWidth }
             ]);
         }
 
@@ -1197,9 +1209,9 @@ namespace Game_Upgrade_Reminder.UI
 
                 // 文本列（账号、任务、重复）在 RTL 下右对齐，其他列居中更稳妥
                 var textAlign = rtl ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-                _listView.Columns[0].TextAlign = textAlign;                 // 账号
-                _listView.Columns[1].TextAlign = textAlign;                 // 任务
-                _listView.Columns[6].TextAlign = textAlign;                 // 重复
+                _listView.Columns[0].TextAlign = textAlign; // 账号
+                _listView.Columns[1].TextAlign = textAlign; // 任务
+                _listView.Columns[6].TextAlign = textAlign; // 重复
 
                 // 时间/数值列统一居中，兼顾双向文本
                 _listView.Columns[2].TextAlign = HorizontalAlignment.Center; // 开始时间
@@ -1239,7 +1251,10 @@ namespace Game_Upgrade_Reminder.UI
                 var rtl = RtlHelper.IsRtlLanguage(_localizationService.CurrentLanguage);
                 _trayMenu.RightToLeft = rtl ? RightToLeft.Yes : RightToLeft.No;
             }
-            catch { /* 忽略 */ }
+            catch
+            {
+                /* 忽略 */
+            }
         }
 
         /// <summary>
@@ -1548,7 +1563,8 @@ namespace Game_Upgrade_Reminder.UI
             const string licenseUrl = "https://www.gnu.org/licenses/agpl-3.0.html";
 
             var ver = GetCurrentVersion();
-            var versionText = string.Format(_localizationService.GetText("About.VersionText", "版本 v{0}"), $"{ver.Major}.{ver.Minor}.{ver.Build}" + (ver.Revision > 0 ? $".{ver.Revision}" : ""));
+            var versionText = string.Format(_localizationService.GetText("About.VersionText", "版本 v{0}"),
+                $"{ver.Major}.{ver.Minor}.{ver.Build}" + (ver.Revision > 0 ? $".{ver.Revision}" : ""));
             var rtl = RtlHelper.IsRtlLanguage(_localizationService.CurrentLanguage);
 
             using var dlg = new Form();
@@ -1695,13 +1711,19 @@ namespace Game_Upgrade_Reminder.UI
             content.Controls.Add(card); // 第 1 行
 
             // ===== 3) 底部按钮条：左两右一 =====
-            var btnGitHub = new Button { AutoSize = true, Text = _localizationService.GetText("About.BtnGitHub", "打开 GitHub") };
+            var btnGitHub = new Button
+                { AutoSize = true, Text = _localizationService.GetText("About.BtnGitHub", "打开 GitHub") };
             btnGitHub.Click += (_, _) => Process.Start(new ProcessStartInfo(gitHubUrl) { UseShellExecute = true });
 
-            var btnUpdate = new Button { AutoSize = true, Text = _localizationService.GetText("About.BtnUpdate", "检查更新") };
+            var btnUpdate = new Button
+                { AutoSize = true, Text = _localizationService.GetText("About.BtnUpdate", "检查更新") };
             btnUpdate.Click += async (_, _) => await CheckForUpdatesAsync(this);
 
-            var btnClose = new Button { AutoSize = true, Text = _localizationService.GetText("About.BtnClose", "关闭"), DialogResult = DialogResult.OK };
+            var btnClose = new Button
+            {
+                AutoSize = true, Text = _localizationService.GetText("About.BtnClose", "关闭"),
+                DialogResult = DialogResult.OK
+            };
 
             var btnLayout = new TableLayoutPanel
             {
@@ -1715,12 +1737,11 @@ namespace Game_Upgrade_Reminder.UI
             btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             if (rtl)
             {
-                // RTL：关闭 | 填充 | 检查更新 | GitHub
                 btnLayout.RightToLeft = RightToLeft.Yes;
-                btnLayout.Controls.Add(btnClose, 0, 0);
-                btnLayout.Controls.Add(new Panel { Dock = DockStyle.Fill }, 1, 0);
-                btnLayout.Controls.Add(btnUpdate, 2, 0);
-                btnLayout.Controls.Add(btnGitHub, 3, 0);
+                btnLayout.Controls.Add(btnClose, 3, 0); // 最左
+                btnLayout.Controls.Add(new Panel { Dock = DockStyle.Fill }, 2, 0); // 伸缩填充（中间）
+                btnLayout.Controls.Add(btnUpdate, 1, 0);
+                btnLayout.Controls.Add(btnGitHub, 0, 0); // 最右
             }
             else
             {
@@ -1814,61 +1835,57 @@ namespace Game_Upgrade_Reminder.UI
                 var xText = col < lvx.SubItems.Count ? lvx.SubItems[col].Text : string.Empty;
                 var yText = col < lvy.SubItems.Count ? lvy.SubItems[col].Text : string.Empty;
 
+                // 优先使用模型数据，避免解析本地化文本导致排序失效
+                var tx = lvx.Tag as TaskItem;
+                var ty = lvy.Tag as TaskItem;
+
                 switch (col)
                 {
-                    // 日期列
-                    case 2 or 4 when DateTime.TryParse(xText, out var xDate) && DateTime.TryParse(yText, out var yDate):
-                        return asc ? xDate.CompareTo(yDate) : yDate.CompareTo(xDate);
-                    // 持续时间列
-                    case 3 or 5:
+                    // 开始时间列
+                    case 2 when tx is not null && ty is not null:
                     {
-                        var xSecs = ParseTimeSpanToSeconds(xText);
-                        var ySecs = ParseTimeSpanToSeconds(yText);
-                        return asc ? xSecs.CompareTo(ySecs) : ySecs.CompareTo(xSecs);
+                        var xs = tx.Start ?? DateTime.MinValue;
+                        var ys = ty.Start ?? DateTime.MinValue;
+                        var cmp = xs.CompareTo(ys);
+                        return asc ? cmp : -cmp;
+                    }
+                    // 完成时间列
+                    case 4 when tx is not null && ty is not null:
+                    {
+                        var cmp = tx.Finish.CompareTo(ty.Finish);
+                        return asc ? cmp : -cmp;
+                    }
+                    // 持续时间列（以总秒数比较）
+                    case 3 when tx is not null && ty is not null:
+                    {
+                        var xs = ToSeconds(tx);
+                        var ys = ToSeconds(ty);
+                        var cmp = xs.CompareTo(ys);
+                        return asc ? cmp : -cmp;
+                    }
+                    // 剩余时间列（以总秒数比较，可能为负）
+                    case 5 when tx is not null && ty is not null:
+                    {
+                        var xs = (int)tx.Remaining.TotalSeconds;
+                        var ys = (int)ty.Remaining.TotalSeconds;
+                        var cmp = xs.CompareTo(ys);
+                        return asc ? cmp : -cmp;
                     }
                 }
 
+                // 字符串比较
                 var result = string.Compare(xText, yText, StringComparison.Ordinal);
 
                 // 次级排序：按剩余时间升序
                 if (result != 0 || col == 5) return asc ? result : -result;
 
-                var xRemaining = ParseTimeSpanToSeconds(lvx.SubItems[5].Text);
-                var yRemaining = ParseTimeSpanToSeconds(lvy.SubItems[5].Text);
-                return xRemaining.CompareTo(yRemaining);
-            }
+                var xt = lvx.Tag as TaskItem;
+                var yt = lvy.Tag as TaskItem;
+                var xr = (int?)(xt?.Remaining.TotalSeconds) ?? 0;
+                var yr = (int?)(yt?.Remaining.TotalSeconds) ?? 0;
+                return xr.CompareTo(yr);
 
-            private static int ParseTimeSpanToSeconds(string text)
-            {
-                if (string.IsNullOrEmpty(text)) return 0;
-                var totalSeconds = 0;
-                var numberStr = new StringBuilder();
-
-                for (var i = 0; i < text.Length; i++)
-                {
-                    if (char.IsDigit(text[i])) numberStr.Append(text[i]);
-                    else if (numberStr.Length > 0)
-                    {
-                        var value = int.Parse(numberStr.ToString());
-                        numberStr.Clear();
-
-                        var (multiplier, skipNext) = (text[i], i < text.Length - 1 ? text[i + 1] : '\0') switch
-                        {
-                            ('天', _) => (value * 24 * 3600, 0),
-                            ('小', '时') => (value * 3600, 1),
-                            ('分', '钟') => (value * 60, 1),
-                            ('时', _) => (value * 3600, 0),
-                            ('分', _) => (value * 60, 0),
-                            ('秒', _) => (value, 0),
-                            _ => (0, 0)
-                        };
-                        totalSeconds += multiplier;
-                        i += skipNext;
-                    }
-                }
-
-                if (numberStr.Length > 0) totalSeconds += int.Parse(numberStr.ToString());
-                return totalSeconds;
+                static int ToSeconds(TaskItem t) => t.Days * 86400 + t.Hours * 3600 + t.Minutes * 60;
             }
         }
 
@@ -2179,8 +2196,8 @@ namespace Game_Upgrade_Reminder.UI
             {
                 var duration = _durationFormatter?.Format(t.Days, t.Hours, t.Minutes) ?? "";
                 var repeatText = t.Repeat is { IsRepeat: true } r
-                    ? FormatRepeatSpec(r) + (t.RepeatCount > 0 
-                        ? "，" + _localizationService.GetFormattedText("Status.RepeatedTimes", t.RepeatCount) 
+                    ? FormatRepeatSpec(r) + (t.RepeatCount > 0
+                        ? "，" + _localizationService.GetFormattedText("Status.RepeatedTimes", t.RepeatCount)
                         : "")
                     : "";
                 var actionText = t.AwaitingAck
@@ -2196,10 +2213,13 @@ namespace Game_Upgrade_Reminder.UI
                         t.StartStr,
                         duration,
                         t.FinishStr,
-                        _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours, t.Remaining.Minutes, t.Remaining.Seconds, true) ?? "",
+                        _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours, t.Remaining.Minutes,
+                            t.Remaining.Seconds, true) ?? "",
                         repeatText,
                         actionText,
-                        t.PendingDelete ? _localizationService.GetText("Action.UndoDelete", "撤销删除") : _localizationService.GetText("Action.Delete", "删除")
+                        t.PendingDelete
+                            ? _localizationService.GetText("Action.UndoDelete", "撤销删除")
+                            : _localizationService.GetText("Action.Delete", "删除")
                     },
                     Tag = t
                 };
@@ -2240,7 +2260,9 @@ namespace Game_Upgrade_Reminder.UI
         {
             foreach (ListViewItem row in _listView.Items)
             {
-                if (row.Tag is TaskItem t) row.SubItems[5].Text = _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours, t.Remaining.Minutes, t.Remaining.Seconds, true) ?? "";
+                if (row.Tag is TaskItem t)
+                    row.SubItems[5].Text = _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours,
+                        t.Remaining.Minutes, t.Remaining.Seconds, true) ?? "";
             }
         }
 
@@ -2504,8 +2526,11 @@ namespace Game_Upgrade_Reminder.UI
                     var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
                     if (!inSkipPhase && advTime <= now)
                     {
-                        var title = string.Format(_localizationService.GetText("Toast.Advance.Title", "[提前] {0}"), t.Account);
-                        var body = string.Format(_localizationService.GetText("Toast.Advance.Body", "{0} 即将到点，完成时间：{1}"), t.TaskName, t.FinishStr);
+                        var title = string.Format(_localizationService.GetText("Toast.Advance.Title", "[提前] {0}"),
+                            t.Account);
+                        var body = string.Format(
+                            _localizationService.GetText("Toast.Advance.Body", "{0} 即将到点，完成时间：{1}"), t.TaskName,
+                            t.FinishStr);
                         _notifier.Toast(title, body);
                         t.AdvanceNotified = true;
                         changed = true;
@@ -2547,7 +2572,8 @@ namespace Game_Upgrade_Reminder.UI
                 if (showDueToast)
                 {
                     var title = string.Format(_localizationService.GetText("Toast.Due.Title", "[到点] {0}"), t.Account);
-                    var body = string.Format(_localizationService.GetText("Toast.Due.Body", "{0} 完成时间：{1}"), t.TaskName, t.FinishStr);
+                    var body = string.Format(_localizationService.GetText("Toast.Due.Body", "{0} 完成时间：{1}"), t.TaskName,
+                        t.FinishStr);
                     _notifier.Toast(title, body);
                 }
 
@@ -2766,7 +2792,7 @@ namespace Game_Upgrade_Reminder.UI
         // ---------- 管理列表 ----------
         private void ShowManager(bool isAccount)
         {
-            var title = isAccount 
+            var title = isAccount
                 ? _localizationService.GetText("UI.ManageAccount", "账号管理")
                 : _localizationService.GetText("UI.ManageTask", "任务管理");
             using var dlg = new ManageListForm(title, isAccount,
@@ -2820,8 +2846,8 @@ namespace Game_Upgrade_Reminder.UI
             {
                 MessageBox.Show(
                     _localizationService.GetFormattedText("Error.FailedToSetAutostart", ex.Message),
-                    _localizationService.GetText("Error.Title", "错误"), 
-                    MessageBoxButtons.OK, 
+                    _localizationService.GetText("Error.Title", "错误"),
+                    MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
             finally
@@ -2932,8 +2958,8 @@ namespace Game_Upgrade_Reminder.UI
             {
                 MessageBox.Show(
                     _localizationService.GetFormattedText("Error.FailedToResetWindowSize", ex.Message),
-                    _localizationService.GetText("Error.Title", "错误"), 
-                    MessageBoxButtons.OK, 
+                    _localizationService.GetText("Error.Title", "错误"),
+                    MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
         }
@@ -2996,14 +3022,15 @@ namespace Game_Upgrade_Reminder.UI
                 var resp = await http.GetAsync(apiUrl);
                 if (!resp.IsSuccessStatusCode)
                 {
-                    if (MessageBox.Show(owner, 
+                    if (MessageBox.Show(owner,
                             _localizationService.GetText("Update.CheckFailedGetInfo", "无法从 GitHub 获取最新版本信息，是否打开发布页？"),
-                            _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"), 
-                            MessageBoxButtons.YesNo, 
+                            _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"),
+                            MessageBoxButtons.YesNo,
                             MessageBoxIcon.Warning) is DialogResult.Yes)
                     {
                         Process.Start(new ProcessStartInfo(releasesPage) { UseShellExecute = true });
                     }
+
                     return;
                 }
 
@@ -3011,10 +3038,10 @@ namespace Game_Upgrade_Reminder.UI
                 var latest = JsonSerializer.Deserialize<GitHubLatestRelease>(json);
                 if (latest is null || string.IsNullOrWhiteSpace(latest.TagName))
                 {
-                    MessageBox.Show(owner, 
-                        _localizationService.GetText("Update.ParseFailed", "未能解析最新版本信息。" ), 
-                        _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"), 
-                        MessageBoxButtons.OK, 
+                    MessageBox.Show(owner,
+                        _localizationService.GetText("Update.ParseFailed", "未能解析最新版本信息。"),
+                        _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"),
+                        MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
                     return;
                 }
@@ -3026,12 +3053,13 @@ namespace Game_Upgrade_Reminder.UI
                 {
                     if (MessageBox.Show(owner,
                             _localizationService.GetFormattedText("Update.InvalidVersionFormat", tag),
-                            _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"), 
-                            MessageBoxButtons.YesNo, 
+                            _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"),
+                            MessageBoxButtons.YesNo,
                             MessageBoxIcon.Information) != DialogResult.Yes)
                     {
                         return;
                     }
+
                     var url = string.IsNullOrWhiteSpace(latest.HtmlUrl) ? releasesPage : latest.HtmlUrl;
                     Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
                     return;
@@ -3041,12 +3069,12 @@ namespace Game_Upgrade_Reminder.UI
 
                 if (latestVer > NormalizeVersion(GetCurrentVersion()))
                 {
-                    var msg = _localizationService.GetFormattedText("Update.NewVersionFound", 
-                        FormatVersionForDisplay(latestVer), 
+                    var msg = _localizationService.GetFormattedText("Update.NewVersionFound",
+                        FormatVersionForDisplay(latestVer),
                         FormatVersionForDisplay(GetCurrentVersion()));
                     if (!openOnNew ||
-                        MessageBox.Show(owner, msg, 
-                            _localizationService.GetText("Update.UpdateAvailableTitle", "有可用更新"), 
+                        MessageBox.Show(owner, msg,
+                            _localizationService.GetText("Update.UpdateAvailableTitle", "有可用更新"),
                             MessageBoxButtons.YesNo, MessageBoxIcon.Information) ==
                         DialogResult.Yes)
                     {
@@ -3056,8 +3084,9 @@ namespace Game_Upgrade_Reminder.UI
                 }
                 else
                 {
-                    MessageBox.Show(owner, 
-                        _localizationService.GetFormattedText("Update.AlreadyLatest", FormatVersionForDisplay(GetCurrentVersion())), 
+                    MessageBox.Show(owner,
+                        _localizationService.GetFormattedText("Update.AlreadyLatest",
+                            FormatVersionForDisplay(GetCurrentVersion())),
                         _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"),
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information);
@@ -3065,10 +3094,10 @@ namespace Game_Upgrade_Reminder.UI
             }
             catch (Exception ex)
             {
-                if (MessageBox.Show(owner, 
+                if (MessageBox.Show(owner,
                         _localizationService.GetFormattedText("Update.CheckFailedGeneral", ex.Message),
-                        _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"), 
-                        MessageBoxButtons.YesNo, 
+                        _localizationService.GetText("Update.CheckUpdateTitle", "检查更新"),
+                        MessageBoxButtons.YesNo,
                         MessageBoxIcon.Error) is DialogResult.Yes)
                 {
                     Process.Start(new ProcessStartInfo(releasesPage) { UseShellExecute = true });
