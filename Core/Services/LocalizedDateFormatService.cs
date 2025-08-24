@@ -24,7 +24,12 @@ namespace Game_Upgrade_Reminder.Core.Services
             _loc = localizationService;
         }
 
-        private enum DateOrder { Ymd, Dmy, Mdy }
+        private enum DateOrder
+        {
+            Ymd,
+            Dmy,
+            Mdy
+        }
 
         private static DateOrder GetDateOrder(string languageCode)
         {
@@ -36,7 +41,9 @@ namespace Game_Upgrade_Reminder.Core.Services
             return lang switch
             {
                 "zh" or "ja" or "ko" => DateOrder.Ymd,
-                "en" => tag.StartsWith("en-us") ? DateOrder.Mdy : DateOrder.Dmy,
+                "en" => tag.StartsWith("en-us")
+                    ? DateOrder.Mdy
+                    : (tag.StartsWith("en-ca") ? DateOrder.Ymd : DateOrder.Dmy),
                 _ => DateOrder.Dmy
             };
         }
@@ -75,7 +82,7 @@ namespace Game_Upgrade_Reminder.Core.Services
             {
                 return order switch
                 {
-                    DateOrder.Ymd => dt.ToString("MM-dd"), // 年被省略时，东亚常见写法仍用 月-日
+                    DateOrder.Ymd => dt.ToString("MM-dd"),
                     DateOrder.Dmy => dt.ToString("dd-MM"),
                     DateOrder.Mdy => dt.ToString("MM-dd"),
                     _ => dt.ToString("dd-MM")

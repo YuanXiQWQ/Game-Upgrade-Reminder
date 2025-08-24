@@ -82,7 +82,7 @@
   "Update.AlreadyLatest": "Already the latest version (current {0}).",
   "Update.CheckFailedGeneral": "Failed to check for updates: {0}\nOpen release page?",
   "Language.en": "English",
-  "Language.zh": "中文 (Chinese)",
+  "Language.zh": "中文",
   "Language.ru-RU": "Русский (Russian)",
   "Language.fr-FR": "Français (French)",
   "Language.ja-JP": "日本語 (Japanese)",

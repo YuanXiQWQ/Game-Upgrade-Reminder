@@ -28,25 +28,113 @@ namespace Game_Upgrade_Reminder.UI
         {
             _miLanguage.DropDownItems.Clear();
 
-            foreach (var lang in _localizationService.AvailableLanguages)
+            var all = _localizationService.AvailableLanguages.ToList();
+            var zhVariants = all.Where(IsChineseTag).ToList();
+            var enVariants = all.Where(IsEnglishTag).ToList();
+            var ptVariants = all.Where(IsPortugueseTag).ToList();
+            var others = all.Where(l => !IsEnglishTag(l) && !IsChineseTag(l) && !IsPortugueseTag(l)).ToList();
+
+            // 先添加非英语的语言
+            foreach (var lang in others)
             {
-                var rawName = _localizationService.GetText($"Language.{lang}", lang);
-                var langName = FormatLanguageDisplay(rawName, _localizationService.CurrentLanguage);
-                var menuItem = new ToolStripMenuItem(langName)
+                AddLanguageMenuItem(_miLanguage.DropDownItems, lang);
+            }
+
+            // 将所有英语变体聚合为一个父菜单
+            if (enVariants.Count > 0)
+            {
+                var englishRaw = _localizationService.GetText("Language.en", "English");
+                var englishLabel = FormatLanguageDisplay(englishRaw, _localizationService.CurrentLanguage);
+
+                var parent = new ToolStripMenuItem(englishLabel)
                 {
-                    Tag = lang,
-                    Checked = lang == _localizationService.CurrentLanguage
+                    Tag = "en-*",
+                    Checked = IsEnglishTag(_localizationService.CurrentLanguage)
                 };
 
-                menuItem.Click += (sender, _) =>
+                void AddEnglish(string code, string label)
                 {
-                    if (sender is ToolStripMenuItem { Tag: string languageCode })
+                    if (!enVariants.Contains(code)) return;
+                    var item = new ToolStripMenuItem(label)
                     {
-                        SetLanguage(languageCode);
-                    }
+                        Tag = code,
+                        Checked = code == _localizationService.CurrentLanguage
+                    };
+                    item.Click += (_, _) => SetLanguage(code);
+                    parent.DropDownItems.Add(item);
+                }
+
+                // 子项硬编码为英文名（因为其它语言使用者大概率不会关心英文具体子选项，大概）
+                AddEnglish("en-US", "English (United States)");
+                AddEnglish("en-GB", "English (United Kingdom)");
+                AddEnglish("en-CA", "English (Canada)");
+
+                _miLanguage.DropDownItems.Add(parent);
+            }
+
+            // 将所有葡萄牙语变体聚合为一个父菜单
+            if (ptVariants.Count > 0)
+            {
+                var portugueseRaw = _localizationService.GetText("Language.pt", "Português");
+                var portugueseLabel = FormatLanguageDisplay(portugueseRaw, _localizationService.CurrentLanguage);
+
+                var parent = new ToolStripMenuItem(portugueseLabel)
+                {
+                    Tag = "pt-*",
+                    Checked = IsPortugueseTag(_localizationService.CurrentLanguage)
                 };
 
-                _miLanguage.DropDownItems.Add(menuItem);
+                void AddPortuguese(string code, string label)
+                {
+                    if (!ptVariants.Contains(code)) return;
+                    var item = new ToolStripMenuItem(label)
+                    {
+                        Tag = code,
+                        Checked = code == _localizationService.CurrentLanguage
+                    };
+                    item.Click += (_, _) => SetLanguage(code);
+                    parent.DropDownItems.Add(item);
+                }
+
+                // 子项固定葡萄牙语名称
+                AddPortuguese("pt-BR", "Português (Brasil)");
+                AddPortuguese("pt-PT", "Português (Portugal)");
+
+                _miLanguage.DropDownItems.Add(parent);
+            }
+
+            // 将所有中文变体聚合为一个父菜单（本地化标签）
+            if (zhVariants.Count > 0)
+            {
+                var chineseRaw = _localizationService.GetText("Language.zh", "中文");
+                var chineseLabel = FormatLanguageDisplay(chineseRaw, _localizationService.CurrentLanguage);
+
+                var parent = new ToolStripMenuItem(chineseLabel)
+                {
+                    Tag = "zh-*",
+                    Checked = IsChineseTag(_localizationService.CurrentLanguage)
+                };
+
+                void AddChinese(string code, string label)
+                {
+                    if (!zhVariants.Contains(code)) return;
+                    var item = new ToolStripMenuItem(label)
+                    {
+                        Tag = code,
+                        Checked = code == _localizationService.CurrentLanguage
+                    };
+                    item.Click += (_, _) => SetLanguage(code);
+                    parent.DropDownItems.Add(item);
+                }
+
+                // 子项固定中文名称
+                AddChinese("zh-CN", "简体中文（中国大陆）");
+                AddChinese("zh-TW", "正體中文（臺灣）");
+                AddChinese("zh-HK", "繁體中文（香港）");
+                AddChinese("zh-MO", "繁體中文（澳門）");
+                AddChinese("zh-SG", "简体中文（新加坡）");
+
+                _miLanguage.DropDownItems.Add(parent);
             }
         }
 
@@ -103,14 +191,74 @@ namespace Game_Upgrade_Reminder.UI
                 _settings.Language = languageCode;
                 SaveSettings();
 
-                // 更新语言菜单的选中状态
+                // 更新语言菜单的选中状态（递归处理子菜单）
                 foreach (ToolStripMenuItem item in _miLanguage.DropDownItems)
                 {
-                    item.Checked = item.Tag?.ToString() == languageCode;
+                    UpdateLanguageMenuChecked(item, languageCode);
                 }
 
                 // 更新所有UI文本
                 UpdateAllTexts();
+            }
+        }
+
+        private static bool IsEnglishTag(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return false;
+            var tag = code.Replace('_', '-').ToLowerInvariant();
+            return tag.StartsWith("en-") || tag == "en";
+        }
+
+        private static bool IsChineseTag(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return false;
+            var tag = code.Replace('_', '-').ToLowerInvariant();
+            return tag.StartsWith("zh-") || tag == "zh";
+        }
+
+        private static bool IsPortugueseTag(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return false;
+            var tag = code.Replace('_', '-').ToLowerInvariant();
+            return tag.StartsWith("pt-") || tag == "pt";
+        }
+
+        private void AddLanguageMenuItem(ToolStripItemCollection root, string lang)
+        {
+            var rawName = _localizationService.GetText($"Language.{lang}", lang);
+            var langName = FormatLanguageDisplay(rawName, _localizationService.CurrentLanguage);
+            var menuItem = new ToolStripMenuItem(langName)
+            {
+                Tag = lang,
+                Checked = lang == _localizationService.CurrentLanguage
+            };
+
+            menuItem.Click += (sender, _) =>
+            {
+                if (sender is ToolStripMenuItem { Tag: string languageCode })
+                {
+                    SetLanguage(languageCode);
+                }
+            };
+
+            root.Add(menuItem);
+        }
+
+        private static void UpdateLanguageMenuChecked(ToolStripMenuItem item, string languageCode)
+        {
+            if (item.DropDownItems.Count > 0)
+            {
+                bool anyChildChecked = false;
+                foreach (ToolStripMenuItem child in item.DropDownItems)
+                {
+                    UpdateLanguageMenuChecked(child, languageCode);
+                    if (child.Checked) anyChildChecked = true;
+                }
+                item.Checked = anyChildChecked || item.Tag?.ToString() == languageCode;
+            }
+            else
+            {
+                item.Checked = item.Tag?.ToString() == languageCode;
             }
         }
 
