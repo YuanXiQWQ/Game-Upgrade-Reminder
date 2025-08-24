@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 定义应用程序设置的数据结构
  * 创建日期: 2025-08-14
- * 最后修改: 2025-08-15
+ * 最后修改: 2025-08-22
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -130,6 +130,13 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// </summary>
         /// <value>默认包含"升级"和"维护"</value>
         public List<string> TaskPresets { get; set; } = ["升级", "维护"];
+
+        // 语言设置
+        /// <summary>
+        /// 获取或设置当前界面语言
+        /// </summary>
+        /// <value>默认为"zh-CN"（简体中文）</value>
+        public string Language { get; set; } = "zh-CN";
 
         /// <summary>
         /// 获取或设置账号列表

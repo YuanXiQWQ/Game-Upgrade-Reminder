@@ -16,6 +16,7 @@
     <ItemGroup>
         <Compile Include="Program.cs"/>
         <Compile Include="UI\MainForm.cs"/>
+        <Compile Include="UI\MainFormLocalization.cs"/>
         <Compile Include="UI\AdvanceTimeDialog.cs"/>
         <Compile Include="UI\InputBox.cs"/>
         <Compile Include="UI\ManageListForm.cs"/>
@@ -37,11 +38,18 @@
         <Compile Include="Core\Abstractions\ISortStrategy.cs"/>
         <Compile Include="Core\Abstractions\IDeletionPolicy.cs"/>
         <Compile Include="Core\Abstractions\IDurationFormatter.cs"/>
+        <Compile Include="Core\Abstractions\ILocalizationService.cs"/>
+        <Compile Include="Core\Abstractions\IDateFormatService.cs"/>
 
         <Compile Include="Core\Services\ByFinishTimeSortStrategy.cs"/>
         <Compile Include="Core\Services\SimpleDeletionPolicy.cs"/>
-        <Compile Include="Core\Services\ZhCnDurationFormatter.cs"/>
+        <Compile Include="Core\Services\LocalizedDurationFormatter.cs"/>
         <Compile Include="Core\Services\DurationUtils.cs"/>
+        <Compile Include="Core\Services\JsonLocalizationService.cs"/>
+        <Compile Include="Core\Services\RtlHelper.cs"/>
+        <Compile Include="Core\Services\LocalizedDateFormatService.cs"/>
+
+        <Compile Remove="Core\Services\ZhCnDurationFormatter.cs" />
 
         <Compile Include="Infrastructure\Repositories\JsonTaskRepository.cs"/>
         <Compile Include="Infrastructure\Repositories\JsonSettingsStore.cs"/>
@@ -53,6 +61,87 @@
         <Content Include="YuanXi.ico">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <Content Include="Resources\Localization\zh-CN.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\zh-TW.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\en-US.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\en-GB.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\en-CA.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\ru-RU.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\fr-FR.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\ja-JP.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\es-ES.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\de-DE.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\hi-IN.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\bn-BD.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\pt-BR.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\pt-PT.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\id-ID.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\vi-VN.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\tr-TR.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\ko-KR.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\it-IT.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\th-TH.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\ar-SA.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\zh-HK.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\zh-MO.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\zh-SG.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\fa-IR.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\he-IL.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\ur-PK.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
     <PropertyGroup>
@@ -60,12 +149,12 @@
     </PropertyGroup>
     
     <PropertyGroup>
-        <AssemblyVersion>1.3.2</AssemblyVersion>
-        <FileVersion>1.3.2</FileVersion>
-        <InformationalVersion>1.3.2</InformationalVersion>
+        <AssemblyVersion>1.4.0.0</AssemblyVersion>
+        <FileVersion>1.4.0.0</FileVersion>
+        <InformationalVersion>1.4.0.0</InformationalVersion>
         <Company>YuanXiQWQ</Company>
         <Product>游戏升级提醒</Product>
-        <Copyright>© 2025 YuanXiQWQ</Copyright>
+        <Copyright> 2025 YuanXiQWQ</Copyright>
     </PropertyGroup>
 
 </Project>

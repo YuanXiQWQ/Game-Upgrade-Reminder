@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 提供升级任务的管理界面，支持添加、编辑、删除和排序任务
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-21
+ * 最后修改: 2025-08-24
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -12,19 +12,21 @@
  */
 
 using Game_Upgrade_Reminder.Core.Models;
+using Game_Upgrade_Reminder.Core.Abstractions;
+using Game_Upgrade_Reminder.Core.Services;
 
 namespace Game_Upgrade_Reminder.UI
 {
     /// <summary>
     /// 简单的列表管理窗口，用于添加/删除字符串项。
-    /// 通过构造函数的 <c>title</c> 参数区分“账号/任务”等不同列表类型。
+    /// 通过构造函数的 <c>isAccountList</c> 参数区分“账号/任务”等不同列表类型。
     /// </summary>
     internal sealed class ManageListForm : Form
     {
         private readonly ListBox _lb = new() { IntegralHeight = false };
-        private readonly Button _btnAdd = new() { Text = "添加" };
-        private readonly Button _btnDel = new() { Text = "删除" };
-        private readonly Button _btnClose = new() { Text = "完成" };
+        private readonly Button _btnAdd = new();
+        private readonly Button _btnDel = new();
+        private readonly Button _btnClose = new();
 
         /// <summary>
         /// 当前窗口中的列表项副本。编辑操作修改此集合；应用已采用“变更即保存”，
@@ -39,11 +41,11 @@ namespace Game_Upgrade_Reminder.UI
 
         /// <summary>
         /// 初始化管理窗口。
-        /// title 用于指示列表类型（如以“账号”开头则视为账号列表），
         /// 这会影响新增条目的提示与默认账号的保护逻辑。
         /// </summary>
-        public ManageListForm(string title, List<string> items)
+        public ManageListForm(string title, bool isAccountList, List<string> items, ILocalizationService? localizationService = null)
         {
+            var locService = localizationService ?? new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
             Text = title;
             Items = new List<string>(items);
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -51,6 +53,13 @@ namespace Game_Upgrade_Reminder.UI
             ClientSize = new Size(380, 250);
             MaximizeBox = MinimizeBox = false;
             ShowInTaskbar = false;
+
+            // 根据语言自动应用 RTL，并在语言切换时动态更新
+            RtlHelper.ApplyAndBind(locService, this);
+
+            _btnAdd.Text = locService.GetText("Dialog.Add", "添加");
+            _btnDel.Text = locService.GetText("Dialog.Delete", "删除");
+            _btnClose.Text = locService.GetText("Dialog.Complete", "完成");
 
             _lb.SetBounds(10, 10, 260, 210);
             _btnAdd.SetBounds(280, 10, 80, 26);
@@ -61,7 +70,10 @@ namespace Game_Upgrade_Reminder.UI
 
             _btnAdd.Click += (_, _) =>
             {
-                using var ib = new InputBox(title.StartsWith("账号") ? "添加账号" : "添加任务");
+                var dialogTitle = isAccountList
+                    ? locService.GetText("Dialog.AddAccount", "添加账号")
+                    : locService.GetText("Dialog.AddTask", "添加任务");
+                using var ib = new InputBox(locService, dialogTitle, locService.GetText("InputBox.Label.Name", "名称"));
                 if (ib.ShowDialog(this) != DialogResult.OK) return;
 
                 Items.Add(ib.ResultText);
@@ -77,7 +89,7 @@ namespace Game_Upgrade_Reminder.UI
                 _lb.Items.RemoveAt(i);
 
                 // 若账号删除后为空则回填默认账号，避免主界面没有可选账号。
-                if (Items.Count == 0 && title.StartsWith("账号"))
+                if (Items.Count == 0 && isAccountList)
                 {
                     Items.Add(TaskItem.DefaultAccount);
                     _lb.Items.Add(TaskItem.DefaultAccount);

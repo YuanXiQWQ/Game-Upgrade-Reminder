@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 定义任务项的数据结构和相关操作
  * 创建日期: 2025-08-14
- * 最后修改: 2025-08-22
+ * 最后修改: 2025-08-23
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -12,7 +12,6 @@
  */
 
 using System.Text.Json.Serialization;
-using Game_Upgrade_Reminder.Core.Services;
 
 namespace Game_Upgrade_Reminder.Core.Models
 {
@@ -135,44 +134,6 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// 获取完成时间的格式化字符串
         /// </summary>
         public string FinishStr => Finish.ToString(TimeFormat);
-
-        /// <summary>
-        /// 获取剩余时间的格式化字符串
-        /// </summary>
-        /// <remarks>
-        /// 当剩余时间小于等于0时返回"到点"。
-        /// 否则返回格式化的时间字符串，包含天、时、分、秒。
-        /// </remarks>
-        public string RemainingStr
-        {
-            get
-            {
-                var d = Remaining;
-                if (d.TotalSeconds <= 0) return "到点";
-
-                var days = (int)Math.Floor(d.TotalDays);
-                var hours = (int)Math.Floor(d.TotalHours) % 24;
-                var minutes = d.Minutes;
-                var seconds = d.Seconds;
-
-                return FormatTime(days, hours, minutes, showSeconds: true, seconds);
-            }
-        }
-
-        /// <summary>
-        /// 将时间格式化为可读字符串
-        /// </summary>
-        /// <param name="days">天数</param>
-        /// <param name="hours">小时数</param>
-        /// <param name="minutes">分钟数</param>
-        /// <param name="showSeconds">是否显示秒数</param>
-        /// <param name="seconds">秒数</param>
-        /// <returns>格式化后的时间字符串</returns>
-        public static string FormatTime(int days, int hours, int minutes, bool showSeconds = false, int seconds = 0)
-        {
-            var formatter = new ZhCnDurationFormatter();
-            return formatter.Format(days, hours, minutes, seconds, showSeconds);
-        }
 
         /// <summary>
         /// 根据开始时间和持续时间重新计算完成时间

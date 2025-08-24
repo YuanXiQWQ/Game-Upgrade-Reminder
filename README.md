@@ -2,7 +2,16 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
 
-**中文** | [English](#game-upgrade-reminder)
+|                    **简体中文**                    |     [正體中文（臺灣）](README/README.zh-TW.md)     |      [English](#game-upgrade-reminder)       |
+|:----------------------------------------------:|:------------------------------------------:|:--------------------------------------------:|
+|   [English (Canada)](README/README.en-CA.md)   |   [English (UK)](README/README.en-GB.md)   |        [日本語](README/README.ja-JP.md)         |
+|         [한국어](README/README.ko-KR.md)          |     [Français](README/README.fr-FR.md)     |      [Deutsch](README/README.de-DE.md)       |
+|       [Español](README/README.es-ES.md)        |     [Italiano](README/README.it-IT.md)     | [Português (Brasil)](README/README.pt-BR.md) |
+| [Português (Portugal)](README/README.pt-PT.md) |     [Русский](README/README.ru-RU.md)      |      [العربية](README/README.ar-SA.md)       |
+|        [हिन्दी](README/README.hi-IN.md)        |      [বাংলা](README/README.bn-BD.md)       |       [فارسی](README/README.fa-IR.md)        |
+|        [עברית](README/README.he-IL.md)         |       [اردو](README/README.ur-PK.md)       |     [Tiếng Việt](README/README.vi-VN.md)     |
+|         [ไทย](README/README.th-TH.md)          | [Bahasa Indonesia](README/README.id-ID.md) |       [Türkçe](README/README.tr-TR.md)       |
+|       [繁體中文（香港）](README/README.zh-HK.md)       |     [繁體中文（澳門）](README/README.zh-MO.md)     |     [简体中文（新加坡）](README/README.zh-SG.md)      |
 
 ---
 
@@ -14,9 +23,7 @@
 - ⏰ 与日历/闹钟不同的是，计时方式与游戏同步为倒计时，省去了每次计算时间的麻烦
 - 🔔 升级完成时显示系统通知
 - ♻️ 重复任务：每天/每周/每月/每年/自定义；结束时间可选（默认无）；支持跳过规则
-
-> 计划实现（~~但大概率会鸽~~）：
-> - 多语言支持
+- 🌐 27 种语言支持
 
 ## 系统要求
 
@@ -80,9 +87,7 @@ created for "Boom Beach."
 - ⏰ A countdown synced with in-game timers (unlike calendars/alarms), eliminating manual time calculations
 - 🔔 Receive system notifications when upgrades complete
 - ♻️ Recurring tasks: daily/weekly/monthly/yearly/custom; optional end time (None by default); skip rules
-
-> Planned features (~~but might be delayed~~):
-> - Multi-language support
+- 🌐 27 languages supported
 
 ## System Requirements
 
@@ -115,7 +120,8 @@ created for "Boom Beach."
 
 ### Not receiving system notifications
 
-- Turn off **Focus Assist**, or add `Game Upgrade Reminder.exe` to the Focus Assist Priority list. If a rule under Focus Assist - Automatic rules is set to "Alarms only", change it to "Priority only".
+- Turn off **Focus Assist**, or add `Game Upgrade Reminder.exe` to the Focus Assist Priority list. If a rule under Focus
+  Assist - Automatic rules are set to "Alarms only", change it to "Priority only".
 - If that doesn't help, I'm not sure what else to suggest
 
 ### Other issues
