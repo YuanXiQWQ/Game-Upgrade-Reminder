@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "반복",
   "ListView.Column.Complete": "완료",
   "ListView.Column.Delete": "삭제",
+  "Remaining.Due": "마감",
   "About.Title": "정보",
   "About.AppName": "게임 업그레이드 알림",
   "About.Description": "게임 업그레이드용 타이머 및 알림 도구 (다른 용도로도 쓸 수 있음 :>)",

@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "Повтор",
   "ListView.Column.Complete": "Завершено",
   "ListView.Column.Delete": "Удалить",
+  "Remaining.Due": "Просрочено",
   "About.Title": "О программе",
   "About.AppName": "Напоминание об обновлении игры",
   "About.Description": "Таймер и напоминания для обновлений игр (может пригодиться и для других целей :>)",

@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "Tekrar",
   "ListView.Column.Complete": "Tamamlandı",
   "ListView.Column.Delete": "Sil",
+  "Remaining.Due": "Vadesi Geldi",
   "About.Title": "Hakkında",
   "About.AppName": "Oyun Güncelleme Hatırlatıcısı",
   "About.Description": "Oyun güncellemeleri için zamanlayıcı ve hatırlatıcı aracı (başka işler için de faydalı olabilir :>)",

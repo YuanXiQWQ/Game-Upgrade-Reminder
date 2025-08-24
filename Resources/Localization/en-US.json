@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "Repeat",
   "ListView.Column.Complete": "Complete",
   "ListView.Column.Delete": "Delete",
+  "Remaining.Due": "Due",
   "About.Title": "About",
   "About.AppName": "Game Upgrade Reminder",
   "About.Description": "Game upgrade timer and reminder tool (maybe useful for other things too :>)",
