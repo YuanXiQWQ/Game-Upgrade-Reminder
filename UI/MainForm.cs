@@ -1407,6 +1407,10 @@ namespace Game_Upgrade_Reminder.UI
                 _numHours.Value = 0;
                 _numMinutes.Value = 0;
                 RecalcFinishFromFields();
+
+                // 同时将“默认重复设置”恢复为“不重复”，仅影响后续新增任务，不修改现有任务
+                _currentRepeatSpec = new RepeatSpec { Mode = RepeatMode.None };
+                UpdateStatusBar(); // 刷新状态栏“默认重复设置”显示
             };
 
             _btnDeleteDone.Click += (_, _) =>
