@@ -45,6 +45,7 @@
         <Compile Include="Core\Services\LocalizedDurationFormatter.cs"/>
         <Compile Include="Core\Services\DurationUtils.cs"/>
         <Compile Include="Core\Services\JsonLocalizationService.cs"/>
+        <Compile Include="Core\Services\RtlHelper.cs"/>
 
         <Compile Remove="Core\Services\ZhCnDurationFormatter.cs" />
 
@@ -110,6 +111,9 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="Resources\Localization\th-TH.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Resources\Localization\ar-SA.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>

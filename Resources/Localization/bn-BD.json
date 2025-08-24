@@ -99,6 +99,7 @@
   "Language.ko-KR": "한국어 (কোরিয়ান)",
   "Language.it-IT": "Italiano (ইতালীয়)",
   "Language.th-TH": "ไทย (থাই)",
+  "Language.ar-SA": "العربية (আরবি)",
   "RepeatSettings.Title": "পুনরাবৃত্তি সেটিংস",
   "RepeatSettings.Group.Mode": "মোড",
   "RepeatSettings.Group.CustomCycle": "কাস্টম চক্র (≥0, অন্তত একটি >0)",

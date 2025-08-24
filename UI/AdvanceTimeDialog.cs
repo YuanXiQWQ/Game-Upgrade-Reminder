@@ -11,8 +11,9 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-
+ 
 using Game_Upgrade_Reminder.Core.Abstractions;
+using Game_Upgrade_Reminder.Core.Services;
 
 namespace Game_Upgrade_Reminder.UI
 {
@@ -57,6 +58,9 @@ namespace Game_Upgrade_Reminder.UI
             AutoScaleMode = AutoScaleMode.Dpi;
             AutoSize = true;
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
+
+            // 根据语言自动应用 RTL，并在语言切换时动态更新
+            RtlHelper.ApplyAndBind(localizationService, this);
 
             // 布局
             var root = new TableLayoutPanel

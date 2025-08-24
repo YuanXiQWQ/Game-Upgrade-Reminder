@@ -757,6 +757,8 @@ namespace Game_Upgrade_Reminder.UI
         public MainForm()
         {
             Text = AppTitle;
+            // 根据语言自动应用 RTL，并在语言切换时动态更新
+            RtlHelper.ApplyAndBind(_localizationService, this);
             var iconPath = Path.Combine(AppContext.BaseDirectory, "YuanXi.ico");
             if (File.Exists(iconPath))
             {
@@ -1144,6 +1146,7 @@ namespace Game_Upgrade_Reminder.UI
 
             InitListViewColumns();
             AdjustListViewColumns();
+            ApplyListViewRtlLayout();
 
             // 底部状态栏
             _status.SizingGrip = true;
@@ -1180,6 +1183,41 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         /// <summary>
+        /// 根据当前语言应用 ListView 的 RTL 布局与列文本对齐。
+        /// </summary>
+        private void ApplyListViewRtlLayout()
+        {
+            try
+            {
+                var rtl = RtlHelper.IsRtlLanguage(_localizationService.CurrentLanguage);
+                _listView.RightToLeft = rtl ? RightToLeft.Yes : RightToLeft.No;
+                _listView.RightToLeftLayout = rtl;
+
+                if (_listView.Columns.Count < 9) return;
+
+                // 文本列（账号、任务、重复）在 RTL 下右对齐，其他列居中更稳妥
+                var textAlign = rtl ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+                _listView.Columns[0].TextAlign = textAlign;                 // 账号
+                _listView.Columns[1].TextAlign = textAlign;                 // 任务
+                _listView.Columns[6].TextAlign = textAlign;                 // 重复
+
+                // 时间/数值列统一居中，兼顾双向文本
+                _listView.Columns[2].TextAlign = HorizontalAlignment.Center; // 开始时间
+                _listView.Columns[3].TextAlign = HorizontalAlignment.Center; // 持续时间
+                _listView.Columns[4].TextAlign = HorizontalAlignment.Center; // 完成时间
+                _listView.Columns[5].TextAlign = HorizontalAlignment.Center; // 剩余时间
+
+                // 操作列居中
+                _listView.Columns[7].TextAlign = HorizontalAlignment.Center; // 完成
+                _listView.Columns[8].TextAlign = HorizontalAlignment.Center; // 删除
+            }
+            catch
+            {
+                // 忽略个别环境下的设置失败
+            }
+        }
+
+        /// <summary>
         /// 生成自动尺寸的标签，常用于表单左侧的说明文字。
         /// </summary>
         private static Label MakeAutoLabel(string text) => new()
@@ -1190,6 +1228,19 @@ namespace Game_Upgrade_Reminder.UI
             TextAlign = ContentAlignment.MiddleLeft,
             Anchor = AnchorStyles.Left
         };
+
+        /// <summary>
+        /// 根据当前语言应用托盘菜单的 RTL 布局。
+        /// </summary>
+        private void ApplyTrayRtlLayout()
+        {
+            try
+            {
+                var rtl = RtlHelper.IsRtlLanguage(_localizationService.CurrentLanguage);
+                _trayMenu.RightToLeft = rtl ? RightToLeft.Yes : RightToLeft.No;
+            }
+            catch { /* 忽略 */ }
+        }
 
         /// <summary>
         /// 统一绑定菜单、输入控件、列表、计时器等事件处理。
@@ -1498,6 +1549,7 @@ namespace Game_Upgrade_Reminder.UI
 
             var ver = GetCurrentVersion();
             var versionText = string.Format(_localizationService.GetText("About.VersionText", "版本 v{0}"), $"{ver.Major}.{ver.Minor}.{ver.Build}" + (ver.Revision > 0 ? $".{ver.Revision}" : ""));
+            var rtl = RtlHelper.IsRtlLanguage(_localizationService.CurrentLanguage);
 
             using var dlg = new Form();
             dlg.Text = _localizationService.GetText("About.Title", "关于");
@@ -1550,6 +1602,7 @@ namespace Game_Upgrade_Reminder.UI
             };
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            header.RightToLeft = rtl ? RightToLeft.Yes : RightToLeft.No;
 
             var pic = new PictureBox
             {
@@ -1558,7 +1611,8 @@ namespace Game_Upgrade_Reminder.UI
                 Margin = new Padding(0, 0, 16, 0),
                 Image = (Icon ?? SystemIcons.Information).ToBitmap()
             };
-            header.Controls.Add(pic, 0, 0);
+            var colPic = rtl ? 1 : 0;
+            header.Controls.Add(pic, colPic, 0);
 
             var headerRight = new TableLayoutPanel
             {
@@ -1590,7 +1644,8 @@ namespace Game_Upgrade_Reminder.UI
             headerRight.Controls.Add(subLabel);
             headerRight.Controls.Add(sepHeader);
 
-            header.Controls.Add(headerRight, 1, 0);
+            var colText = rtl ? 0 : 1;
+            header.Controls.Add(headerRight, colText, 0);
             content.Controls.Add(header);
 
             // ===== 2) 信息卡片：版本/版权/项目/许可证 =====
@@ -1658,17 +1713,30 @@ namespace Game_Upgrade_Reminder.UI
             btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-            btnLayout.Controls.Add(btnGitHub, 0, 0);
-            btnLayout.Controls.Add(btnUpdate, 1, 0);
-            btnLayout.Controls.Add(new Panel { Dock = DockStyle.Fill }, 2, 0);
-            btnLayout.Controls.Add(btnClose, 3, 0);
+            if (rtl)
+            {
+                // RTL：关闭 | 填充 | 检查更新 | GitHub
+                btnLayout.RightToLeft = RightToLeft.Yes;
+                btnLayout.Controls.Add(btnClose, 0, 0);
+                btnLayout.Controls.Add(new Panel { Dock = DockStyle.Fill }, 1, 0);
+                btnLayout.Controls.Add(btnUpdate, 2, 0);
+                btnLayout.Controls.Add(btnGitHub, 3, 0);
+            }
+            else
+            {
+                // LTR：GitHub | 检查更新 | 填充 | 关闭
+                btnLayout.Controls.Add(btnGitHub, 0, 0);
+                btnLayout.Controls.Add(btnUpdate, 1, 0);
+                btnLayout.Controls.Add(new Panel { Dock = DockStyle.Fill }, 2, 0);
+                btnLayout.Controls.Add(btnClose, 3, 0);
+            }
 
             buttonBar.Controls.Add(btnLayout);
 
             dlg.AcceptButton = btnClose;
             dlg.CancelButton = btnClose;
-
+            // 在显示前对对话框整个控件树应用 RTL 设置
+            RtlHelper.Apply(dlg, _localizationService.CurrentLanguage);
             dlg.ShowDialog(this);
         }
 
@@ -2060,6 +2128,9 @@ namespace Game_Upgrade_Reminder.UI
 
             // 构建/重建托盘菜单（根据当前语言）
             RebuildTrayMenu();
+
+            // 应用 RTL 布局到托盘菜单
+            ApplyTrayRtlLayout();
 
             _tray.ContextMenuStrip = _trayMenu;
         }

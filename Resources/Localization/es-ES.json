@@ -99,6 +99,7 @@
   "Language.ko-KR": "한국어 (Coreano)",
   "Language.it-IT": "Italiano (Italiano)",
   "Language.th-TH": "ไทย (Tailandés)",
+  "Language.ar-SA": "العربية (Árabe)",
   "RepeatSettings.Title": "Configuración de repetición",
   "RepeatSettings.Group.Mode": "Modo",
   "RepeatSettings.Group.CustomCycle": "Ciclo personalizado (≥0, al menos uno >0)",

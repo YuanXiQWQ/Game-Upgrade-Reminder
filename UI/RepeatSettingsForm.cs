@@ -12,6 +12,7 @@
 
 using Game_Upgrade_Reminder.Core.Models;
 using Game_Upgrade_Reminder.Core.Abstractions;
+using Game_Upgrade_Reminder.Core.Services;
 
 namespace Game_Upgrade_Reminder.UI
 {
@@ -127,6 +128,9 @@ namespace Game_Upgrade_Reminder.UI
             AutoScaleMode = AutoScaleMode.Dpi;
             AutoSize = true;
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
+
+            // 根据语言自动应用 RTL，并在语言切换时动态更新
+            RtlHelper.ApplyAndBind(_localizationService, this);
 
             // 防抖定时器：空闲 250ms 后触发一次变更事件
             _debounceTimer.Tick += (_, _) =>

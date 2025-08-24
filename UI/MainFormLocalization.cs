@@ -11,8 +11,8 @@
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using Game_Upgrade_Reminder.Core.Abstractions;
 using Game_Upgrade_Reminder.Core.Services;
+using System.Text.RegularExpressions;
 
 namespace Game_Upgrade_Reminder.UI
 {
@@ -27,16 +27,17 @@ namespace Game_Upgrade_Reminder.UI
         private void BuildLanguageMenu()
         {
             _miLanguage.DropDownItems.Clear();
-            
+
             foreach (var lang in _localizationService.AvailableLanguages)
             {
-                var langName = _localizationService.GetText($"Language.{lang}", lang);
+                var rawName = _localizationService.GetText($"Language.{lang}", lang);
+                var langName = FormatLanguageDisplay(rawName, _localizationService.CurrentLanguage);
                 var menuItem = new ToolStripMenuItem(langName)
                 {
                     Tag = lang,
                     Checked = lang == _localizationService.CurrentLanguage
                 };
-                
+
                 menuItem.Click += (sender, _) =>
                 {
                     if (sender is ToolStripMenuItem { Tag: string languageCode })
@@ -44,9 +45,51 @@ namespace Game_Upgrade_Reminder.UI
                         SetLanguage(languageCode);
                     }
                 };
-                
+
                 _miLanguage.DropDownItems.Add(menuItem);
             }
+        }
+
+        /// <summary>
+        /// 在 RTL 环境中稳定显示语言名称，避免 BiDi 反转。
+        /// LTR: 直接使用 JSON 中的文本。
+        /// RTL: 期望显示为 "(本语言) 目标语言"，并使用双向控制符包裹两段文本以固定顺序。
+        /// </summary>
+        private static string FormatLanguageDisplay(string name, string currentLanguage)
+        {
+            // 当前语言是否为 RTL
+            var isRtl = currentLanguage is "ar-SA";
+
+            if (!isRtl)
+            {
+                return name;
+            }
+
+            // 双向控制符
+            const char lre = '\u202A'; // Left-to-Right Embedding 从左到右嵌入
+            const char rle = '\u202B'; // Right-to-Left Embedding 从右到左嵌入
+            const char pdf = '\u202C'; // Pop Directional Formatting 弹出双向格式
+            const char lrm = '\u200E'; // Left-to-Right Mark 从左到右标记
+
+            // 将括号内作为 RTL 片段，目标语言作为 LTR 片段嵌入
+            var mRtlPattern = RtlDisplayRegex().Match(name);
+            if (mRtlPattern.Success)
+            {
+                // 直接内联分组值，避免与后续同名局部变量冲突
+                return string.Concat(rle, '(', mRtlPattern.Groups[1].Value, ')', pdf, lrm, ' ', lre,
+                    mRtlPattern.Groups[2].Value, pdf);
+            }
+
+            // 如果是 "目标语言 (本语言)" 形式（意外情况），转换并加控制符
+            var mLtrPattern = LtrDisplayRegex().Match(name);
+            if (!mLtrPattern.Success)
+            {
+                return name;
+            }
+
+            var nativePart = mLtrPattern.Groups[1].Value; // 目标语言
+            var localPart = mLtrPattern.Groups[2].Value; // 本语言
+            return string.Concat(rle, '(', localPart, ')', pdf, lrm, ' ', lre, nativePart, pdf);
         }
 
         /// <summary>
@@ -59,13 +102,13 @@ namespace Game_Upgrade_Reminder.UI
             {
                 _settings.Language = languageCode;
                 SaveSettings();
-                
+
                 // 更新语言菜单的选中状态
                 foreach (ToolStripMenuItem item in _miLanguage.DropDownItems)
                 {
                     item.Checked = item.Tag?.ToString() == languageCode;
                 }
-                
+
                 // 更新所有UI文本
                 UpdateAllTexts();
             }
@@ -78,22 +121,28 @@ namespace Game_Upgrade_Reminder.UI
         {
             // 更新窗口标题
             Text = _localizationService.GetText("AppTitle", "游戏升级提醒");
-            
+
             // 更新菜单文本
             UpdateMenuTexts();
-            
+
             // 更新UI控件文本
             UpdateUiControlTexts();
-            
+
             // 更新列表视图列标题
             UpdateListViewHeaders();
-            
+
+            // 应用 RTL 布局与列对齐（在列标题更新后执行）
+            ApplyListViewRtlLayout();
+
+            // 语言切换后刷新列表内容，以更新“持续时间”“重复”等列的本地化文本
+            RefreshTable();
+
             // 更新状态栏
             UpdateStatusBar();
-            
+
             // 更新托盘文本
             UpdateTrayTexts();
-            
+
             // 重新构建语言菜单以更新语言名称
             BuildLanguageMenu();
         }
@@ -113,7 +162,7 @@ namespace Game_Upgrade_Reminder.UI
             _miAdvanceNotify.Text = _localizationService.GetText("Menu.AdvanceNotify", "提前通知(&N)");
             _miCloseBehavior.Text = _localizationService.GetText("Menu.CloseBehavior", "关闭按钮行为(&C)");
             _miAboutTop.Text = _localizationService.GetText("Menu.About", "关于(&A)...");
-            
+
             // 更新自动删除子菜单
             _miDelOff.Text = _localizationService.GetText("Menu.AutoDelete.Off", "关闭");
             _miDel30S.Text = _localizationService.GetText("Menu.AutoDelete.30s", "30秒");
@@ -122,7 +171,7 @@ namespace Game_Upgrade_Reminder.UI
             _miDel30M.Text = _localizationService.GetText("Menu.AutoDelete.30m", "30分钟");
             _miDel1H.Text = _localizationService.GetText("Menu.AutoDelete.1h", "1小时");
             _miDelCustom.Text = _localizationService.GetText("Menu.AutoDelete.Custom", "自定义...");
-            
+
             // 更新提前通知子菜单
             _miAdvOff.Text = _localizationService.GetText("Menu.AdvanceNotify.Off", "关闭");
             _miAdvAlsoDue.Text = _localizationService.GetText("Menu.AdvanceNotify.AlsoDue", "同时准点通知");
@@ -132,7 +181,7 @@ namespace Game_Upgrade_Reminder.UI
             _miAdv30M.Text = _localizationService.GetText("Menu.AdvanceNotify.30m", "30分钟");
             _miAdv1H.Text = _localizationService.GetText("Menu.AdvanceNotify.1h", "1小时");
             _miAdvCustom.Text = _localizationService.GetText("Menu.AdvanceNotify.Custom", "自定义...");
-            
+
             // 更新关闭行为子菜单
             _miCloseExit.Text = _localizationService.GetText("Menu.CloseBehavior.Exit", "退出程序");
             _miCloseMinimize.Text = _localizationService.GetText("Menu.CloseBehavior.Minimize", "最小化到托盘");
@@ -158,7 +207,8 @@ namespace Game_Upgrade_Reminder.UI
 
             _btnAccountMgr.Text = _localizationService.GetText("Control.AccountMgr.Text", "账号管理(&M)");
             _btnAccountMgr.AccessibleName = _localizationService.GetText("Control.AccountMgr.Name", "账号管理");
-            _btnAccountMgr.AccessibleDescription = _localizationService.GetText("Control.AccountMgr.Description", "打开账号管理");
+            _btnAccountMgr.AccessibleDescription =
+                _localizationService.GetText("Control.AccountMgr.Description", "打开账号管理");
 
             _cbTask.AccessibleName = _localizationService.GetText("Control.Task.Name", "任务");
             _cbTask.AccessibleDescription = _localizationService.GetText("Control.Task.Description", "输入或选择任务");
@@ -169,7 +219,8 @@ namespace Game_Upgrade_Reminder.UI
 
             _btnDeleteDone.Text = _localizationService.GetText("Control.DeleteDone.Text", "删除已完成(&D)");
             _btnDeleteDone.AccessibleName = _localizationService.GetText("Control.DeleteDone.Name", "删除已完成");
-            _btnDeleteDone.AccessibleDescription = _localizationService.GetText("Control.DeleteDone.Description", "删除已完成的任务（Ctrl+Shift+D）");
+            _btnDeleteDone.AccessibleDescription =
+                _localizationService.GetText("Control.DeleteDone.Description", "删除已完成的任务（Ctrl+Shift+D）");
 
             _btnRefresh.Text = _localizationService.GetText("Control.Refresh.Text", "刷新(&R)");
             _btnRefresh.AccessibleName = _localizationService.GetText("Control.Refresh.Name", "刷新");
@@ -189,11 +240,13 @@ namespace Game_Upgrade_Reminder.UI
             _numMinutes.AccessibleDescription = _localizationService.GetText("Control.Minutes.Description", "持续时间（分钟）");
 
             _tbFinish.AccessibleName = _localizationService.GetText("Control.Finish.Name", "完成时间");
-            _tbFinish.AccessibleDescription = _localizationService.GetText("Control.Finish.Description", "根据开始时间与持续时间计算的完成时间");
+            _tbFinish.AccessibleDescription =
+                _localizationService.GetText("Control.Finish.Description", "根据开始时间与持续时间计算的完成时间");
 
             _btnAddSave.Text = _localizationService.GetText("Control.AddSave.Text", "添加(&N)");
             _btnAddSave.AccessibleName = _localizationService.GetText("Control.AddSave.Name", "添加");
-            _btnAddSave.AccessibleDescription = _localizationService.GetText("Control.AddSave.Description", "添加/保存任务（Ctrl+N）");
+            _btnAddSave.AccessibleDescription =
+                _localizationService.GetText("Control.AddSave.Description", "添加/保存任务（Ctrl+N）");
 
             _btnRepeat.Text = _localizationService.GetText("Control.Repeat.Text", "重复(&P)");
             _btnRepeat.AccessibleName = _localizationService.GetText("Control.Repeat.Name", "重复设置");
@@ -201,7 +254,8 @@ namespace Game_Upgrade_Reminder.UI
 
             _btnClear.Text = _localizationService.GetText("Control.Clear.Text", "清除(&C)");
             _btnClear.AccessibleName = _localizationService.GetText("Control.Clear.Name", "清除设置");
-            _btnClear.AccessibleDescription = _localizationService.GetText("Control.Clear.Description", "将开始时间清空，且清空重复任务设置");
+            _btnClear.AccessibleDescription =
+                _localizationService.GetText("Control.Clear.Description", "将开始时间清空，且清空重复任务设置");
         }
 
         /// <summary>
@@ -230,9 +284,12 @@ namespace Game_Upgrade_Reminder.UI
         {
             // 更新托盘标题
             _tray.Text = _localizationService.GetText("Tray.Title", "升级提醒");
-            
+
             // 重新构建托盘菜单以更新菜单项文本
             RebuildTrayMenu();
+
+            // 应用 RTL 布局到托盘菜单
+            ApplyTrayRtlLayout();
         }
 
         /// <summary>
@@ -242,27 +299,22 @@ namespace Game_Upgrade_Reminder.UI
         {
             // 初始化时长格式化器
             _durationFormatter = new LocalizedDurationFormatter(_localizationService);
-            
+
             // 从设置中加载语言
             if (!string.IsNullOrEmpty(_settings.Language))
             {
                 _localizationService.SetLanguage(_settings.Language);
             }
-            
-            // 订阅语言变更事件
-            _localizationService.LanguageChanged += OnLanguageChanged;
-            
+
+
             // 初始化时更新所有文本
             UpdateAllTexts();
         }
 
-        /// <summary>
-        /// 语言变更事件处理
-        /// </summary>
-        private void OnLanguageChanged(object? sender, LanguageChangedEventArgs e)
-        {
-            // 语言变更时可以执行额外的操作
-            // 例如记录日志或通知其他组件
-        }
+        [GeneratedRegex(@"^\((.+?)\)\s+(.*)$", RegexOptions.CultureInvariant)]
+        private static partial Regex RtlDisplayRegex();
+
+        [GeneratedRegex(@"^(.*?)\s+\((.+)\)$", RegexOptions.CultureInvariant)]
+        private static partial Regex LtrDisplayRegex();
     }
 }

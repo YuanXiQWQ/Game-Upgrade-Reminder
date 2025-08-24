@@ -54,6 +54,9 @@ namespace Game_Upgrade_Reminder.UI
             MaximizeBox = MinimizeBox = false;
             ShowInTaskbar = false;
 
+            // 根据语言自动应用 RTL，并在语言切换时动态更新
+            RtlHelper.ApplyAndBind(locService, this);
+
             _btnAdd.Text = locService.GetText("Dialog.Add", "添加");
             _btnDel.Text = locService.GetText("Dialog.Delete", "删除");
             _btnClose.Text = locService.GetText("Dialog.Complete", "完成");

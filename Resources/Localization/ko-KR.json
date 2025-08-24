@@ -99,6 +99,7 @@
   "Language.ko-KR": "한국어",
   "Language.it-IT": "Italiano (이탈리아어)",
   "Language.th-TH": "ไทย (태국어)",
+  "Language.ar-SA": "العربية (아랍어)",
   "RepeatSettings.Title": "반복 설정",
   "RepeatSettings.Group.Mode": "모드",
   "RepeatSettings.Group.CustomCycle": "사용자 정의 주기 (≥0, 최소 하나 >0)",

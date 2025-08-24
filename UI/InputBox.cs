@@ -12,6 +12,7 @@
  */
 
 using Game_Upgrade_Reminder.Core.Abstractions;
+using Game_Upgrade_Reminder.Core.Services;
 
 namespace Game_Upgrade_Reminder.UI
 {
@@ -51,6 +52,9 @@ namespace Game_Upgrade_Reminder.UI
             ClientSize = new Size(360, 130);
             MaximizeBox = MinimizeBox = false;
             ShowInTaskbar = false;
+
+            // 根据语言自动应用 RTL，并在语言切换时动态更新
+            RtlHelper.ApplyAndBind(localizationService, this);
 
             // 基本控件：标签、文本框、确定/取消按钮与布局参数
             var lb = new Label { Text = label, AutoSize = true, Left = 14, Top = 18 };
