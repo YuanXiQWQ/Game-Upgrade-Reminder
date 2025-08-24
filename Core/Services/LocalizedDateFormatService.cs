@@ -15,15 +15,8 @@ using Game_Upgrade_Reminder.Core.Abstractions;
 
 namespace Game_Upgrade_Reminder.Core.Services
 {
-    public sealed class LocalizedDateFormatService : IDateFormatService
+    public sealed class LocalizedDateFormatService(ILocalizationService localizationService) : IDateFormatService
     {
-        private readonly ILocalizationService _loc;
-
-        public LocalizedDateFormatService(ILocalizationService localizationService)
-        {
-            _loc = localizationService;
-        }
-
         private enum DateOrder
         {
             Ymd,
@@ -50,7 +43,7 @@ namespace Game_Upgrade_Reminder.Core.Services
 
         public string GetDatePickerDateFormat()
         {
-            return GetDateOrder(_loc.CurrentLanguage) switch
+            return GetDateOrder(localizationService.CurrentLanguage) switch
             {
                 DateOrder.Ymd => "yyyy-MM-dd",
                 DateOrder.Dmy => "dd-MM-yyyy",
@@ -67,7 +60,7 @@ namespace Game_Upgrade_Reminder.Core.Services
 
         public string FormatDate(DateTime dt, bool includeYear)
         {
-            var order = GetDateOrder(_loc.CurrentLanguage);
+            var order = GetDateOrder(localizationService.CurrentLanguage);
             if (includeYear)
             {
                 return order switch

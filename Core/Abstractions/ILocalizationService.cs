@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 定义多语言本地化服务的接口
  * 创建日期: 2025-08-22
- * 最后修改: 2025-08-22
+ * 最后修改: 2025-08-24
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -60,15 +60,11 @@ namespace Game_Upgrade_Reminder.Core.Abstractions
     /// <summary>
     /// 语言变更事件参数
     /// </summary>
-    public class LanguageChangedEventArgs : EventArgs
+    public class LanguageChangedEventArgs(string oldLanguage, string newLanguage) : EventArgs
     {
-        public string OldLanguage { get; }
-        public string NewLanguage { get; }
-
-        public LanguageChangedEventArgs(string oldLanguage, string newLanguage)
-        {
-            OldLanguage = oldLanguage;
-            NewLanguage = newLanguage;
-        }
+        // ReSharper disable UnusedMember.Global, UnusedAutoPropertyAccessor.Global
+        public string OldLanguage { get; } = oldLanguage;
+        public string NewLanguage { get; } = newLanguage;
+        // ReSharper restore UnusedMember.Global, UnusedAutoPropertyAccessor.Global
     }
 }

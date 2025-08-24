@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 基于JSON文件的本地化服务实现
  * 创建日期: 2025-08-22
- * 最后修改: 2025-08-22
+ * 最后修改: 2025-08-24
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -46,7 +46,7 @@ namespace Game_Upgrade_Reminder.Core.Services
         /// <summary>
         /// 获取所有可用的语言列表
         /// </summary>
-        public IReadOnlyList<string> AvailableLanguages { get; private set; } = Array.Empty<string>();
+        public IReadOnlyList<string> AvailableLanguages { get; private set; } = [];
 
         /// <summary>
         /// 语言变更事件
@@ -166,7 +166,7 @@ namespace Game_Upgrade_Reminder.Core.Services
                 
                 if (!File.Exists(filePath))
                 {
-                    // 如果文件不存在，创建一个空的翻译字典
+                    // 如果文件不存在，创建一个空翻译字典
                     _translations[languageCode] = new Dictionary<string, string>();
                     return true;
                 }

@@ -332,85 +332,6 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         /// <summary>
-        /// 按“相对当前时间”的语义格式化日期时间：同日仅显示时间，同年显示“月/日+时间”，跨年显示“年/月/日+时间”。
-        /// </summary>
-        /// <param name="dt">要格式化的时间。</param>
-        /// <param name="now">用于比较的当前时间。</param>
-        /// <param name="languageCode">当前语言代码（用于决定日期顺序）。</param>
-        /// <returns>人类友好的时间字符串（24 小时制），日期顺序依据语言。</returns>
-        private static string FormatSmartDateTime(DateTime dt, DateTime now, string languageCode)
-        {
-            var includeSeconds = dt.Second != 0;
-            var time = dt.ToString(includeSeconds ? "H:mm:ss" : "H:mm"); // 24 小时制；小时不补零
-
-            // 同日：仅显示时间
-            if (dt.Date == now.Date)
-                return time;
-
-            var order = GetDateOrder(languageCode);
-            string datePart;
-
-            if (dt.Year == now.Year)
-            {
-                // 同年：不显示年份
-                datePart = order switch
-                {
-                    DateOrder.YMD => $"{dt.Month}/{dt.Day}",
-                    DateOrder.DMY => $"{dt.Day}/{dt.Month}",
-                    DateOrder.MDY => $"{dt.Month}/{dt.Day}",
-                    _ => $"{dt.Month}/{dt.Day}"
-                };
-            }
-            else
-            {
-                // 跨年：显示年份
-                datePart = order switch
-                {
-                    DateOrder.YMD => $"{dt.Year}/{dt.Month}/{dt.Day}",
-                    DateOrder.DMY => $"{dt.Day}/{dt.Month}/{dt.Year}",
-                    DateOrder.MDY => $"{dt.Month}/{dt.Day}/{dt.Year}",
-                    _ => $"{dt.Year}/{dt.Month}/{dt.Day}"
-                };
-            }
-
-            return $"{datePart} {time}";
-        }
-
-        private enum DateOrder { YMD, DMY, MDY }
-
-        /// <summary>
-        /// 将语言代码映射为日期顺序：
-        /// - YMD：中/日/韩（zh/ja/ko）
-        /// - DMY：欧洲、拉美、阿语、南亚等（de/es/fr/it/pt/ru/tr/vi/id/th/hi/bn/ar...）
-        /// - MDY：美国（en-US）
-        /// 其他默认 DMY。
-        /// </summary>
-        private static DateOrder GetDateOrder(string languageCode)
-        {
-            if (string.IsNullOrWhiteSpace(languageCode)) return DateOrder.DMY;
-            var tag = languageCode.Replace('_', '-').ToLowerInvariant();
-            var parts = tag.Split('-', StringSplitOptions.RemoveEmptyEntries);
-            var lang = parts.Length > 0 ? parts[0] : tag;
-
-            return lang switch
-            {
-                // 东亚：年-月-日
-                "zh" or "ja" or "ko" => DateOrder.YMD,
-
-                // 美国：月-日-年（仅 en-US 特例）
-                "en" => tag.StartsWith("en-us") ? DateOrder.MDY : DateOrder.DMY,
-
-                // 阿语：日-月-年
-                "ar" => DateOrder.DMY,
-
-                // 欧洲/拉美/南亚/东南亚等常见 DMY
-                "de" or "es" or "fr" or "it" or "pt" or "ru" or "tr" or "vi" or "id" or "th" or "hi" or "bn" => DateOrder.DMY,
-
-                _ => DateOrder.DMY
-            };
-        }
-
-        /// <summary>
         /// 根据列表可用宽度自适应调整各列宽度：固定“时间/重复/操作”列，按比例分配“账号/任务”两列。
         /// </summary>
         private void AdjustListViewColumns()
@@ -838,7 +759,7 @@ namespace Game_Upgrade_Reminder.UI
             WireEvents();
 
             // 语言切换时更新日期格式与列表显示
-            _localizationService.LanguageChanged += (_, __) =>
+            _localizationService.LanguageChanged += (_, _) =>
             {
                 try
                 {

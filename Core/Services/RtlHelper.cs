@@ -22,13 +22,6 @@ namespace Game_Upgrade_Reminder.Core.Services
             "fa", // 波斯语
             "he", // 希伯来语
             "ur", // 乌尔都语
-            "ps", // 普什图语
-            "sd", // 信德语
-            "syr", // 叙利亚语
-            "ug", // 维吾尔语（阿拉伯字母）
-            "yi", // 意第绪语
-            "dv", // 迪维希语
-            "ku-Arab" // 库尔德语（阿拉伯字母变体）
         };
 
         public static bool IsRtlLanguage(string languageCode)

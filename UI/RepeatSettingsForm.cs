@@ -3,7 +3,7 @@
  * 作者: YuanXiQWQ
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 创建日期: 2025-08-21
- * 最后修改: 2025-08-23
+ * 最后修改: 2025-08-24
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -28,7 +28,6 @@ namespace Game_Upgrade_Reminder.UI
     internal sealed class RepeatSettingsForm : Form
     {
         private readonly ILocalizationService _localizationService;
-        private readonly IDateFormatService _dateFormat;
 
         // 模式选择
         private readonly RadioButton _rbNone;
@@ -83,7 +82,6 @@ namespace Game_Upgrade_Reminder.UI
         public RepeatSettingsForm(ILocalizationService localizationService, IDateFormatService dateFormat)
         {
             _localizationService = localizationService;
-            _dateFormat = dateFormat;
 
             // 初始化本地化文本
             _rbNone = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.None", "不重复"), AutoSize = true };
@@ -103,7 +101,7 @@ namespace Game_Upgrade_Reminder.UI
             _dtEndDate = new DateTimePicker
             {
                 Format = DateTimePickerFormat.Custom,
-                CustomFormat = _dateFormat.GetDatePickerDateFormat(),
+                CustomFormat = dateFormat.GetDatePickerDateFormat(),
                 ShowUpDown = false,
                 Width = 120,
                 Anchor = AnchorStyles.Left
@@ -135,10 +133,16 @@ namespace Game_Upgrade_Reminder.UI
             RtlHelper.ApplyAndBind(_localizationService, this);
 
             // 语言切换后，更新日期选择器的格式
-            _localizationService.LanguageChanged += (_, __) =>
+            _localizationService.LanguageChanged += (_, _) =>
             {
-                try { _dtEndDate.CustomFormat = _dateFormat.GetDatePickerDateFormat(); }
-                catch { }
+                try
+                {
+                    _dtEndDate.CustomFormat = dateFormat.GetDatePickerDateFormat();
+                }
+                catch
+                {
+                    // 忽略
+                }
             };
 
             // 防抖定时器：空闲 250ms 后触发一次变更事件
