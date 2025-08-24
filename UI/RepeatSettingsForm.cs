@@ -28,6 +28,7 @@ namespace Game_Upgrade_Reminder.UI
     internal sealed class RepeatSettingsForm : Form
     {
         private readonly ILocalizationService _localizationService;
+        private readonly IDateFormatService _dateFormat;
 
         // 模式选择
         private readonly RadioButton _rbNone;
@@ -79,9 +80,10 @@ namespace Game_Upgrade_Reminder.UI
         private bool _isApplying; // 回填 UI 时抑制事件
         private readonly System.Windows.Forms.Timer _debounceTimer = new() { Interval = 250 };
 
-        public RepeatSettingsForm(ILocalizationService localizationService)
+        public RepeatSettingsForm(ILocalizationService localizationService, IDateFormatService dateFormat)
         {
             _localizationService = localizationService;
+            _dateFormat = dateFormat;
 
             // 初始化本地化文本
             _rbNone = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.None", "不重复"), AutoSize = true };
@@ -101,7 +103,7 @@ namespace Game_Upgrade_Reminder.UI
             _dtEndDate = new DateTimePicker
             {
                 Format = DateTimePickerFormat.Custom,
-                CustomFormat = "yyyy-MM-dd",
+                CustomFormat = _dateFormat.GetDatePickerDateFormat(),
                 ShowUpDown = false,
                 Width = 120,
                 Anchor = AnchorStyles.Left
@@ -131,6 +133,13 @@ namespace Game_Upgrade_Reminder.UI
 
             // 根据语言自动应用 RTL，并在语言切换时动态更新
             RtlHelper.ApplyAndBind(_localizationService, this);
+
+            // 语言切换后，更新日期选择器的格式
+            _localizationService.LanguageChanged += (_, __) =>
+            {
+                try { _dtEndDate.CustomFormat = _dateFormat.GetDatePickerDateFormat(); }
+                catch { }
+            };
 
             // 防抖定时器：空闲 250ms 后触发一次变更事件
             _debounceTimer.Tick += (_, _) =>

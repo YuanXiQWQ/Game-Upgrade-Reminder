@@ -102,8 +102,9 @@ namespace Game_Upgrade_Reminder.UI
 
         private readonly ILocalizationService _localizationService =
             new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
-
+        
         private IDurationFormatter? _durationFormatter;
+        private readonly IDateFormatService _dateFormat;
 
         private SimpleDeletionPolicy _deletionPolicy =
             new(pendingDeleteDelaySeconds: 3, completedKeepSeconds: 60);
@@ -283,7 +284,7 @@ namespace Game_Upgrade_Reminder.UI
             if (spec.EndAt is not null)
             {
                 parts.Add(_localizationService.GetFormattedText("Repeat.EndAt",
-                    FormatSmartDateTime(spec.EndAt.Value, DateTime.Now)));
+                    _dateFormat.FormatSmartDateTime(spec.EndAt.Value, DateTime.Now)));
             }
 
             if (spec is { HasSkip: true, Skip: var s and not null })
@@ -335,8 +336,9 @@ namespace Game_Upgrade_Reminder.UI
         /// </summary>
         /// <param name="dt">要格式化的时间。</param>
         /// <param name="now">用于比较的当前时间。</param>
-        /// <returns>人类友好的时间字符串（24 小时制）。</returns>
-        private static string FormatSmartDateTime(DateTime dt, DateTime now)
+        /// <param name="languageCode">当前语言代码（用于决定日期顺序）。</param>
+        /// <returns>人类友好的时间字符串（24 小时制），日期顺序依据语言。</returns>
+        private static string FormatSmartDateTime(DateTime dt, DateTime now, string languageCode)
         {
             var includeSeconds = dt.Second != 0;
             var time = dt.ToString(includeSeconds ? "H:mm:ss" : "H:mm"); // 24 小时制；小时不补零
@@ -345,12 +347,67 @@ namespace Game_Upgrade_Reminder.UI
             if (dt.Date == now.Date)
                 return time;
 
-            // 同年：同月：显示“日 + 时间”；不同月：显示“月日 + 时间”
-            if (dt.Year == now.Year)
-                return dt.Month == now.Month ? $"{dt.Day}日{time}" : $"{dt.Month}月{dt.Day}日{time}";
+            var order = GetDateOrder(languageCode);
+            string datePart;
 
-            // 不同年：显示“年/月/日 + 时间”
-            return $"{dt.Year}年{dt.Month}月{dt.Day}日{time}";
+            if (dt.Year == now.Year)
+            {
+                // 同年：不显示年份
+                datePart = order switch
+                {
+                    DateOrder.YMD => $"{dt.Month}/{dt.Day}",
+                    DateOrder.DMY => $"{dt.Day}/{dt.Month}",
+                    DateOrder.MDY => $"{dt.Month}/{dt.Day}",
+                    _ => $"{dt.Month}/{dt.Day}"
+                };
+            }
+            else
+            {
+                // 跨年：显示年份
+                datePart = order switch
+                {
+                    DateOrder.YMD => $"{dt.Year}/{dt.Month}/{dt.Day}",
+                    DateOrder.DMY => $"{dt.Day}/{dt.Month}/{dt.Year}",
+                    DateOrder.MDY => $"{dt.Month}/{dt.Day}/{dt.Year}",
+                    _ => $"{dt.Year}/{dt.Month}/{dt.Day}"
+                };
+            }
+
+            return $"{datePart} {time}";
+        }
+
+        private enum DateOrder { YMD, DMY, MDY }
+
+        /// <summary>
+        /// 将语言代码映射为日期顺序：
+        /// - YMD：中/日/韩（zh/ja/ko）
+        /// - DMY：欧洲、拉美、阿语、南亚等（de/es/fr/it/pt/ru/tr/vi/id/th/hi/bn/ar...）
+        /// - MDY：美国（en-US）
+        /// 其他默认 DMY。
+        /// </summary>
+        private static DateOrder GetDateOrder(string languageCode)
+        {
+            if (string.IsNullOrWhiteSpace(languageCode)) return DateOrder.DMY;
+            var tag = languageCode.Replace('_', '-').ToLowerInvariant();
+            var parts = tag.Split('-', StringSplitOptions.RemoveEmptyEntries);
+            var lang = parts.Length > 0 ? parts[0] : tag;
+
+            return lang switch
+            {
+                // 东亚：年-月-日
+                "zh" or "ja" or "ko" => DateOrder.YMD,
+
+                // 美国：月-日-年（仅 en-US 特例）
+                "en" => tag.StartsWith("en-us") ? DateOrder.MDY : DateOrder.DMY,
+
+                // 阿语：日-月-年
+                "ar" => DateOrder.DMY,
+
+                // 欧洲/拉美/南亚/东南亚等常见 DMY
+                "de" or "es" or "fr" or "it" or "pt" or "ru" or "tr" or "vi" or "id" or "th" or "hi" or "bn" => DateOrder.DMY,
+
+                _ => DateOrder.DMY
+            };
         }
 
         /// <summary>
@@ -752,6 +809,7 @@ namespace Game_Upgrade_Reminder.UI
             Text = AppTitle;
             // 根据语言自动应用 RTL，并在语言切换时动态更新
             RtlHelper.ApplyAndBind(_localizationService, this);
+            _dateFormat = new LocalizedDateFormatService(_localizationService);
             var iconPath = Path.Combine(AppContext.BaseDirectory, "YuanXi.ico");
             if (File.Exists(iconPath))
             {
@@ -778,6 +836,20 @@ namespace Game_Upgrade_Reminder.UI
             BuildMenu();
             BuildUi();
             WireEvents();
+
+            // 语言切换时更新日期格式与列表显示
+            _localizationService.LanguageChanged += (_, __) =>
+            {
+                try
+                {
+                    _dtpStart.CustomFormat = _dateFormat.GetDatePickerDateTimeFormat();
+                    RefreshTable();
+                }
+                catch
+                {
+                    // 忽略
+                }
+            };
 
             // 加载设置与任务
             LoadSettings();
@@ -1061,7 +1133,7 @@ namespace Game_Upgrade_Reminder.UI
             line2.Controls.Add(_lbStartTime, 0, 0);
 
             _dtpStart.Format = DateTimePickerFormat.Custom;
-            _dtpStart.CustomFormat = "yyyy-MM-dd HH:mm";
+            _dtpStart.CustomFormat = _dateFormat.GetDatePickerDateTimeFormat();
             _dtpStart.ShowUpDown = false;
             _dtpStart.Margin = new Padding(0, 2, 6, 2);
             _dtpStart.Anchor = AnchorStyles.Left;
@@ -1376,7 +1448,7 @@ namespace Game_Upgrade_Reminder.UI
                 var selectedTask = _listView.SelectedItems.Count > 0
                     ? _listView.SelectedItems[0].Tag as TaskItem
                     : null;
-                using var dlg = new RepeatSettingsForm(_localizationService);
+                using var dlg = new RepeatSettingsForm(_localizationService, _dateFormat);
                 dlg.CurrentSpec = selectedTask?.Repeat ??
                                   _currentRepeatSpec ?? new RepeatSpec { Mode = RepeatMode.None };
                 dlg.RepeatSpecChanged += (_, spec) =>
@@ -1737,11 +1809,11 @@ namespace Game_Upgrade_Reminder.UI
             btnLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             if (rtl)
             {
-                btnLayout.RightToLeft = RightToLeft.Yes;
-                btnLayout.Controls.Add(btnClose, 3, 0); // 最左
-                btnLayout.Controls.Add(new Panel { Dock = DockStyle.Fill }, 2, 0); // 伸缩填充（中间）
-                btnLayout.Controls.Add(btnUpdate, 1, 0);
-                btnLayout.Controls.Add(btnGitHub, 0, 0); // 最右
+                // RTL：关闭 | 填充 | 检查更新 | GitHub
+                btnLayout.Controls.Add(btnClose, 0, 0);
+                btnLayout.Controls.Add(new Panel { Dock = DockStyle.Fill }, 1, 0);
+                btnLayout.Controls.Add(btnUpdate, 2, 0);
+                btnLayout.Controls.Add(btnGitHub, 3, 0);
             }
             else
             {
@@ -2205,14 +2277,19 @@ namespace Game_Upgrade_Reminder.UI
                     : (t.Done
                         ? _localizationService.GetText("Action.UndoComplete", "撤销完成")
                         : _localizationService.GetText("Action.Complete", "完成"));
+                var startText = t.Start.HasValue
+                    ? _dateFormat.FormatDateTime(t.Start.Value, includeYear: true, includeSeconds: t.Start.Value.Second != 0)
+                    : string.Empty;
+                var finishText = _dateFormat.FormatDateTime(t.Finish, includeYear: true, includeSeconds: t.Finish.Second != 0);
+
                 var it = new ListViewItem(t.Account)
                 {
                     SubItems =
                     {
                         t.TaskName,
-                        t.StartStr,
+                        startText,
                         duration,
-                        t.FinishStr,
+                        finishText,
                         _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours, t.Remaining.Minutes,
                             t.Remaining.Seconds, true) ?? "",
                         repeatText,
