@@ -36,8 +36,18 @@ namespace Game_Upgrade_Reminder.Core.Services
         /// </remarks>
         public void Sort(BindingList<TaskItem> tasks)
         {
+            var now = DateTime.Now;
             var list = new List<TaskItem>(tasks);
-            list.Sort((a, b) => a.Finish.CompareTo(b.Finish));
+            list.Sort((a, b) =>
+            {
+                var aDue = a.AwaitingAck || a.Finish <= now;
+                var bDue = b.AwaitingAck || b.Finish <= now;
+
+                // 先按分组（到点/等待确认 优先）
+                if (aDue != bDue) return aDue ? -1 : 1;
+                // 组内按完成时间
+                return a.Finish.CompareTo(b.Finish);
+            });
             tasks.Clear();
             foreach (var t in list) tasks.Add(t);
         }
@@ -54,8 +64,22 @@ namespace Game_Upgrade_Reminder.Core.Services
         /// </remarks>
         public void Insert(BindingList<TaskItem> tasks, TaskItem item)
         {
+            var now = DateTime.Now;
+            bool IsDue(TaskItem t) => t.AwaitingAck || t.Finish <= now;
+
+            var newDue = IsDue(item);
             var i = 0;
-            while (i < tasks.Count && tasks[i].Finish <= item.Finish) i++;
+            for (; i < tasks.Count; i++)
+            {
+                var cur = tasks[i];
+                var curDue = IsDue(cur);
+
+                // 到点/等待确认 任务应排在未到点任务之前
+                if (newDue && !curDue) break;
+
+                // 同组内按完成时间升序
+                if (curDue == newDue && cur.Finish > item.Finish) break;
+            }
             tasks.Insert(i, item);
         }
     }

@@ -1856,9 +1856,21 @@ namespace Game_Upgrade_Reminder.UI
                         var cmp = xs.CompareTo(ys);
                         return asc ? cmp : -cmp;
                     }
-                    // 剩余时间列（以总秒数比较，可能为负）
+                    // 剩余时间列（以总秒数比较，可能为负）；AwaitingAck 视为“到点”分组
                     case 5 when tx is not null && ty is not null:
                     {
+                        var now = DateTime.Now;
+                        var xDueGroup = tx.AwaitingAck || tx.Finish <= now;
+                        var yDueGroup = ty.AwaitingAck || ty.Finish <= now;
+
+                        // 先按“是否到点/等待确认”分组：升序时到点组在前，降序相反
+                        if (xDueGroup != yDueGroup)
+                        {
+                            var cmpDue = xDueGroup ? -1 : 1;
+                            return asc ? cmpDue : -cmpDue;
+                        }
+
+                        // 同组内按剩余秒数比较（保持原有行为）
                         var xs = (int)tx.Remaining.TotalSeconds;
                         var ys = (int)ty.Remaining.TotalSeconds;
                         var cmp = xs.CompareTo(ys);
@@ -1868,17 +1880,13 @@ namespace Game_Upgrade_Reminder.UI
 
                 // 字符串比较
                 var result = string.Compare(xText, yText, StringComparison.Ordinal);
-
-                // 次级排序：按剩余时间升序
-                if (result != 0 || col == 5) return asc ? result : -result;
-
-                var xt = lvx.Tag as TaskItem;
-                var yt = lvy.Tag as TaskItem;
-                var xr = (int?)(xt?.Remaining.TotalSeconds) ?? 0;
-                var yr = (int?)(yt?.Remaining.TotalSeconds) ?? 0;
-                return xr.CompareTo(yr);
-
-                static int ToSeconds(TaskItem t) => t.Days * 86400 + t.Hours * 3600 + t.Minutes * 60;
+                return asc ? result : -result;
+            }
+            private static int ToSeconds(TaskItem t)
+            {
+                var total = (long)t.Days * 24 * 3600 + (long)t.Hours * 3600 + (long)t.Minutes * 60;
+                if (total <= 0) return 0;
+                return (int)Math.Min(total, int.MaxValue);
             }
         }
 
@@ -2211,8 +2219,7 @@ namespace Game_Upgrade_Reminder.UI
                         startText,
                         duration,
                         finishText,
-                        _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours, t.Remaining.Minutes,
-                            t.Remaining.Seconds, true) ?? "",
+                        GetRemainingText(t),
                         repeatText,
                         actionText,
                         t.PendingDelete
@@ -2259,9 +2266,25 @@ namespace Game_Upgrade_Reminder.UI
             foreach (ListViewItem row in _listView.Items)
             {
                 if (row.Tag is TaskItem t)
-                    row.SubItems[5].Text = _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours,
-                        t.Remaining.Minutes, t.Remaining.Seconds, true) ?? "";
+                    row.SubItems[5].Text = GetRemainingText(t);
             }
+        }
+
+        /// <summary>
+        /// 计算“剩余时间”列的显示文本：
+        /// - 若任务已提醒且等待确认，且未启用“提醒后暂停计时”，显示“到点”。
+        /// - 否则显示真实剩余时间（本地化）。
+        /// </summary>
+        private string GetRemainingText(TaskItem t)
+        {
+            var pauseUntilDone = t.Repeat?.IsPauseUntilDone == true;
+            var now = DateTime.Now;
+            var isDue = t.Finish <= now;
+            if (isDue || (t.AwaitingAck && !pauseUntilDone))
+                return _localizationService.GetText("Remaining.Due", "到点");
+
+            return _durationFormatter?.Format(t.Remaining.Days, t.Remaining.Hours,
+                t.Remaining.Minutes, t.Remaining.Seconds, true) ?? "";
         }
 
         /// <summary>
