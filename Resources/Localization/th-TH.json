@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "ทำซ้ำ",
   "ListView.Column.Complete": "เสร็จสิ้น",
   "ListView.Column.Delete": "ลบ",
+  "Remaining.Due": "ครบกำหนด",
   "About.Title": "เกี่ยวกับ",
   "About.AppName": "ตัวเตือนอัปเกรดเกม",
   "About.Description": "เครื่องมือตัวจับเวลาและการแจ้งเตือนสำหรับการอัปเกรดเกม (อาจใช้กับอย่างอื่นได้ด้วย :>)",

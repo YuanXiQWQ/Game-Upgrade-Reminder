@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "Répétition",
   "ListView.Column.Complete": "Terminé",
   "ListView.Column.Delete": "Supprimer",
+  "Remaining.Due": "Échu",
   "About.Title": "À propos",
   "About.AppName": "Rappel de mise à jour du jeu",
   "About.Description": "Outil de minuterie et rappel pour mises à jour de jeux (peut aussi servir ailleurs :>)",

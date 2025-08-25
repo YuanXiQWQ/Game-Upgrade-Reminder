@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "重複",
   "ListView.Column.Complete": "完成",
   "ListView.Column.Delete": "刪除",
+  "Remaining.Due": "到點",
   "About.Title": "關於",
   "About.AppName": "遊戲升級提醒",
   "About.Description": "遊戲升級計時與提醒工具（說不定還能拿來做其他用途 :>）",

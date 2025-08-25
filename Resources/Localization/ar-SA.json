@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "التكرار",
   "ListView.Column.Complete": "إكمال",
   "ListView.Column.Delete": "حذف",
+  "Remaining.Due": "مستحق",
   "About.Title": "حول",
   "About.AppName": "تنبيه ترقية اللعبة",
   "About.Description": "أداة عداد وتنبيه لترقية الألعاب (قد تصلح لأشياء أخرى :>)",

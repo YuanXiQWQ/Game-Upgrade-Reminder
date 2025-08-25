@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "Wiederholung",
   "ListView.Column.Complete": "Abgeschlossen",
   "ListView.Column.Delete": "Löschen",
+  "Remaining.Due": "Fällig",
   "About.Title": "Über",
   "About.AppName": "Spiel-Update-Erinnerung",
   "About.Description": "Timer- und Erinnerungs-Tool für Spiele-Updates (vielleicht auch anderweitig nützlich :>)",

@@ -188,6 +188,7 @@
   "ListView.Column.Repeat": "Repetir",
   "ListView.Column.Complete": "Completar",
   "ListView.Column.Delete": "Eliminar",
+  "Remaining.Due": "Vencido",
   "About.Title": "Acerca de",
   "About.AppName": "Recordatorio de actualización del juego",
   "About.Description": "Herramienta de temporizador y recordatorio para actualizaciones de juegos (quizá útil para más cosas :>)",
