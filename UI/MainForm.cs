@@ -2533,6 +2533,9 @@ namespace Game_Upgrade_Reminder.UI
         {
             var changed = false;
             var now = DateTime.Now;
+            // 收集合并的“提前/到点”通知，避免同一时刻弹出过多气泡
+            var advToasts = new List<(string Title, string Body)>();
+            var dueToasts = new List<(string Title, string Body)>();
             foreach (var t in _tasks)
             {
                 // 已完成或待删除的任务不再参与提醒
@@ -2565,7 +2568,7 @@ namespace Game_Upgrade_Reminder.UI
                         var body = string.Format(
                             _localizationService.GetText("Toast.Advance.Body", "{0} 即将到点，完成时间：{1}"), t.TaskName,
                             t.FinishStr);
-                        _notifier.Toast(title, body);
+                        advToasts.Add((title, body));
                         t.AdvanceNotified = true;
                         changed = true;
                     }
@@ -2608,7 +2611,7 @@ namespace Game_Upgrade_Reminder.UI
                     var title = string.Format(_localizationService.GetText("Toast.Due.Title", "[到点] {0}"), t.Account);
                     var body = string.Format(_localizationService.GetText("Toast.Due.Body", "{0} 完成时间：{1}"), t.TaskName,
                         t.FinishStr);
-                    _notifier.Toast(title, body);
+                    dueToasts.Add((title, body));
                 }
 
                 t.Notified = true;
@@ -2641,6 +2644,42 @@ namespace Game_Upgrade_Reminder.UI
                         t.Notified = false;
                         t.AdvanceNotified = false;
                         t.RepeatCursor += adv2; // 累计被跳过的发生
+                    }
+                }
+            }
+
+            // 统一发送“提前”通知：如同时有多条，则合并为一条
+            if (advToasts.Count > 0)
+            {
+                if (advToasts.Count >= 2)
+                {
+                    var titleAggA = _localizationService.GetText("Toast.Advance.Aggregated.Title", "[提前] 提醒");
+                    var bodyAggA = string.Format(_localizationService.GetText("Toast.Advance.Aggregated.Body", "{0} 项任务即将到点"), advToasts.Count);
+                    _notifier.Toast(titleAggA, bodyAggA);
+                }
+                else
+                {
+                    foreach (var (title, body) in advToasts)
+                    {
+                        _notifier.Toast(title, body);
+                    }
+                }
+            }
+
+            // 统一发送“到点”通知：如同时有多条，则合并为一条
+            if (dueToasts.Count > 0)
+            {
+                if (dueToasts.Count >= 2)
+                {
+                    var titleAgg = _localizationService.GetText("Toast.Due.Aggregated.Title", "到点提醒");
+                    var bodyAgg = string.Format(_localizationService.GetText("Toast.Due.Aggregated.Body", "{0} 项任务已到点"), dueToasts.Count);
+                    _notifier.Toast(titleAgg, bodyAgg);
+                }
+                else
+                {
+                    foreach (var (title, body) in dueToasts)
+                    {
+                        _notifier.Toast(title, body);
                     }
                 }
             }
