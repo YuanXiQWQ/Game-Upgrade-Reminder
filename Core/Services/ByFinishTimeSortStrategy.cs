@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 实现按任务完成时间升序排序的策略类，用于任务列表的排序和插入
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-15
+ * 最后修改: 2025-09-01
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -45,7 +45,14 @@ namespace Game_Upgrade_Reminder.Core.Services
 
                 // 先按分组（到点/等待确认 优先）
                 if (aDue != bDue) return aDue ? -1 : 1;
-                // 组内按完成时间
+                // 组内排序：
+                // - 到点/待确认：优先按账号名称升序，再按完成时间（便于一次性处理同账号任务）
+                // - 未到点：保持原有行为，按完成时间升序
+                if (aDue && bDue)
+                {
+                    var accCmp = string.Compare(a.Account, b.Account, StringComparison.Ordinal);
+                    if (accCmp != 0) return accCmp;
+                }
                 return a.Finish.CompareTo(b.Finish);
             });
             tasks.Clear();
@@ -77,8 +84,22 @@ namespace Game_Upgrade_Reminder.Core.Services
                 // 到点/等待确认 任务应排在未到点任务之前
                 if (newDue && !curDue) break;
 
-                // 同组内按完成时间升序
-                if (curDue == newDue && cur.Finish > item.Finish) break;
+                // 同组内插入规则：
+                // - 到点/待确认：先按账号升序，再按完成时间升序
+                if (curDue == newDue)
+                {
+                    if (newDue)
+                    {
+                        var accCmp = string.Compare(item.Account, cur.Account, StringComparison.Ordinal);
+                        if (accCmp < 0) break;
+                        if (accCmp == 0 && cur.Finish > item.Finish) break;
+                    }
+                    else
+                    {
+                        // 未到点：按完成时间升序
+                        if (cur.Finish > item.Finish) break;
+                    }
+                }
             }
             tasks.Insert(i, item);
         }
