@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-24
+ * 最后修改: 2025-09-01
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -102,7 +102,7 @@ namespace Game_Upgrade_Reminder.UI
 
         private readonly ILocalizationService _localizationService =
             new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
-        
+
         private IDurationFormatter? _durationFormatter;
         private readonly IDateFormatService _dateFormat;
 
@@ -1874,7 +1874,15 @@ namespace Game_Upgrade_Reminder.UI
                             return asc ? cmpDue : -cmpDue;
                         }
 
-                        // 同组内按剩余秒数比较（保持原有行为）
+                        // 组内规则：
+                        // - 到点/待确认：优先按账号名称升序，再按剩余秒数（点击列头切换时，仅反转“时间”比较，账号始终升序）
+                        // - 未到点：保持原有行为，仅按剩余秒数
+                        if (xDueGroup && yDueGroup)
+                        {
+                            var accCmp = string.Compare(tx.Account, ty.Account, StringComparison.Ordinal);
+                            if (accCmp != 0) return accCmp;
+                        }
+
                         var xs = (int)tx.Remaining.TotalSeconds;
                         var ys = (int)ty.Remaining.TotalSeconds;
                         var cmp = xs.CompareTo(ys);
@@ -1886,6 +1894,7 @@ namespace Game_Upgrade_Reminder.UI
                 var result = string.Compare(xText, yText, StringComparison.Ordinal);
                 return asc ? result : -result;
             }
+
             private static int ToSeconds(TaskItem t)
             {
                 var total = (long)t.Days * 24 * 3600 + (long)t.Hours * 3600 + (long)t.Minutes * 60;
@@ -2211,9 +2220,11 @@ namespace Game_Upgrade_Reminder.UI
                         ? _localizationService.GetText("Action.UndoComplete", "撤销完成")
                         : _localizationService.GetText("Action.Complete", "完成"));
                 var startText = t.Start.HasValue
-                    ? _dateFormat.FormatDateTime(t.Start.Value, includeYear: true, includeSeconds: t.Start.Value.Second != 0)
+                    ? _dateFormat.FormatDateTime(t.Start.Value, includeYear: true,
+                        includeSeconds: t.Start.Value.Second != 0)
                     : string.Empty;
-                var finishText = _dateFormat.FormatDateTime(t.Finish, includeYear: true, includeSeconds: t.Finish.Second != 0);
+                var finishText =
+                    _dateFormat.FormatDateTime(t.Finish, includeYear: true, includeSeconds: t.Finish.Second != 0);
 
                 var it = new ListViewItem(t.Account)
                 {
@@ -2372,7 +2383,7 @@ namespace Game_Upgrade_Reminder.UI
                                 t.RepeatCursor += adv;
                             }
                         }
-
+                        if (_sortMode == SortMode.DefaultByFinish) _sortStrategy.Sort(_tasks);
                         SaveTasks();
                         RefreshTable();
                         RescheduleNextTick();
@@ -2381,6 +2392,7 @@ namespace Game_Upgrade_Reminder.UI
 
                     t.Done = !t.Done;
                     t.CompletedTime = t.Done ? DateTime.Now : null;
+                    if (_sortMode == SortMode.DefaultByFinish) _sortStrategy.Sort(_tasks);
                     SaveTasks();
                     RefreshTable();
                     RescheduleNextTick();
@@ -2389,6 +2401,7 @@ namespace Game_Upgrade_Reminder.UI
                 case 8:
                     t.PendingDelete = !t.PendingDelete;
                     t.DeleteMarkTime = t.PendingDelete ? DateTime.Now : null;
+                    if (_sortMode == SortMode.DefaultByFinish) _sortStrategy.Sort(_tasks);
                     SaveTasks();
                     RefreshTable();
                     RescheduleNextTick();
@@ -2634,6 +2647,9 @@ namespace Game_Upgrade_Reminder.UI
 
             if (changed)
             {
+                // 当任务到点/进入等待确认或被推进到下一发生时，默认排序应重排，
+                // 以便“到点/待确认”组内按账号名称优先显示
+                if (_sortMode == SortMode.DefaultByFinish) _sortStrategy.Sort(_tasks);
                 SaveTasks();
                 RefreshTable(); // 刷新以更新“完成时间/重复”列文本与已重复次数
             }
