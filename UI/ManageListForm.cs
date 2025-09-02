@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 提供升级任务的管理界面，支持添加、编辑、删除和排序任务
  * 创建日期: 2025-08-15
- * 最后修改: 2025-08-24
+ * 最后修改: 2025-09-02
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -25,6 +25,7 @@ namespace Game_Upgrade_Reminder.UI
     {
         private readonly ListBox _lb = new() { IntegralHeight = false };
         private readonly Button _btnAdd = new();
+        private readonly Button _btnEdit = new();
         private readonly Button _btnDel = new();
         private readonly Button _btnClose = new();
 
@@ -38,6 +39,12 @@ namespace Game_Upgrade_Reminder.UI
         /// 列表变更事件：当用户新增/删除项后立即触发，供调用方即时保存。
         /// </summary>
         public event EventHandler<ItemsChangedEventArgs>? ItemsChanged;
+
+        /// <summary>
+        /// 单项重命名事件：当用户在本窗口对选中项执行“编辑”并确认新名称时触发。
+        /// 订阅方可用于联动更新引用该名称的数据（例如任务列表中的账号/任务名）。
+        /// </summary>
+        public event EventHandler<ItemEditedEventArgs>? ItemEdited;
 
         /// <summary>
         /// 初始化管理窗口。
@@ -58,12 +65,14 @@ namespace Game_Upgrade_Reminder.UI
             RtlHelper.ApplyAndBind(locService, this);
 
             _btnAdd.Text = locService.GetText("Dialog.Add", "添加");
+            _btnEdit.Text = locService.GetText("Dialog.Edit", "编辑");
             _btnDel.Text = locService.GetText("Dialog.Delete", "删除");
             _btnClose.Text = locService.GetText("Dialog.Complete", "完成");
 
             _lb.SetBounds(10, 10, 260, 210);
             _btnAdd.SetBounds(280, 10, 80, 26);
-            _btnDel.SetBounds(280, 46, 80, 26);
+            _btnEdit.SetBounds(280, 46, 80, 26);
+            _btnDel.SetBounds(280, 82, 80, 26);
             _btnClose.SetBounds(280, 194, 80, 26);
 
             foreach (var s in Items) _lb.Items.Add(s);
@@ -97,9 +106,38 @@ namespace Game_Upgrade_Reminder.UI
 
                 OnItemsChanged();
             };
+            _btnEdit.Click += (_, _) =>
+            {
+                var i = _lb.SelectedIndex;
+                if (i < 0) return;
+
+                var oldName = _lb.Items[i].ToString() ?? string.Empty;
+                var dialogTitle = isAccountList
+                    ? locService.GetText("Dialog.EditAccount", "编辑账号")
+                    : locService.GetText("Dialog.EditTask", "编辑任务");
+                using var ib = new InputBox(locService, dialogTitle, locService.GetText("InputBox.Label.Name", "名称"));
+
+                // 预填旧值
+                var tbField = typeof(InputBox).GetField("_tb", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (tbField?.GetValue(ib) is TextBox tb)
+                {
+                    tb.Text = oldName;
+                    tb.SelectAll();
+                }
+
+                if (ib.ShowDialog(this) != DialogResult.OK) return;
+                var newName = ib.ResultText;
+                if (string.Equals(newName, oldName, StringComparison.Ordinal)) return;
+
+                // 更新列表与数据
+                Items[i] = newName;
+                _lb.Items[i] = newName;
+                OnItemsChanged();
+                OnItemEdited(oldName, newName);
+            };
             _btnClose.Click += (_, _) => { Close(); };
 
-            Controls.AddRange([_lb, _btnAdd, _btnDel, _btnClose]);
+            Controls.AddRange([_lb, _btnAdd, _btnEdit, _btnDel, _btnClose]);
         }
 
         /// <summary>
@@ -122,11 +160,35 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         /// <summary>
+        /// 触发 <see cref="ItemEdited"/> 事件，携带旧/新名称。
+        /// </summary>
+        private void OnItemEdited(string oldName, string newName)
+        {
+            try
+            {
+                ItemEdited?.Invoke(this, new ItemEditedEventArgs(oldName, newName));
+            }
+            catch
+            {
+                // 忽略
+            }
+        }
+
+        /// <summary>
         /// 事件参数：携带当前列表的快照。
         /// </summary>
         public sealed class ItemsChangedEventArgs(List<string> items) : EventArgs
         {
             public List<string> Items { get; } = items;
+        }
+
+        /// <summary>
+        /// 单项编辑事件参数：包含旧名称与新名称。
+        /// </summary>
+        public sealed class ItemEditedEventArgs(string oldName, string newName) : EventArgs
+        {
+            public string OldName { get; } = oldName;
+            public string NewName { get; } = newName;
         }
     }
 }
