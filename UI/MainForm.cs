@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-09-01
+ * 最后修改: 2025-09-02
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -2906,6 +2906,77 @@ namespace Game_Upgrade_Reminder.UI
                 }
 
                 SaveSettings();
+            };
+            // 重命名联动：更新现有任务中的账号/任务名，并持久化到 tasks.json
+            dlg.ItemEdited += (_, e) =>
+            {
+                var oldName = e.OldName;
+                var newName = e.NewName;
+                var changedAny = false;
+
+                for (int i = 0; i < _tasks.Count; i++)
+                {
+                    var t = _tasks[i];
+                    if (isAccount)
+                    {
+                        if (!string.Equals(t.Account, oldName, StringComparison.Ordinal)) continue;
+                        var nt = new TaskItem
+                        {
+                            Account = newName,
+                            TaskName = t.TaskName,
+                            Start = t.Start,
+                            Days = t.Days,
+                            Hours = t.Hours,
+                            Minutes = t.Minutes,
+                            Finish = t.Finish,
+                            Notified = t.Notified,
+                            AdvanceNotified = t.AdvanceNotified,
+                            AwaitingAck = t.AwaitingAck,
+                            Done = t.Done,
+                            CompletedTime = t.CompletedTime,
+                            PendingDelete = t.PendingDelete,
+                            DeleteMarkTime = t.DeleteMarkTime,
+                            Repeat = t.Repeat,
+                            RepeatCount = t.RepeatCount,
+                            RepeatCursor = t.RepeatCursor
+                        };
+                        _tasks[i] = nt;
+                        changedAny = true;
+                    }
+                    else
+                    {
+                        if (!string.Equals(t.TaskName, oldName, StringComparison.Ordinal)) continue;
+                        var nt = new TaskItem
+                        {
+                            Account = t.Account,
+                            TaskName = newName,
+                            Start = t.Start,
+                            Days = t.Days,
+                            Hours = t.Hours,
+                            Minutes = t.Minutes,
+                            Finish = t.Finish,
+                            Notified = t.Notified,
+                            AdvanceNotified = t.AdvanceNotified,
+                            AwaitingAck = t.AwaitingAck,
+                            Done = t.Done,
+                            CompletedTime = t.CompletedTime,
+                            PendingDelete = t.PendingDelete,
+                            DeleteMarkTime = t.DeleteMarkTime,
+                            Repeat = t.Repeat,
+                            RepeatCount = t.RepeatCount,
+                            RepeatCursor = t.RepeatCursor
+                        };
+                        _tasks[i] = nt;
+                        changedAny = true;
+                    }
+                }
+
+                if (changedAny)
+                {
+                    if (_sortMode == SortMode.DefaultByFinish) _sortStrategy.Sort(_tasks);
+                    SaveTasks();
+                    RefreshTable();
+                }
             };
             dlg.ShowDialog(this);
         }
