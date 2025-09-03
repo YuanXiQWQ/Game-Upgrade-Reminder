@@ -212,7 +212,7 @@ namespace Game_Upgrade_Reminder.UI
                 var isRepeat = spec?.IsRepeat == true;
                 var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
                 var targetFinish = inSkipPhase
-                    ? CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _)
+                    ? ApplyRepeatOffset(t.Finish, CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _), spec!)
                     : t.Finish;
 
                 if (adv > 0 && !t.AdvanceNotified)
@@ -287,14 +287,29 @@ namespace Game_Upgrade_Reminder.UI
                     _dateFormat.FormatSmartDateTime(spec.EndAt.Value, DateTime.Now)));
             }
 
-            if (spec is { HasSkip: true, Skip: var s and not null })
+            if (spec is { HasSkip: true, Skip: var skipRule and not null })
             {
-                parts.Add(_localizationService.GetFormattedText("Repeat.Skip", s.RemindTimes, s.SkipTimes));
+                parts.Add(_localizationService.GetFormattedText("Repeat.Skip", skipRule.RemindTimes, skipRule.SkipTimes));
             }
 
             if (spec.PauseUntilDone)
             {
                 parts.Add(_localizationService.GetText("Repeat.PauseUntilDone", "提醒后暂停直到确认"));
+            }
+
+            if (spec.OffsetAfterSeconds != 0)
+            {
+                var dirText = spec.OffsetAfterSeconds < 0 ? "提醒后提前" : "提醒后延后";
+                var abs = Math.Abs(spec.OffsetAfterSeconds);
+                var h = abs / 3600;
+                var m = (abs % 3600) / 60;
+                var secs = abs % 60;
+                var units = new List<string>();
+                if (h > 0) units.Add(_localizationService.GetFormattedText("Time.Hours", h));
+                if (m > 0) units.Add(_localizationService.GetFormattedText("Time.Minutes", m));
+                if (secs > 0) units.Add(_localizationService.GetFormattedText("Time.Seconds", secs));
+                var text = units.Count > 0 ? string.Join("", units) : "0秒";
+                parts.Add($"{dirText} {text}");
             }
 
             return string.Join("，", parts);
@@ -2372,7 +2387,8 @@ namespace Game_Upgrade_Reminder.UI
                             // 暂停模式：从“现在”起开始下一次计时，并跨越跳过段
                             t.RepeatCount++;
                             var first = CalcNextOccurrence(DateTime.Now, spec);
-                            var nextEff = CalcNextEffectiveOccurrence(first, spec, t.RepeatCursor, out var adv);
+                            var baseNext = CalcNextEffectiveOccurrence(first, spec, t.RepeatCursor, out var adv);
+                            var nextEff = ApplyRepeatOffset(DateTime.Now, baseNext, spec);
                             if (spec is { EndAt: not null } && nextEff > spec.EndAt!.Value)
                             {
                                 t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
@@ -2586,7 +2602,8 @@ namespace Game_Upgrade_Reminder.UI
                     changed = true;
                     if (isRepeat)
                     {
-                        var nextEff = CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out var advanced);
+                        var baseNext = CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out var advanced);
+                        var nextEff = ApplyRepeatOffset(t.Finish, baseNext, spec!);
                         if (spec!.HasEnd && nextEff > spec.EndAt!.Value)
                         {
                             t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
@@ -2633,7 +2650,8 @@ namespace Game_Upgrade_Reminder.UI
                     t.RepeatCount++;
                     // 基于下一次发生时间，跨越所有处于跳过段的发生
                     var first = CalcNextOccurrence(t.Finish, spec!);
-                    var nextEff = CalcNextEffectiveOccurrence(first, spec!, t.RepeatCursor, out var adv2);
+                    var baseNext = CalcNextEffectiveOccurrence(first, spec!, t.RepeatCursor, out var adv2);
+                    var nextEff = ApplyRepeatOffset(t.Finish, baseNext, spec!);
                     if (spec!.HasEnd && nextEff > spec.EndAt!.Value)
                     {
                         t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
@@ -2720,7 +2738,7 @@ namespace Game_Upgrade_Reminder.UI
                     var isRepeat = spec?.IsRepeat == true;
                     var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
                     var targetFinish = inSkipPhase
-                        ? CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _)
+                        ? ApplyRepeatOffset(t.Finish, CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _), spec!)
                         : t.Finish;
 
                     // 候选1：提前提醒时间点（若启用且尚未提前提醒）
@@ -2828,6 +2846,19 @@ namespace Game_Upgrade_Reminder.UI
                 guard++;
             }
 
+            return next;
+        }
+
+        // 应用“提醒后偏移”到下一次发生时间；并做防回退保护：不得早于基准时间的下一秒
+        private static DateTime ApplyRepeatOffset(DateTime baseline, DateTime nextBase, RepeatSpec spec)
+        {
+            var next = nextBase;
+            var off = spec.OffsetAfterSeconds;
+            if (off != 0)
+            {
+                next = next.AddSeconds(off);
+            }
+            if (next <= baseline) next = baseline.AddSeconds(1);
             return next;
         }
 
