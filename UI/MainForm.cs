@@ -299,7 +299,9 @@ namespace Game_Upgrade_Reminder.UI
 
             if (spec.OffsetAfterSeconds != 0)
             {
-                var dirText = spec.OffsetAfterSeconds < 0 ? "提醒后提前" : "提醒后延后";
+                var dirText = spec.OffsetAfterSeconds < 0
+                    ? _localizationService.GetText("Repeat.Offset.Advance", "提醒后提前")
+                    : _localizationService.GetText("Repeat.Offset.Delay", "提醒后延后");
                 var abs = Math.Abs(spec.OffsetAfterSeconds);
                 var h = abs / 3600;
                 var m = (abs % 3600) / 60;
@@ -308,8 +310,8 @@ namespace Game_Upgrade_Reminder.UI
                 if (h > 0) units.Add(_localizationService.GetFormattedText("Time.Hours", h));
                 if (m > 0) units.Add(_localizationService.GetFormattedText("Time.Minutes", m));
                 if (secs > 0) units.Add(_localizationService.GetFormattedText("Time.Seconds", secs));
-                var text = units.Count > 0 ? string.Join("", units) : "0秒";
-                parts.Add($"{dirText} {text}");
+                var text = units.Count > 0 ? string.Join(" ", units) : _localizationService.GetFormattedText("Time.Seconds", 0);
+                parts.Add($"{dirText}{text}");
             }
 
             return string.Join("，", parts);

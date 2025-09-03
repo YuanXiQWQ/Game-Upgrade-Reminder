@@ -49,6 +49,8 @@
   "Repeat.EndAt": "Đến {0}",
   "Repeat.Skip": "Bỏ qua {1} lần mỗi {0} lần nhắc",
   "Repeat.PauseUntilDone": "Tạm dừng sau khi nhắc cho đến khi xác nhận",
+  "Repeat.Offset.Advance": "Thực hiện sớm sau khi nhắc ",
+  "Repeat.Offset.Delay": "Trì hoãn sau khi nhắc ",
   "Time.Years": "{0} năm",
   "Time.Months": "{0} tháng",
   "Time.Days": "{0} ngày",

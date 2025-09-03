@@ -49,6 +49,8 @@
   "Repeat.EndAt": "{0} तक",
   "Repeat.Skip": "हर {0} रिमाइंडर के बाद {1} छोड़ें",
   "Repeat.PauseUntilDone": "रिमाइंडर के बाद पुष्टि तक रोकें",
+  "Repeat.Offset.Advance": "रिमाइंडर के बाद पहले करें ",
+  "Repeat.Offset.Delay": "रिमाइंडर के बाद विलंब करें ",
   "Time.Years": "{0} वर्ष",
   "Time.Months": "{0} माह",
   "Time.Days": "{0} दिन",

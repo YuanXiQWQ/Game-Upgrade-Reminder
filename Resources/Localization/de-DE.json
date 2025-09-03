@@ -49,6 +49,8 @@
   "Repeat.EndAt": "Bis {0}",
   "Repeat.Skip": "{1} Mal überspringen nach jeweils {0} Erinnerungen",
   "Repeat.PauseUntilDone": "Nach Erinnerung pausieren bis bestätigt",
+  "Repeat.Offset.Advance": "Nach der Erinnerung vorziehen ",
+  "Repeat.Offset.Delay": "Nach der Erinnerung verzögern ",
   "Time.Years": "{0} Jahre",
   "Time.Months": "{0} Monate",
   "Time.Days": "{0} Tage",

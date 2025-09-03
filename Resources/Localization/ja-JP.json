@@ -49,6 +49,8 @@
   "Repeat.EndAt": "{0}まで",
   "Repeat.Skip": "通知{0}回ごとに{1}回スキップ",
   "Repeat.PauseUntilDone": "確認されるまで通知を一時停止",
+  "Repeat.Offset.Advance": "リマインダー後に前倒し ",
+  "Repeat.Offset.Delay": "リマインダー後に遅らせる ",
   "Time.Years": "{0}年",
   "Time.Months": "{0}か月",
   "Time.Days": "{0}日",

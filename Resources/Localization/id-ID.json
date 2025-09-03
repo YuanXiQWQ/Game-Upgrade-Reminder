@@ -49,6 +49,8 @@
   "Repeat.EndAt": "Hingga {0}",
   "Repeat.Skip": "Lewati {1} kali setiap {0} pengingat",
   "Repeat.PauseUntilDone": "Jeda setelah pengingat sampai dikonfirmasi",
+  "Repeat.Offset.Advance": "Majukan setelah pengingat ",
+  "Repeat.Offset.Delay": "Tunda setelah pengingat ",
   "Time.Years": "{0} tahun",
   "Time.Months": "{0} bulan",
   "Time.Days": "{0} hari",
