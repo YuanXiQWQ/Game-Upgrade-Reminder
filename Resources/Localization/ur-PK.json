@@ -49,6 +49,8 @@
   "Repeat.EndAt": "اختتام {0}",
   "Repeat.Skip": "ہر {0} بار یاد دہانی کے بعد {1} بار چھوڑ دیں",
   "Repeat.PauseUntilDone": "اطلاع کے بعد تصدیق تک روک دیں",
+  "Repeat.Offset.Advance": "یاد دہانی کے بعد پہلے کریں ",
+  "Repeat.Offset.Delay": "یاد دہانی کے بعد تاخیر کریں ",
   "Time.Years": "{0} سال",
   "Time.Months": "{0} ماہ",
   "Time.Days": "{0} دن",

@@ -49,6 +49,8 @@
   "Repeat.EndAt": "ถึง {0}",
   "Repeat.Skip": "ข้าม {1} ครั้งทุก ๆ {0} การเตือน",
   "Repeat.PauseUntilDone": "หยุดชั่วคราวหลังเตือนจนกว่าจะยืนยัน",
+  "Repeat.Offset.Advance": "เลื่อนให้เร็วขึ้นหลังการเตือน ",
+  "Repeat.Offset.Delay": "เลื่อนให้ช้าลงหลังการเตือน ",
   "Time.Years": "{0} ปี",
   "Time.Months": "{0} เดือน",
   "Time.Days": "{0} วัน",

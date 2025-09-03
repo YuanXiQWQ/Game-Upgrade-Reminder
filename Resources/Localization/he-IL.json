@@ -49,6 +49,8 @@
   "Repeat.EndAt": "עד {0}",
   "Repeat.Skip": "כל {0} תזכורות דלג על {1}",
   "Repeat.PauseUntilDone": "השהה עד אישור לאחר התראה",
+  "Repeat.Offset.Advance": "הקדם לאחר התזכורת ",
+  "Repeat.Offset.Delay": "דחה לאחר התזכורת ",
   "Time.Years": "{0} שנים",
   "Time.Months": "{0} חודשים",
   "Time.Days": "{0} ימים",

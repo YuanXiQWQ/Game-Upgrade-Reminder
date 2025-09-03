@@ -49,6 +49,8 @@
   "Repeat.EndAt": "До {0}",
   "Repeat.Skip": "Пропускать {1} раз после каждых {0} напоминаний",
   "Repeat.PauseUntilDone": "Приостановить после напоминания до подтверждения",
+  "Repeat.Offset.Advance": "Перенести раньше после напоминания ",
+  "Repeat.Offset.Delay": "Отложить после напоминания ",
   "Time.Years": "{0} лет",
   "Time.Months": "{0} мес.",
   "Time.Days": "{0} дн.",

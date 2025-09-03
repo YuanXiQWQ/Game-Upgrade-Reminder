@@ -49,6 +49,8 @@
   "Repeat.EndAt": "{0} tarihine kadar",
   "Repeat.Skip": "Her {0} hatırlatıcıdan sonra {1} kez atla",
   "Repeat.PauseUntilDone": "Hatırlatıcıdan sonra onaylanana kadar duraklat",
+  "Repeat.Offset.Advance": "Hatırlatmadan sonra öne al ",
+  "Repeat.Offset.Delay": "Hatırlatmadan sonra ertele ",
   "Time.Years": "{0} yıl",
   "Time.Months": "{0} ay",
   "Time.Days": "{0} gün",

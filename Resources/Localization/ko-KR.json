@@ -49,6 +49,8 @@
   "Repeat.EndAt": "{0}까지",
   "Repeat.Skip": "알림 {0}회마다 {1}회 건너뛰기",
   "Repeat.PauseUntilDone": "알림 후 확인할 때까지 일시 정지",
+  "Repeat.Offset.Advance": "알림 후 앞당김 ",
+  "Repeat.Offset.Delay": "알림 후 지연 ",
   "Time.Years": "{0}년",
   "Time.Months": "{0}개월",
   "Time.Days": "{0}일",

@@ -49,6 +49,8 @@
   "Repeat.EndAt": "Fino a {0}",
   "Repeat.Skip": "Salta {1} volte ogni {0} promemoria",
   "Repeat.PauseUntilDone": "Metti in pausa dopo la notifica finché non confermi",
+  "Repeat.Offset.Advance": "Anticipare dopo il promemoria ",
+  "Repeat.Offset.Delay": "Ritardare dopo il promemoria ",
   "Time.Years": "{0} anni",
   "Time.Months": "{0} mesi",
   "Time.Days": "{0} giorni",

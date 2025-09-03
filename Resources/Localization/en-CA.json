@@ -49,6 +49,8 @@
   "Repeat.EndAt": "Until {0}",
   "Repeat.Skip": "Skip {1} times after every {0} reminders",
   "Repeat.PauseUntilDone": "Pause after reminder until acknowledged",
+  "Repeat.Offset.Advance": "Advance after reminder ",
+  "Repeat.Offset.Delay": "Delay after reminder ",
   "Time.Years": "{0} years",
   "Time.Months": "{0} months",
   "Time.Days": "{0} days",

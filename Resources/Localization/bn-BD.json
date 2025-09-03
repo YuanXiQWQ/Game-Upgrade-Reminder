@@ -49,6 +49,8 @@
   "Repeat.EndAt": "{0} পর্যন্ত",
   "Repeat.Skip": "প্রতি {0} বার রিমাইন্ডারের পর {1} বার বাদ দিন",
   "Repeat.PauseUntilDone": "রিমাইন্ডারের পরে নিশ্চিত না করা পর্যন্ত বিরতি দিন",
+  "Repeat.Offset.Advance": "রিমাইন্ডারের পরে আগে করুন ",
+  "Repeat.Offset.Delay": "রিমাইন্ডারের পরে বিলম্ব করুন ",
   "Time.Years": "{0} বছর",
   "Time.Months": "{0} মাস",
   "Time.Days": "{0} দিন",

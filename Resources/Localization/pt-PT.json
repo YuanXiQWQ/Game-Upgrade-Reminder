@@ -49,6 +49,8 @@
   "Repeat.EndAt": "Até {0}",
   "Repeat.Skip": "Saltar {1} vezes a cada {0} lembretes",
   "Repeat.PauseUntilDone": "Pausar após o lembrete até confirmar",
+  "Repeat.Offset.Advance": "Adiantar após o lembrete ",
+  "Repeat.Offset.Delay": "Atrasar após o lembrete ",
   "Time.Years": "{0} anos",
   "Time.Months": "{0} meses",
   "Time.Days": "{0} dias",

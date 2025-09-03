@@ -49,6 +49,8 @@
   "Repeat.EndAt": "تا {0}",
   "Repeat.Skip": "هر {0} بار یادآوری، {1} بار رد شود",
   "Repeat.PauseUntilDone": "پس از یادآوری مکث تا تأیید",
+  "Repeat.Offset.Advance": "تعجیل پس از یادآوری ",
+  "Repeat.Offset.Delay": "تأخیر پس از یادآوری ",
   "Time.Years": "{0} سال",
   "Time.Months": "{0} ماه",
   "Time.Days": "{0} روز",

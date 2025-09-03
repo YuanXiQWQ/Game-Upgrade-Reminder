@@ -3,7 +3,7 @@
  * 作者: YuanXiQWQ
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 创建日期: 2025-08-21
- * 最后修改: 2025-08-21
+ * 最后修改: 2025-09-02
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -72,4 +72,10 @@ public sealed class RepeatSpec
     /// </summary>
     [JsonIgnore]
     public bool IsPauseUntilDone => PauseUntilDone;
+
+    /// <summary>
+    /// 提醒后对“下一次发生时间”的偏移量（单位：秒，可正可负，默认 0）。
+    /// 例如：-60 表示相比基础周期提前 1 分钟；+120 表示延后 2 分钟。
+    /// </summary>
+    public int OffsetAfterSeconds { get; init; }
 }

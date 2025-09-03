@@ -3,7 +3,7 @@
  * 作者: YuanXiQWQ
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 创建日期: 2025-08-21
- * 最后修改: 2025-08-24
+ * 最后修改: 2025-09-02
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -61,6 +61,14 @@ namespace Game_Upgrade_Reminder.UI
         // 提醒后暂停直到用户确认
         private readonly CheckBox _chkPause;
 
+        // 提醒后偏移（可选）：启用、方向（提前/延后）、时/分/秒
+        private readonly CheckBox _chkOffsetEnable;
+        private readonly RadioButton _rbOffsetAdvance; // 提前（负偏移）
+        private readonly RadioButton _rbOffsetDelay;   // 延后（正偏移）
+        private readonly NumericUpDown _offsetHours;
+        private readonly NumericUpDown _offsetMinutes;
+        private readonly NumericUpDown _offsetSeconds;
+
         // 校验与提示
         private readonly Label _lblHint;
 
@@ -117,6 +125,14 @@ namespace Game_Upgrade_Reminder.UI
             _numSkipTimes = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
 
             _chkPause = new CheckBox { Text = _localizationService.GetText("RepeatSettings.Pause.PauseAfterReminder", "提醒后暂停计时，直到确认"), AutoSize = true, Anchor = AnchorStyles.Left };
+
+            // 偏移控件初始化
+            _chkOffsetEnable = new CheckBox { Text = _localizationService.GetText("RepeatSettings.Offset.Enable", "启用提醒后偏移"), AutoSize = true, Anchor = AnchorStyles.Left };
+            _rbOffsetAdvance = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Offset.Advance", "提前"), AutoSize = true, Anchor = AnchorStyles.Left };
+            _rbOffsetDelay = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Offset.Delay", "延后"), AutoSize = true, Anchor = AnchorStyles.Left, Checked = true };
+            _offsetHours = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+            _offsetMinutes = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+            _offsetSeconds = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
 
             _lblHint = new Label { AutoSize = true };
 
@@ -238,6 +254,29 @@ namespace Game_Upgrade_Reminder.UI
             gbPause.Controls.Add(tlPause);
             root.Controls.Add(gbPause, 0, 4);
 
+            // 4.8) 偏移规则
+            var gbOffset = new GroupBox
+            {
+                Text = _localizationService.GetText("RepeatSettings.Group.OffsetRule", "偏移规则"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+            };
+            var tlOffset = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 12 };
+            for (var i = 0; i < 12; i++) tlOffset.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            // 第1行：启用 + 方向
+            tlOffset.Controls.Add(_chkOffsetEnable, 0, 0);
+            tlOffset.SetColumnSpan(_chkOffsetEnable, 3);
+            tlOffset.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Offset.Direction", "方向")), 3, 0);
+            tlOffset.Controls.Add(_rbOffsetAdvance, 4, 0);
+            tlOffset.Controls.Add(_rbOffsetDelay, 5, 0);
+            // 第2行：时分秒
+            tlOffset.Controls.Add(_offsetHours, 0, 1);
+            tlOffset.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Hour", "时")), 1, 1);
+            tlOffset.Controls.Add(_offsetMinutes, 2, 1);
+            tlOffset.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Minute", "分")), 3, 1);
+            tlOffset.Controls.Add(_offsetSeconds, 4, 1);
+            tlOffset.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Unit.Second", "秒")), 5, 1);
+            gbOffset.Controls.Add(tlOffset);
+            root.Controls.Add(gbOffset, 0, 5);
+
             // 5) 提示区（左对齐）：显示校验/提示信息
             var pnlHint = new FlowLayoutPanel
             {
@@ -250,7 +289,7 @@ namespace Game_Upgrade_Reminder.UI
             _lblHint.ForeColor = SystemColors.GrayText;
             _lblHint.Text = string.Empty;
             pnlHint.Controls.Add(_lblHint);
-            root.Controls.Add(pnlHint, 0, 5);
+            root.Controls.Add(pnlHint, 0, 6);
 
             // 6) 按钮区（右对齐）：确定 / 取消
             var pnlButtons = new FlowLayoutPanel
@@ -265,7 +304,7 @@ namespace Game_Upgrade_Reminder.UI
             var btnCancel = new Button { Text = _localizationService.GetText("Common.Cancel", "取消"), AutoSize = true };
             pnlButtons.Controls.Add(btnOk);
             pnlButtons.Controls.Add(btnCancel);
-            root.Controls.Add(pnlButtons, 0, 6);
+            root.Controls.Add(pnlButtons, 0, 7);
 
             Controls.Add(root);
 
@@ -363,6 +402,18 @@ namespace Game_Upgrade_Reminder.UI
                 CueChange();
             };
 
+            // 偏移：启用、方向、数值变化
+            _chkOffsetEnable.CheckedChanged += (_, _) =>
+            {
+                UpdateEnabledState();
+                CueChange();
+            };
+            _rbOffsetAdvance.CheckedChanged += (_, _) => { CueChange(); };
+            _rbOffsetDelay.CheckedChanged += (_, _) => { CueChange(); };
+            _offsetHours.ValueChanged += (_, _) => { CueChange(); };
+            _offsetMinutes.ValueChanged += (_, _) => { CueChange(); };
+            _offsetSeconds.ValueChanged += (_, _) => { CueChange(); };
+
             UpdateEnabledState();
             UpdateValidationMessage();
 
@@ -443,6 +494,12 @@ namespace Game_Upgrade_Reminder.UI
             // 暂停选项
             _chkPause.Enabled = !noPeriod;
 
+            // 偏移选项整体启用：当存在周期时才可用
+            _chkOffsetEnable.Enabled = !noPeriod;
+            var offsetDetailEnabled = !noPeriod && _chkOffsetEnable.Checked;
+            foreach (var ctl in new Control[] { _rbOffsetAdvance, _rbOffsetDelay, _offsetHours, _offsetMinutes, _offsetSeconds })
+                ctl.Enabled = offsetDetailEnabled;
+
             UpdateValidationMessage();
         }
 
@@ -501,13 +558,19 @@ namespace Game_Upgrade_Reminder.UI
                 };
             }
 
+            // 偏移秒数（可正可负）：提前为负，延后为正；未启用则为 0
+            var totalSeconds = (int)_offsetHours.Value * 3600 + (int)_offsetMinutes.Value * 60 + (int)_offsetSeconds.Value;
+            var sign = _rbOffsetAdvance.Checked ? -1 : 1;
+            var offsetSeconds = (_chkOffsetEnable.Checked && totalSeconds > 0) ? sign * totalSeconds : 0;
+
             return new RepeatSpec
             {
                 Mode = mode,
                 Custom = mode == RepeatMode.Custom ? custom : null,
                 EndAt = endAt,
                 Skip = skip,
-                PauseUntilDone = _chkPause.Checked
+                PauseUntilDone = _chkPause.Checked,
+                OffsetAfterSeconds = offsetSeconds
             };
         }
 
@@ -602,6 +665,30 @@ namespace Game_Upgrade_Reminder.UI
                 _numSkipTimes.Value = s?.SkipTimes > 0 ? s.SkipTimes : 0;
 
                 _chkPause.Checked = spec.PauseUntilDone;
+
+                // 回填偏移
+                var off = spec.OffsetAfterSeconds;
+                if (off == 0)
+                {
+                    _chkOffsetEnable.Checked = false;
+                    _rbOffsetDelay.Checked = true; // 默认“延后”
+                    _offsetHours.Value = 0;
+                    _offsetMinutes.Value = 0;
+                    _offsetSeconds.Value = 0;
+                }
+                else
+                {
+                    _chkOffsetEnable.Checked = true;
+                    _rbOffsetAdvance.Checked = off < 0;
+                    _rbOffsetDelay.Checked = off > 0;
+                    var abs = Math.Abs(off);
+                    var h = abs / 3600;
+                    var m = (abs % 3600) / 60;
+                    var sec = abs % 60;
+                    _offsetHours.Value = Math.Min(_offsetHours.Maximum, h);
+                    _offsetMinutes.Value = Math.Min(_offsetMinutes.Maximum, m);
+                    _offsetSeconds.Value = Math.Min(_offsetSeconds.Maximum, sec);
+                }
 
                 UpdateEnabledState();
             }
