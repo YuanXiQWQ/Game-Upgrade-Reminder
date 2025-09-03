@@ -304,6 +304,16 @@ namespace Game_Upgrade_Reminder.UI
             _miFont.Text = _localizationService.GetText("Menu.Font", "选择字体(&F)...");
             _miLanguage.Text = _localizationService.GetText("Menu.Language", "语言(&L)");
             _miAutoStart.Text = _localizationService.GetText("Menu.AutoStart", "开机自启(&A)");
+            // 新增“配置”菜单及子项
+            _miConfig.Text = _localizationService.GetText("Menu.Config", "配置(&C)");
+            _miExportConfig.Text = _localizationService.GetText("Menu.Config.Export", "导出配置文件(&E)...");
+            _miExportConfig.AccessibleName = _localizationService.GetText("Menu.Config.Export.Name", "导出配置文件");
+            _miExportConfig.AccessibleDescription = _localizationService.GetText("Menu.Config.Export.Description", "将 settings.json 与 tasks.json 打包为 config.zip");
+
+            _miImportConfig.Text = _localizationService.GetText("Menu.Config.Import", "导入配置文件(&I)...");
+            _miImportConfig.AccessibleName = _localizationService.GetText("Menu.Config.Import.Name", "导入配置文件");
+            _miImportConfig.AccessibleDescription = _localizationService.GetText("Menu.Config.Import.Description", "从 config.zip 或 JSON 文件导入配置");
+
             _miOpenConfig.Text = _localizationService.GetText("Menu.OpenConfig", "打开配置文件夹(&O)");
             _miOpenConfig.AccessibleName = _localizationService.GetText("Menu.OpenConfig.Name", "打开配置文件夹");
             _miOpenConfig.AccessibleDescription =

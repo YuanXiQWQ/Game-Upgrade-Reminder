@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-09-02
+ * 最后修改: 2025-09-03
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -102,6 +102,7 @@ namespace Game_Upgrade_Reminder.UI
 
         private readonly ILocalizationService _localizationService =
             new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
+        private readonly IConfigTransferService _configTransfer = new ConfigTransferService();
 
         private IDurationFormatter? _durationFormatter;
         private readonly IDateFormatService _dateFormat;
@@ -430,6 +431,215 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
+        /// <summary>
+        /// 导出配置文件为 config.zip（包含 settings.json 与 tasks.json，若存在）。
+        /// </summary>
+        private void ExportConfig()
+        {
+            try
+            {
+                var baseDir = AppContext.BaseDirectory;
+                var result = _configTransfer.Export(baseDir);
+                switch (result.Status)
+                {
+                    case ExportStatus.Empty:
+                        MessageBox.Show(
+                            _localizationService.GetText("Export.Empty", "未找到可导出的配置文件（settings.json / tasks.json）。"),
+                            _localizationService.GetText("Info.Title", "提示"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        return;
+                    case ExportStatus.Success:
+                        MessageBox.Show(
+                            _localizationService.GetFormattedText("Export.Success", result.ZipPath ?? string.Empty),
+                            _localizationService.GetText("Success.Title", "成功"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        return;
+                    case ExportStatus.Error:
+                        throw result.Error ?? new Exception("Export error");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    _localizationService.GetFormattedText("Error.ExportFailed", ex.Message),
+                    _localizationService.GetText("Error.Title", "错误"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 导入配置：支持选择 config.zip 或单个 settings.json / tasks.json。
+        /// </summary>
+        private void ImportConfig()
+        {
+            try
+            {
+                using var ofd = new OpenFileDialog
+                {
+                    Title = _localizationService.GetText("Import.DialogTitle", "选择要导入的配置文件"),
+                    Filter = _localizationService.GetText(
+                        "Import.Filter",
+                        "配置包 (*.zip)|*.zip|JSON 文件 (*.json)|*.json|所有文件 (*.*)|*.*"),
+                    CheckFileExists = true,
+                    Multiselect = true
+                };
+
+                if (ofd.ShowDialog(this) is not DialogResult.OK) return;
+
+                var baseDir = AppContext.BaseDirectory;
+
+                // 多选：支持同时选择 settings.json 与 tasks.json
+                if (ofd.FileNames is { Length: > 1 })
+                {
+                    // 如果包含非 .json 文件（例如 .zip 与 .json 混选），提示不支持
+                    foreach (var f in ofd.FileNames)
+                    {
+                        var ext = Path.GetExtension(f).ToLowerInvariant();
+                        if (ext != ".json")
+                        {
+                            MessageBox.Show(
+                                _localizationService.GetText("Import.InvalidFile", "不支持的文件类型。请选择 config.zip 或 settings.json / tasks.json。"),
+                                _localizationService.GetText("Error.Title", "错误"),
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                            return;
+                        }
+                    }
+
+                    var imported = 0;
+                    var importedSettings = false;
+                    var importedTasks = false;
+                    foreach (var f in ofd.FileNames)
+                    {
+                        var r = _configTransfer.Import(f, baseDir);
+                        switch (r.Status)
+                        {
+                            case ImportStatus.Error:
+                                throw r.Error ?? new Exception("Import error");
+                            case ImportStatus.InvalidFileType:
+                                continue;
+                            case ImportStatus.Success:
+                                if (r.SingleFileKind == SingleFileKind.Settings)
+                                {
+                                    imported++;
+                                    importedSettings = true;
+                                }
+                                else if (r.SingleFileKind == SingleFileKind.Tasks)
+                                {
+                                    imported++;
+                                    importedTasks = true;
+                                }
+                                break;
+                        }
+                    }
+
+                    if (imported == 0)
+                    {
+                        MessageBox.Show(
+                            _localizationService.GetText("Import.InvalidFile", "不支持的文件类型。请选择 config.zip 或 settings.json / tasks.json。"),
+                            _localizationService.GetText("Error.Title", "错误"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    // 应用已导入内容对应的刷新
+                    if (importedSettings)
+                    {
+                        LoadSettings();
+                        ApplySettingsToUi();
+                        UpdateMenuChecks();
+                    }
+                    if (importedTasks)
+                    {
+                        LoadTasks();
+                        RefreshTable();
+                    }
+
+                    MessageBox.Show(
+                        _localizationService.GetFormattedText("Import.Success", imported),
+                        _localizationService.GetText("Success.Title", "成功"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                // 单选：支持 zip 或单个 json
+                var filePath = ofd.FileName;
+                var res = _configTransfer.Import(filePath, baseDir);
+
+                switch (res.Status)
+                {
+                    case ImportStatus.ZipNoEntries:
+                        MessageBox.Show(
+                            _localizationService.GetText("Import.ZipNoEntries", "压缩包内未找到 settings.json 或 tasks.json。"),
+                            _localizationService.GetText("Error.Title", "错误"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    case ImportStatus.InvalidFileType:
+                        MessageBox.Show(
+                            _localizationService.GetText("Import.InvalidFile", "不支持的文件类型。请选择 config.zip 或 settings.json / tasks.json。"),
+                            _localizationService.GetText("Error.Title", "错误"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    case ImportStatus.Error:
+                        throw res.Error ?? new Exception("Import error");
+                    case ImportStatus.Success:
+                        break;
+                }
+
+                if (res.SingleFileKind == SingleFileKind.Settings)
+                {
+                    MessageBox.Show(
+                        _localizationService.GetText("Import.SettingsOnly", "已导入 settings.json。"),
+                        _localizationService.GetText("Success.Title", "成功"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    LoadSettings();
+                    ApplySettingsToUi();
+                    UpdateMenuChecks();
+                    return;
+                }
+
+                if (res.SingleFileKind == SingleFileKind.Tasks)
+                {
+                    MessageBox.Show(
+                        _localizationService.GetText("Import.TasksOnly", "已导入 tasks.json。"),
+                        _localizationService.GetText("Success.Title", "成功"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    LoadTasks();
+                    RefreshTable();
+                    return;
+                }
+
+                // zip 导入成功
+                MessageBox.Show(
+                    _localizationService.GetFormattedText("Import.Success", res.ImportedCount),
+                    _localizationService.GetText("Success.Title", "成功"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                LoadSettings();
+                ApplySettingsToUi();
+                LoadTasks();
+                RefreshTable();
+                UpdateMenuChecks();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    _localizationService.GetFormattedText("Error.ImportFailed", ex.Message),
+                    _localizationService.GetText("Error.Title", "错误"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
         private SortMode _sortMode = SortMode.DefaultByFinish;
         private int _customSortColumn = 4;
         private bool _customSortAsc = true;
@@ -538,6 +748,11 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripMenuItem _miFont = new();
         private readonly ToolStripMenuItem _miAutoStart = new();
         private readonly ToolStripMenuItem _miLanguage = new();
+
+        // 新增“配置”菜单与子项
+        private readonly ToolStripMenuItem _miConfig = new();
+        private readonly ToolStripMenuItem _miExportConfig = new();
+        private readonly ToolStripMenuItem _miImportConfig = new();
 
         // 悬浮显示的三个菜单项
         private readonly ToolStripMenuItem _miOpenConfig = new();
@@ -879,14 +1094,22 @@ namespace Game_Upgrade_Reminder.UI
             _miSettings.DropDownItems.Add(_miLanguage);
             _miSettings.DropDownItems.Add(new ToolStripSeparator());
             _miSettings.DropDownItems.Add(_miAutoStart);
-            _miSettings.DropDownItems.Add(_miOpenConfig);
             _miSettings.DropDownItems.Add(_miResetWindow);
             _miSettings.DropDownItems.Add(_miAutoDelete);
             _miSettings.DropDownItems.Add(_miAdvanceNotify);
             _miSettings.DropDownItems.Add(new ToolStripSeparator());
             _miSettings.DropDownItems.Add(_miCloseBehavior);
 
+            // 新增“配置”菜单：导出、导入、(分隔线)、打开配置文件夹（置底）
+            _miConfig.DropDownItems.AddRange([
+                _miExportConfig,
+                _miImportConfig,
+                new ToolStripSeparator(),
+                _miOpenConfig
+            ]);
+
             _menu.Items.Add(_miSettings);
+            _menu.Items.Add(_miConfig);
             _miAboutTop.Alignment = ToolStripItemAlignment.Left;
             _menu.Items.Add(_miAboutTop);
 
@@ -1277,6 +1500,8 @@ namespace Game_Upgrade_Reminder.UI
             _miFont.Click += (_, _) => DoChooseFont();
             _miAutoStart.Click += (_, _) => ToggleAutostart();
             _miOpenConfig.Click += (_, _) => OpenConfigFolder();
+            _miExportConfig.Click += (_, _) => ExportConfig();
+            _miImportConfig.Click += (_, _) => ImportConfig();
             _miResetWindow.Click += (_, _) => ResetWindowToDefault();
             // 自动删除下拉
             _miAutoDelete.DropDownOpening += (_, _) => UpdateAutoDeleteMenuChecks();
