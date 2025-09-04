@@ -41,6 +41,7 @@
         <Compile Include="Core\Abstractions\ILocalizationService.cs"/>
         <Compile Include="Core\Abstractions\IDateFormatService.cs"/>
         <Compile Include="Core\Abstractions\IConfigTransferService.cs"/>
+        <Compile Include="Core\Abstractions\ITextSortingService.cs"/>
 
         <Compile Include="Core\Services\ByFinishTimeSortStrategy.cs"/>
         <Compile Include="Core\Services\SimpleDeletionPolicy.cs"/>
@@ -50,6 +51,7 @@
         <Compile Include="Core\Services\ConfigTransferService.cs"/>
         <Compile Include="Core\Services\RtlHelper.cs"/>
         <Compile Include="Core\Services\LocalizedDateFormatService.cs"/>
+        <Compile Include="Core\Services\LocalizedTextSortingService.cs"/>
 
         <Compile Remove="Core\Services\ZhCnDurationFormatter.cs"/>
 
@@ -151,9 +153,9 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <AssemblyVersion>1.6.0.0</AssemblyVersion>
-        <FileVersion>1.6.0.0</FileVersion>
-        <InformationalVersion>1.6.0</InformationalVersion>
+        <AssemblyVersion>1.6.1.0</AssemblyVersion>
+        <FileVersion>1.6.1.0</FileVersion>
+        <InformationalVersion>1.6.1</InformationalVersion>
         <Company>YuanXiQWQ</Company>
         <Product>游戏升级提醒</Product>
         <Copyright>2025 YuanXiQWQ</Copyright>
