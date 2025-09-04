@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 基于JSON文件的本地化服务实现
  * 创建日期: 2025-08-22
- * 最后修改: 2025-08-24
+ * 最后修改: 2025-09-03
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -23,7 +23,6 @@ namespace Game_Upgrade_Reminder.Core.Services
     {
         private readonly string _localizationDirectory;
         private readonly Dictionary<string, Dictionary<string, string>> _translations = new();
-        private string _currentLanguage = "zh-CN";
 
         /// <summary>
         /// 初始化本地化服务
@@ -31,17 +30,17 @@ namespace Game_Upgrade_Reminder.Core.Services
         /// <param name="localizationDirectory">本地化文件目录路径</param>
         public JsonLocalizationService(string? localizationDirectory = null)
         {
-            _localizationDirectory = localizationDirectory ?? 
-                Path.Combine(AppContext.BaseDirectory, "Localization");
-            
+            _localizationDirectory = localizationDirectory ??
+                                     Path.Combine(AppContext.BaseDirectory, "Localization");
+
             LoadAvailableLanguages();
-            LoadLanguage(_currentLanguage);
+            LoadLanguage(CurrentLanguage);
         }
 
         /// <summary>
         /// 获取当前语言代码
         /// </summary>
-        public string CurrentLanguage => _currentLanguage;
+        public string CurrentLanguage { get; private set; } = "zh-CN";
 
         /// <summary>
         /// 获取所有可用的语言列表
@@ -60,21 +59,18 @@ namespace Game_Upgrade_Reminder.Core.Services
         /// <returns>是否设置成功</returns>
         public bool SetLanguage(string languageCode)
         {
-            if (string.IsNullOrWhiteSpace(languageCode) || languageCode == _currentLanguage)
+            if (string.IsNullOrWhiteSpace(languageCode) || languageCode == CurrentLanguage)
                 return false;
 
             if (!AvailableLanguages.Contains(languageCode))
                 return false;
 
-            var oldLanguage = _currentLanguage;
-            if (LoadLanguage(languageCode))
-            {
-                _currentLanguage = languageCode;
-                LanguageChanged?.Invoke(this, new LanguageChangedEventArgs(oldLanguage, _currentLanguage));
-                return true;
-            }
+            var oldLanguage = CurrentLanguage;
+            if (!LoadLanguage(languageCode)) return false;
 
-            return false;
+            CurrentLanguage = languageCode;
+            LanguageChanged?.Invoke(this, new LanguageChangedEventArgs(oldLanguage, CurrentLanguage));
+            return true;
         }
 
         /// <summary>
@@ -88,14 +84,14 @@ namespace Game_Upgrade_Reminder.Core.Services
             if (string.IsNullOrWhiteSpace(key))
                 return defaultValue ?? key;
 
-            if (_translations.TryGetValue(_currentLanguage, out var languageDict) &&
+            if (_translations.TryGetValue(CurrentLanguage, out var languageDict) &&
                 languageDict.TryGetValue(key, out var text))
             {
                 return text;
             }
 
             // 如果当前语言没有找到，尝试使用中文作为后备
-            if (_currentLanguage != "zh-CN" && 
+            if (CurrentLanguage != "zh-CN" &&
                 _translations.TryGetValue("zh-CN", out var fallbackDict) &&
                 fallbackDict.TryGetValue(key, out var fallbackText))
             {
@@ -134,14 +130,9 @@ namespace Game_Upgrade_Reminder.Core.Services
             if (Directory.Exists(_localizationDirectory))
             {
                 var jsonFiles = Directory.GetFiles(_localizationDirectory, "*.json");
-                foreach (var file in jsonFiles)
-                {
-                    var fileName = Path.GetFileNameWithoutExtension(file);
-                    if (!string.IsNullOrWhiteSpace(fileName))
-                    {
-                        languages.Add(fileName);
-                    }
-                }
+                languages.AddRange(jsonFiles
+                    .Select(Path.GetFileNameWithoutExtension)
+                    .Where(fileName => !string.IsNullOrWhiteSpace(fileName))!);
             }
 
             // 确保至少有中文
@@ -163,7 +154,7 @@ namespace Game_Upgrade_Reminder.Core.Services
             try
             {
                 var filePath = Path.Combine(_localizationDirectory, $"{languageCode}.json");
-                
+
                 if (!File.Exists(filePath))
                 {
                     // 如果文件不存在，创建一个空翻译字典
@@ -173,7 +164,7 @@ namespace Game_Upgrade_Reminder.Core.Services
 
                 var jsonContent = File.ReadAllText(filePath);
                 var translations = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonContent);
-                
+
                 if (translations != null)
                 {
                     _translations[languageCode] = translations;

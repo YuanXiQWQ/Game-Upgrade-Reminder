@@ -88,7 +88,7 @@ namespace Game_Upgrade_Reminder.Infrastructure.Repositories
             }
             catch
             {
-                // 静默失败，不抛出异常
+                // 忽略
             }
         }
     }

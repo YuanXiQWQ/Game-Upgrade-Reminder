@@ -64,7 +64,7 @@ namespace Game_Upgrade_Reminder.UI
         // 提醒后偏移（可选）：启用、方向（提前/延后）、时/分/秒
         private readonly CheckBox _chkOffsetEnable;
         private readonly RadioButton _rbOffsetAdvance; // 提前（负偏移）
-        private readonly RadioButton _rbOffsetDelay;   // 延后（正偏移）
+        private readonly RadioButton _rbOffsetDelay; // 延后（正偏移）
         private readonly NumericUpDown _offsetHours;
         private readonly NumericUpDown _offsetMinutes;
         private readonly NumericUpDown _offsetSeconds;
@@ -92,12 +92,18 @@ namespace Game_Upgrade_Reminder.UI
             _localizationService = localizationService;
 
             // 初始化本地化文本
-            _rbNone = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.None", "不重复"), AutoSize = true };
-            _rbDaily = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Daily", "每天"), AutoSize = true };
-            _rbWeekly = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Weekly", "每周"), AutoSize = true };
-            _rbMonthly = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Monthly", "每月"), AutoSize = true };
-            _rbYearly = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Yearly", "每年"), AutoSize = true };
-            _rbCustom = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Mode.Custom", "自定义"), AutoSize = true };
+            _rbNone = new RadioButton
+                { Text = _localizationService.GetText("RepeatSettings.Mode.None", "不重复"), AutoSize = true };
+            _rbDaily = new RadioButton
+                { Text = _localizationService.GetText("RepeatSettings.Mode.Daily", "每天"), AutoSize = true };
+            _rbWeekly = new RadioButton
+                { Text = _localizationService.GetText("RepeatSettings.Mode.Weekly", "每周"), AutoSize = true };
+            _rbMonthly = new RadioButton
+                { Text = _localizationService.GetText("RepeatSettings.Mode.Monthly", "每月"), AutoSize = true };
+            _rbYearly = new RadioButton
+                { Text = _localizationService.GetText("RepeatSettings.Mode.Yearly", "每年"), AutoSize = true };
+            _rbCustom = new RadioButton
+                { Text = _localizationService.GetText("RepeatSettings.Mode.Custom", "自定义"), AutoSize = true };
 
             _numYears = new NumericUpDown { Minimum = 0, Maximum = 1000, Width = 60, Anchor = AnchorStyles.Left };
             _numMonths = new NumericUpDown { Minimum = 0, Maximum = 1200, Width = 60, Anchor = AnchorStyles.Left };
@@ -119,20 +125,43 @@ namespace Game_Upgrade_Reminder.UI
             _endMinute = new NumericUpDown { Minimum = 0, Maximum = 59, Width = 60, Anchor = AnchorStyles.Left };
             _endSecond = new NumericUpDown { Minimum = 0, Maximum = 59, Width = 60, Anchor = AnchorStyles.Left };
 
-            _chkNoEnd = new CheckBox { Text = _localizationService.GetText("RepeatSettings.End.NoEnd", "无"), AutoSize = true, Anchor = AnchorStyles.Left };
+            _chkNoEnd = new CheckBox
+            {
+                Text = _localizationService.GetText("RepeatSettings.End.NoEnd", "无"), AutoSize = true,
+                Anchor = AnchorStyles.Left
+            };
 
-            _numRemindTimes = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
+            _numRemindTimes = new NumericUpDown
+                { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
             _numSkipTimes = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 80, Anchor = AnchorStyles.Left };
 
-            _chkPause = new CheckBox { Text = _localizationService.GetText("RepeatSettings.Pause.PauseAfterReminder", "提醒后暂停计时，直到确认"), AutoSize = true, Anchor = AnchorStyles.Left };
+            _chkPause = new CheckBox
+            {
+                Text = _localizationService.GetText("RepeatSettings.Pause.PauseAfterReminder", "提醒后暂停计时，直到确认"),
+                AutoSize = true, Anchor = AnchorStyles.Left
+            };
 
             // 偏移控件初始化
-            _chkOffsetEnable = new CheckBox { Text = _localizationService.GetText("RepeatSettings.Offset.Enable", "启用提醒后偏移"), AutoSize = true, Anchor = AnchorStyles.Left };
-            _rbOffsetAdvance = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Offset.Advance", "提前"), AutoSize = true, Anchor = AnchorStyles.Left };
-            _rbOffsetDelay = new RadioButton { Text = _localizationService.GetText("RepeatSettings.Offset.Delay", "延后"), AutoSize = true, Anchor = AnchorStyles.Left, Checked = true };
+            _chkOffsetEnable = new CheckBox
+            {
+                Text = _localizationService.GetText("RepeatSettings.Offset.Enable", "启用提醒后偏移"), AutoSize = true,
+                Anchor = AnchorStyles.Left
+            };
+            _rbOffsetAdvance = new RadioButton
+            {
+                Text = _localizationService.GetText("RepeatSettings.Offset.Advance", "提前"), AutoSize = true,
+                Anchor = AnchorStyles.Left
+            };
+            _rbOffsetDelay = new RadioButton
+            {
+                Text = _localizationService.GetText("RepeatSettings.Offset.Delay", "延后"), AutoSize = true,
+                Anchor = AnchorStyles.Left, Checked = true
+            };
             _offsetHours = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
-            _offsetMinutes = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
-            _offsetSeconds = new NumericUpDown { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+            _offsetMinutes = new NumericUpDown
+                { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
+            _offsetSeconds = new NumericUpDown
+                { Minimum = 0, Maximum = 100000, Width = 60, Anchor = AnchorStyles.Left };
 
             _lblHint = new Label { AutoSize = true };
 
@@ -181,17 +210,21 @@ namespace Game_Upgrade_Reminder.UI
 
             // 1) 模式
             var gbMode = new GroupBox
-                { Text = _localizationService.GetText("RepeatSettings.Group.Mode", "模式"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10) };
+            {
+                Text = _localizationService.GetText("RepeatSettings.Group.Mode", "模式"), AutoSize = true,
+                Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+            };
             var pnlModes = new FlowLayoutPanel
                 { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Dock = DockStyle.Fill };
-            pnlModes.Controls.AddRange([ _rbNone, _rbDaily, _rbWeekly, _rbMonthly, _rbYearly, _rbCustom ]);
+            pnlModes.Controls.AddRange([_rbNone, _rbDaily, _rbWeekly, _rbMonthly, _rbYearly, _rbCustom]);
             gbMode.Controls.Add(pnlModes);
             root.Controls.Add(gbMode, 0, 0);
 
             // 2) 自定义周期
             var gbCustom = new GroupBox
             {
-                Text = _localizationService.GetText("RepeatSettings.Group.CustomCycle", "自定义周期（≥0，至少一项>0）"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+                Text = _localizationService.GetText("RepeatSettings.Group.CustomCycle", "自定义周期（≥0，至少一项>0）"),
+                AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
             };
             var tlCustom = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 12 };
             for (var i = 0; i < 12; i++) tlCustom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -213,7 +246,8 @@ namespace Game_Upgrade_Reminder.UI
             // 3) 结束时间
             var gbEnd = new GroupBox
             {
-                Text = _localizationService.GetText("RepeatSettings.Group.EndTime", "结束时间（到此不再提醒，可选）"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+                Text = _localizationService.GetText("RepeatSettings.Group.EndTime", "结束时间（到此不再提醒，可选）"), AutoSize = true,
+                Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
             };
             var tlEnd = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 9 };
             for (var i = 0; i < 9; i++) tlEnd.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -232,7 +266,8 @@ namespace Game_Upgrade_Reminder.UI
             // 4) 跳过规则
             var gbSkip = new GroupBox
             {
-                Text = _localizationService.GetText("RepeatSettings.Group.SkipRule", "跳过规则"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+                Text = _localizationService.GetText("RepeatSettings.Group.SkipRule", "跳过规则"), AutoSize = true,
+                Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
             };
             var tlSkip = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 5 };
             for (var i = 0; i < 5; i++) tlSkip.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -247,9 +282,11 @@ namespace Game_Upgrade_Reminder.UI
             // 4.5) 暂停规则
             var gbPause = new GroupBox
             {
-                Text = _localizationService.GetText("RepeatSettings.Group.PauseRule", "暂停规则"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+                Text = _localizationService.GetText("RepeatSettings.Group.PauseRule", "暂停规则"), AutoSize = true,
+                Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
             };
-            var tlPause = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Dock = DockStyle.Fill };
+            var tlPause = new FlowLayoutPanel
+                { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Dock = DockStyle.Fill };
             tlPause.Controls.Add(_chkPause);
             gbPause.Controls.Add(tlPause);
             root.Controls.Add(gbPause, 0, 4);
@@ -257,14 +294,16 @@ namespace Game_Upgrade_Reminder.UI
             // 4.8) 偏移规则
             var gbOffset = new GroupBox
             {
-                Text = _localizationService.GetText("RepeatSettings.Group.OffsetRule", "偏移规则"), AutoSize = true, Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
+                Text = _localizationService.GetText("RepeatSettings.Group.OffsetRule", "偏移规则"), AutoSize = true,
+                Dock = DockStyle.Top, Padding = new Padding(10, 8, 10, 10)
             };
             var tlOffset = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 12 };
             for (var i = 0; i < 12; i++) tlOffset.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             // 第1行：启用 + 方向
             tlOffset.Controls.Add(_chkOffsetEnable, 0, 0);
             tlOffset.SetColumnSpan(_chkOffsetEnable, 3);
-            tlOffset.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Offset.Direction", "方向")), 3, 0);
+            tlOffset.Controls.Add(MakeLabel(_localizationService.GetText("RepeatSettings.Offset.Direction", "方向")), 3,
+                0);
             tlOffset.Controls.Add(_rbOffsetAdvance, 4, 0);
             tlOffset.Controls.Add(_rbOffsetDelay, 5, 0);
             // 第2行：时分秒
@@ -460,6 +499,11 @@ namespace Game_Upgrade_Reminder.UI
             };
         }
 
+        /// <summary>
+        /// 创建标准格式的标签控件
+        /// </summary>
+        /// <param name="text">标签显示的文本内容</param>
+        /// <returns>配置好样式的Label控件</returns>
         private static Label MakeLabel(string text) => new()
         {
             Text = text,
@@ -469,6 +513,10 @@ namespace Game_Upgrade_Reminder.UI
             Margin = new Padding(6, 0, 6, 0)
         };
 
+        /// <summary>
+        /// 根据当前选择的重复模式更新各控件的启用/禁用状态
+        /// 包括自定义周期输入框、结束时间设置、跳过规则、暂停选项和偏移设置的启用状态
+        /// </summary>
         private void UpdateEnabledState()
         {
             var custom = _rbCustom.Checked;
@@ -480,7 +528,7 @@ namespace Game_Upgrade_Reminder.UI
 
             // 是否认为“没有配置周期”：None 或（Custom 且全部为 0）
             var customAllZero = _numYears.Value == 0 && _numMonths.Value == 0 && _numDays.Value == 0 &&
-                                 _numHours.Value == 0 && _numMinutes.Value == 0 && _numSeconds.Value == 0;
+                                _numHours.Value == 0 && _numMinutes.Value == 0 && _numSeconds.Value == 0;
             var noPeriod = none || (custom && customAllZero);
 
             // 当无周期时禁用结束时间与跳过
@@ -497,12 +545,18 @@ namespace Game_Upgrade_Reminder.UI
             // 偏移选项整体启用：当存在周期时才可用
             _chkOffsetEnable.Enabled = !noPeriod;
             var offsetDetailEnabled = !noPeriod && _chkOffsetEnable.Checked;
-            foreach (var ctl in new Control[] { _rbOffsetAdvance, _rbOffsetDelay, _offsetHours, _offsetMinutes, _offsetSeconds })
+            foreach (var ctl in new Control[]
+                         { _rbOffsetAdvance, _rbOffsetDelay, _offsetHours, _offsetMinutes, _offsetSeconds })
                 ctl.Enabled = offsetDetailEnabled;
 
             UpdateValidationMessage();
         }
 
+        /// <summary>
+        /// 根据当前UI控件的值构建RepeatSpec对象
+        /// 包括重复模式、自定义周期、结束时间、跳过规则、暂停设置和偏移配置
+        /// </summary>
+        /// <returns>根据UI状态构建的RepeatSpec对象，如果配置无效则返回None模式</returns>
         private RepeatSpec _BuildSpecFromUI()
         {
             var mode = _rbNone.Checked ? RepeatMode.None :
@@ -559,7 +613,8 @@ namespace Game_Upgrade_Reminder.UI
             }
 
             // 偏移秒数（可正可负）：提前为负，延后为正；未启用则为 0
-            var totalSeconds = (int)_offsetHours.Value * 3600 + (int)_offsetMinutes.Value * 60 + (int)_offsetSeconds.Value;
+            var totalSeconds = (int)_offsetHours.Value * 3600 + (int)_offsetMinutes.Value * 60 +
+                               (int)_offsetSeconds.Value;
             var sign = _rbOffsetAdvance.Checked ? -1 : 1;
             var offsetSeconds = (_chkOffsetEnable.Checked && totalSeconds > 0) ? sign * totalSeconds : 0;
 
@@ -574,6 +629,10 @@ namespace Game_Upgrade_Reminder.UI
             };
         }
 
+        /// <summary>
+        /// 更新验证消息显示，检查当前配置的有效性
+        /// 验证项目包括：自定义周期不能全为0、结束时间必须在未来、跳过规则的完整性
+        /// </summary>
         private void UpdateValidationMessage()
         {
             var customAllZero = _rbCustom.Checked && _numYears.Value == 0 && _numMonths.Value == 0 &&
@@ -581,35 +640,45 @@ namespace Game_Upgrade_Reminder.UI
                                 _numSeconds.Value == 0;
             if (customAllZero)
             {
-                _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.CustomCycleCannotBeAllZero", "自定义周期至少一项必须大于0");
+                _lblHint.Text =
+                    _localizationService.GetText("RepeatSettings.Hint.CustomCycleCannotBeAllZero", "自定义周期至少一项必须大于0");
                 return;
             }
 
             if (!_chkNoEnd.Checked)
             {
-                var end = _dtEndDate.Value.Date + new TimeSpan((int)_endHour.Value, (int)_endMinute.Value, (int)_endSecond.Value);
+                var end = _dtEndDate.Value.Date +
+                          new TimeSpan((int)_endHour.Value, (int)_endMinute.Value, (int)_endSecond.Value);
                 if (end <= DateTime.Now)
                 {
-                    _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.EndTimeMustBeInFuture", "结束时间必须晚于当前时间");
+                    _lblHint.Text =
+                        _localizationService.GetText("RepeatSettings.Hint.EndTimeMustBeInFuture", "结束时间必须晚于当前时间");
                     return;
                 }
             }
 
             if (_numRemindTimes.Value > 0 && _numSkipTimes.Value == 0)
             {
-                _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.SkipTimesMustBeGreaterThanZero", "“跳过次数”必须大于0");
+                _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.SkipTimesMustBeGreaterThanZero",
+                    "“跳过次数”必须大于0");
                 return;
             }
 
             if (_numRemindTimes.Value == 0 && _numSkipTimes.Value > 0)
             {
-                _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.RemindTimesMustBeGreaterThanZero", "“提醒次数”必须大于0");
+                _lblHint.Text = _localizationService.GetText("RepeatSettings.Hint.RemindTimesMustBeGreaterThanZero",
+                    "“提醒次数”必须大于0");
                 return;
             }
 
             _lblHint.Text = string.Empty;
         }
 
+        /// <summary>
+        /// 将RepeatSpec对象的配置应用到UI控件中
+        /// 在应用过程中会暂时禁用事件触发以避免循环调用
+        /// </summary>
+        /// <param name="spec">要应用的RepeatSpec配置，null时将应用默认的None模式</param>
         private void _ApplySpecToUI(RepeatSpec? spec)
         {
             // 防止回填期间触发旧的防抖事件
@@ -699,12 +768,20 @@ namespace Game_Upgrade_Reminder.UI
             // 回填完成后不主动触发事件（避免外部循环），等待用户进一步更改
         }
 
+        /// <summary>
+        /// 触发RepeatSpecChanged事件，通知外部当前配置已发生变更
+        /// 在UI回填期间(_isApplying为true时)不会触发事件
+        /// </summary>
         private void RaiseChanged()
         {
             if (_isApplying) return;
             RepeatSpecChanged?.Invoke(this, _BuildSpecFromUI());
         }
 
+        /// <summary>
+        /// 提示配置发生变更，启动250ms防抖定时器
+        /// 在UI回填期间(_isApplying为true时)不会启动定时器
+        /// </summary>
         private void CueChange()
         {
             if (_isApplying) return;

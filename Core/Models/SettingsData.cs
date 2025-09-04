@@ -99,6 +99,7 @@ namespace Game_Upgrade_Reminder.Core.Models
         /// 主窗口左上角位置与尺寸以及最大化状态
         /// </summary>
         public int WindowX { get; set; } = -1;
+
         public int WindowY { get; set; } = -1;
         public int WindowWidth { get; set; } = -1;
         public int WindowHeight { get; set; } = -1;

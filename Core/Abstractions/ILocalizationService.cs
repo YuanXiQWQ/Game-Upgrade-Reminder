@@ -62,9 +62,14 @@ namespace Game_Upgrade_Reminder.Core.Abstractions
     /// </summary>
     public class LanguageChangedEventArgs(string oldLanguage, string newLanguage) : EventArgs
     {
-        // ReSharper disable UnusedMember.Global, UnusedAutoPropertyAccessor.Global
+        /// <summary>
+        /// 获取变更前的语言代码
+        /// </summary>
         public string OldLanguage { get; } = oldLanguage;
+
+        /// <summary>
+        /// 获取变更后的语言代码
+        /// </summary>
         public string NewLanguage { get; } = newLanguage;
-        // ReSharper restore UnusedMember.Global, UnusedAutoPropertyAccessor.Global
     }
 }

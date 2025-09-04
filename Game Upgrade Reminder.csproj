@@ -51,7 +51,7 @@
         <Compile Include="Core\Services\RtlHelper.cs"/>
         <Compile Include="Core\Services\LocalizedDateFormatService.cs"/>
 
-        <Compile Remove="Core\Services\ZhCnDurationFormatter.cs" />
+        <Compile Remove="Core\Services\ZhCnDurationFormatter.cs"/>
 
         <Compile Include="Infrastructure\Repositories\JsonTaskRepository.cs"/>
         <Compile Include="Infrastructure\Repositories\JsonSettingsStore.cs"/>
@@ -149,14 +149,14 @@
     <PropertyGroup>
         <ApplicationIcon>YuanXi.ico</ApplicationIcon>
     </PropertyGroup>
-    
+
     <PropertyGroup>
         <AssemblyVersion>1.6.0.0</AssemblyVersion>
         <FileVersion>1.6.0.0</FileVersion>
         <InformationalVersion>1.6.0</InformationalVersion>
         <Company>YuanXiQWQ</Company>
         <Product>游戏升级提醒</Product>
-        <Copyright> 2025 YuanXiQWQ</Copyright>
+        <Copyright>2025 YuanXiQWQ</Copyright>
     </PropertyGroup>
 
 </Project>

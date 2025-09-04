@@ -4,14 +4,13 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 允许用户输入天/时/分/秒来设置提前通知时间
  * 创建日期: 2025-08-17
- * 最后修改: 2025-08-23
+ * 最后修改: 2025-09-03
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
- 
 using Game_Upgrade_Reminder.Core.Abstractions;
 using Game_Upgrade_Reminder.Core.Services;
 
@@ -80,13 +79,6 @@ namespace Game_Upgrade_Reminder.UI
             root.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            void AddLabel(string text, int col)
-            {
-                var lb = new Label
-                    { Text = text, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(6, 6, 6, 0) };
-                root.Controls.Add(lb, col, 0);
-            }
-
             // 第 0 行（输入区）：天/时/分/秒
             root.Controls.Add(_numDays, 0, 0);
             AddLabel(localizationService.GetText("AdvanceTimeDialog.Day", "天"), 1);
@@ -134,6 +126,14 @@ namespace Game_Upgrade_Reminder.UI
             _numHours.Value = ts.Hours + ts.Days * 24 > _numHours.Maximum ? _numHours.Maximum : ts.Hours;
             _numMinutes.Value = ts.Minutes;
             _numSeconds.Value = ts.Seconds;
+            return;
+
+            void AddLabel(string text, int col)
+            {
+                var lb = new Label
+                    { Text = text, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(6, 6, 6, 0) };
+                root.Controls.Add(lb, col, 0);
+            }
         }
 
         /// <summary>

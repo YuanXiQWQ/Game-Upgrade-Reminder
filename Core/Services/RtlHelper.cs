@@ -14,8 +14,14 @@ using Game_Upgrade_Reminder.Core.Abstractions;
 
 namespace Game_Upgrade_Reminder.Core.Services
 {
+    /// <summary>
+    /// RTL（从右到左）语言支持辅助工具类，用于处理阿拉伯语、希伯来语等RTL语言的界面布局
+    /// </summary>
     public static class RtlHelper
     {
+        /// <summary>
+        /// RTL语言代码集合，包含需要从右到左显示的语言
+        /// </summary>
         private static readonly HashSet<string> RtlLanguages = new(StringComparer.OrdinalIgnoreCase)
         {
             "ar", // 阿拉伯语
@@ -24,6 +30,11 @@ namespace Game_Upgrade_Reminder.Core.Services
             "ur", // 乌尔都语
         };
 
+        /// <summary>
+        /// 判断给定的语言代码是否为RTL（从右到左）语言
+        /// </summary>
+        /// <param name="languageCode">语言代码（如：ar-SA, he-IL, zh-CN）</param>
+        /// <returns>如果是RTL语言则返回true，否则返回false</returns>
         public static bool IsRtlLanguage(string languageCode)
         {
             if (string.IsNullOrWhiteSpace(languageCode)) return false;
@@ -48,12 +59,22 @@ namespace Game_Upgrade_Reminder.Core.Services
             return false;
         }
 
+        /// <summary>
+        /// 根据语言代码为指定的控件树应用RTL布局设置
+        /// </summary>
+        /// <param name="root">根控件，将递归应用到其所有子控件</param>
+        /// <param name="languageCode">语言代码，用于判断是否需要RTL布局</param>
         public static void Apply(Control root, string languageCode)
         {
             var rtl = IsRtlLanguage(languageCode);
             ApplyToControlTree(root, rtl);
         }
 
+        /// <summary>
+        /// 应用RTL布局并绑定语言变更事件，当语言切换时自动更新RTL设置
+        /// </summary>
+        /// <param name="localization">本地化服务实例，用于获取当前语言和监听语言变更</param>
+        /// <param name="root">根控件，将递归应用到其所有子控件</param>
         public static void ApplyAndBind(ILocalizationService localization, Control root)
         {
             Apply(root, localization.CurrentLanguage);
@@ -70,6 +91,11 @@ namespace Game_Upgrade_Reminder.Core.Services
             };
         }
 
+        /// <summary>
+        /// 递归地为控件树中的所有控件应用RTL布局设置
+        /// </summary>
+        /// <param name="c">要处理的控件</param>
+        /// <param name="rtl">是否启用RTL布局</param>
         private static void ApplyToControlTree(Control c, bool rtl)
         {
             try
