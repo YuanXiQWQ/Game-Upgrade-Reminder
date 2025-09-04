@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-09-04
+ * 最后修改: 2025-09-03
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -100,17 +100,16 @@ namespace Game_Upgrade_Reminder.UI
         private readonly RegistryAutostartManager _autostartManager = new();
         private readonly ByFinishTimeSortStrategy _sortStrategy = new();
 
-        private readonly ILocalizationService _localizationService =
-            new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
+        private readonly JsonLocalizationService _localizationService =
+            new(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
 
-        private readonly IConfigTransferService _configTransfer = new ConfigTransferService();
-        private readonly ITextSortingService _textSortingService;
+        private readonly ConfigTransferService _configTransfer = new();
+        private readonly LocalizedTextSortingService _textSortingService;
 
-        private IDurationFormatter? _durationFormatter;
-        private readonly IDateFormatService _dateFormat;
+        private LocalizedDurationFormatter? _durationFormatter;
+        private readonly LocalizedDateFormatService _dateFormat;
 
-        private SimpleDeletionPolicy _deletionPolicy =
-            new(pendingDeleteDelaySeconds: 3, completedKeepSeconds: 60);
+        private SimpleDeletionPolicy _deletionPolicy = new(pendingDeleteDelaySeconds: 3, completedKeepSeconds: 60);
 
         // 状态
         private SettingsData _settings = new();
@@ -2088,7 +2087,8 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // 比较器
-        private class ListViewItemComparer(int col, bool asc = true, ITextSortingService? textSortingService = null) : System.Collections.IComparer
+        private class ListViewItemComparer(int col, bool asc = true, ITextSortingService? textSortingService = null)
+            : System.Collections.IComparer
         {
             public int Compare(object? x, object? y) => (x, y) switch
             {
@@ -2153,7 +2153,8 @@ namespace Game_Upgrade_Reminder.UI
                         if (xDueGroup && yDueGroup)
                         {
                             // 使用当前语言排序比较账号名称
-                            var accCmp = textSortingService?.CompareStrings(tx.Account, ty.Account) ?? string.Compare(tx.Account, ty.Account, StringComparison.OrdinalIgnoreCase);
+                            var accCmp = textSortingService?.CompareStrings(tx.Account, ty.Account) ??
+                                         string.Compare(tx.Account, ty.Account, StringComparison.OrdinalIgnoreCase);
                             if (accCmp != 0) return accCmp;
                         }
 
@@ -2167,7 +2168,8 @@ namespace Game_Upgrade_Reminder.UI
                 // 字符串比较 - 对于账号(0)和任务(1)列使用当前语言排序，其他列使用普通排序
                 var result = col switch
                 {
-                    0 or 1 => textSortingService?.CompareStrings(xText, yText) ?? string.Compare(xText, yText, StringComparison.OrdinalIgnoreCase),
+                    0 or 1 => textSortingService?.CompareStrings(xText, yText) ??
+                              string.Compare(xText, yText, StringComparison.OrdinalIgnoreCase),
                     _ => string.Compare(xText, yText, StringComparison.Ordinal)
                 };
                 return asc ? result : -result;
@@ -2533,7 +2535,8 @@ namespace Game_Upgrade_Reminder.UI
 
             if (_sortMode == SortMode.Custom)
             {
-                _listView.ListViewItemSorter = new ListViewItemComparer(_customSortColumn, _customSortAsc, _textSortingService);
+                _listView.ListViewItemSorter =
+                    new ListViewItemComparer(_customSortColumn, _customSortAsc, _textSortingService);
                 _listView.Sort();
             }
 

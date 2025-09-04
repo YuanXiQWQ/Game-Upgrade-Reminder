@@ -3,18 +3,15 @@
  * 作者: YuanXiQWQ
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 基于当前语言的文本排序服务实现
- * 创建日期: 2025-09-04
- * 最后修改: 2025-09-04
+ * 创建日期: 2025-09-03
+ * 最后修改: 2025-09-03
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using Game_Upgrade_Reminder.Core.Abstractions;
 
 namespace Game_Upgrade_Reminder.Core.Services
@@ -35,7 +32,7 @@ namespace Game_Upgrade_Reminder.Core.Services
         public LocalizedTextSortingService(ILocalizationService localizationService)
         {
             _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-            
+
             // 监听语言变更事件，清除缓存的比较器
             _localizationService.LanguageChanged += (_, _) =>
             {
@@ -51,7 +48,7 @@ namespace Game_Upgrade_Reminder.Core.Services
         public IComparer<string> GetStringComparer()
         {
             var currentLanguage = _localizationService.CurrentLanguage;
-            
+
             // 如果语言没有变化且已有缓存的比较器，直接返回
             if (_cachedComparer != null && _cachedLanguage == currentLanguage)
             {
@@ -61,7 +58,7 @@ namespace Game_Upgrade_Reminder.Core.Services
             // 根据当前语言创建适当的比较器
             _cachedComparer = CreateComparerForLanguage(currentLanguage);
             _cachedLanguage = currentLanguage;
-            
+
             return _cachedComparer;
         }
 
@@ -107,7 +104,7 @@ namespace Game_Upgrade_Reminder.Core.Services
             {
                 // 尝试根据语言代码创建文化信息
                 var cultureInfo = CultureInfo.GetCultureInfo(languageCode);
-                return StringComparer.Create(cultureInfo, true); // ignoreCase = true
+                return StringComparer.Create(cultureInfo, true);
             }
             catch (CultureNotFoundException)
             {

@@ -3,15 +3,13 @@
  * 作者: YuanXiQWQ
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 定义基于当前语言的文本排序服务接口
- * 创建日期: 2025-09-04
- * 最后修改: 2025-09-04
+ * 创建日期: 2025-09-03
+ * 最后修改: 2025-09-03
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
  * 详情请参阅: https://www.gnu.org/licenses/agpl-3.0.html
  */
-
-using System.Collections.Generic;
 
 namespace Game_Upgrade_Reminder.Core.Abstractions
 {
