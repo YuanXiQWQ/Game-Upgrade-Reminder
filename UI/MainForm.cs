@@ -100,16 +100,16 @@ namespace Game_Upgrade_Reminder.UI
         private readonly RegistryAutostartManager _autostartManager = new();
         private readonly ByFinishTimeSortStrategy _sortStrategy = new();
 
-        private readonly ILocalizationService _localizationService =
-            new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
+        private readonly JsonLocalizationService _localizationService =
+            new(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
 
-        private readonly IConfigTransferService _configTransfer = new ConfigTransferService();
+        private readonly ConfigTransferService _configTransfer = new();
+        private readonly LocalizedTextSortingService _textSortingService;
 
-        private IDurationFormatter? _durationFormatter;
-        private readonly IDateFormatService _dateFormat;
+        private LocalizedDurationFormatter? _durationFormatter;
+        private readonly LocalizedDateFormatService _dateFormat;
 
-        private SimpleDeletionPolicy _deletionPolicy =
-            new(pendingDeleteDelaySeconds: 3, completedKeepSeconds: 60);
+        private SimpleDeletionPolicy _deletionPolicy = new(pendingDeleteDelaySeconds: 3, completedKeepSeconds: 60);
 
         // 状态
         private SettingsData _settings = new();
@@ -988,6 +988,7 @@ namespace Game_Upgrade_Reminder.UI
             // 根据语言自动应用 RTL，并在语言切换时动态更新
             RtlHelper.ApplyAndBind(_localizationService, this);
             _dateFormat = new LocalizedDateFormatService(_localizationService);
+            _textSortingService = new LocalizedTextSortingService(_localizationService);
             var iconPath = Path.Combine(AppContext.BaseDirectory, "YuanXi.ico");
             if (File.Exists(iconPath))
             {
@@ -1719,7 +1720,7 @@ namespace Game_Upgrade_Reminder.UI
                 _sortMode = SortMode.Custom;
                 var sortAscending = column != _customSortColumn || !_customSortAsc;
 
-                _listView.ListViewItemSorter = new ListViewItemComparer(column, sortAscending);
+                _listView.ListViewItemSorter = new ListViewItemComparer(column, sortAscending, _textSortingService);
                 _listView.Sort();
 
                 _customSortColumn = column;
@@ -2086,7 +2087,8 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // 比较器
-        private class ListViewItemComparer(int col, bool asc = true) : System.Collections.IComparer
+        private class ListViewItemComparer(int col, bool asc = true, ITextSortingService? textSortingService = null)
+            : System.Collections.IComparer
         {
             public int Compare(object? x, object? y) => (x, y) switch
             {
@@ -2150,7 +2152,9 @@ namespace Game_Upgrade_Reminder.UI
                         // - 未到点：保持原有行为，仅按剩余秒数
                         if (xDueGroup && yDueGroup)
                         {
-                            var accCmp = string.Compare(tx.Account, ty.Account, StringComparison.Ordinal);
+                            // 使用当前语言排序比较账号名称
+                            var accCmp = textSortingService?.CompareStrings(tx.Account, ty.Account) ??
+                                         string.Compare(tx.Account, ty.Account, StringComparison.OrdinalIgnoreCase);
                             if (accCmp != 0) return accCmp;
                         }
 
@@ -2161,8 +2165,13 @@ namespace Game_Upgrade_Reminder.UI
                     }
                 }
 
-                // 字符串比较
-                var result = string.Compare(xText, yText, StringComparison.Ordinal);
+                // 字符串比较 - 对于账号(0)和任务(1)列使用当前语言排序，其他列使用普通排序
+                var result = col switch
+                {
+                    0 or 1 => textSortingService?.CompareStrings(xText, yText) ??
+                              string.Compare(xText, yText, StringComparison.OrdinalIgnoreCase),
+                    _ => string.Compare(xText, yText, StringComparison.Ordinal)
+                };
                 return asc ? result : -result;
             }
 
@@ -2232,12 +2241,16 @@ namespace Game_Upgrade_Reminder.UI
         private void ApplySettingsToUi()
         {
             _cbAccount.Items.Clear();
-            foreach (var a in _settings.Accounts) _cbAccount.Items.Add(a);
+            // 按当前语言排序后添加账号
+            var sortedAccounts = _textSortingService.SortStrings(_settings.Accounts).ToList();
+            foreach (var a in sortedAccounts) _cbAccount.Items.Add(a);
             if (_cbAccount.Items.Count == 0) _cbAccount.Items.Add(TaskItem.DefaultAccount);
             _cbAccount.SelectedIndex = 0;
 
             _cbTask.Items.Clear();
-            foreach (var t in _settings.TaskPresets) _cbTask.Items.Add(t);
+            // 按当前语言排序后添加任务预设
+            var sortedTasks = _textSortingService.SortStrings(_settings.TaskPresets).ToList();
+            foreach (var t in sortedTasks) _cbTask.Items.Add(t);
 
             try
             {
@@ -2522,7 +2535,8 @@ namespace Game_Upgrade_Reminder.UI
 
             if (_sortMode == SortMode.Custom)
             {
-                _listView.ListViewItemSorter = new ListViewItemComparer(_customSortColumn, _customSortAsc);
+                _listView.ListViewItemSorter =
+                    new ListViewItemComparer(_customSortColumn, _customSortAsc, _textSortingService);
                 _listView.Sort();
             }
 
@@ -3196,7 +3210,9 @@ namespace Game_Upgrade_Reminder.UI
                     var prev = _cbAccount.SelectedItem?.ToString();
                     _settings.Accounts = e.Items;
                     _cbAccount.Items.Clear();
-                    foreach (var a in _settings.Accounts) _cbAccount.Items.Add(a);
+                    // 按当前语言排序后添加账号
+                    var sortedAccounts = _textSortingService.SortStrings(_settings.Accounts).ToList();
+                    foreach (var a in sortedAccounts) _cbAccount.Items.Add(a);
                     if (_cbAccount.Items.Count == 0) _cbAccount.Items.Add(TaskItem.DefaultAccount);
                     if (!string.IsNullOrEmpty(prev) && _cbAccount.Items.Contains(prev))
                         _cbAccount.SelectedItem = prev;
@@ -3210,7 +3226,9 @@ namespace Game_Upgrade_Reminder.UI
                     var selLength = _cbTask.SelectionLength;
                     _settings.TaskPresets = e.Items;
                     _cbTask.Items.Clear();
-                    foreach (var t in _settings.TaskPresets) _cbTask.Items.Add(t);
+                    // 按当前语言排序后添加任务预设
+                    var sortedTasks = _textSortingService.SortStrings(_settings.TaskPresets).ToList();
+                    foreach (var t in sortedTasks) _cbTask.Items.Add(t);
                     // 恢复输入体验
                     _cbTask.Text = text;
                     if (selStart >= 0 && selStart <= _cbTask.Text.Length)
