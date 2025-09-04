@@ -27,7 +27,8 @@ namespace Game_Upgrade_Reminder.Core.Services
     /// </remarks>
     /// <param name="pendingDeleteDelaySeconds">标记为删除后的延迟秒数，默认为3秒</param>
     /// <param name="completedKeepSeconds">任务完成后保留的秒数，默认为60秒</param>
-    public sealed class SimpleDeletionPolicy(int pendingDeleteDelaySeconds = 3, int completedKeepSeconds = 60) : IDeletionPolicy
+    public sealed class SimpleDeletionPolicy(int pendingDeleteDelaySeconds = 3, int completedKeepSeconds = 60)
+        : IDeletionPolicy
     {
         /// <summary>
         /// 获取标记为删除后的延迟秒数
@@ -67,6 +68,7 @@ namespace Game_Upgrade_Reminder.Core.Services
             {
                 return true;
             }
+
             return false;
         }
     }

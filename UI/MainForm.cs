@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-09-02
+ * 最后修改: 2025-09-03
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -102,6 +102,8 @@ namespace Game_Upgrade_Reminder.UI
 
         private readonly ILocalizationService _localizationService =
             new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
+
+        private readonly IConfigTransferService _configTransfer = new ConfigTransferService();
 
         private IDurationFormatter? _durationFormatter;
         private readonly IDateFormatService _dateFormat;
@@ -212,7 +214,8 @@ namespace Game_Upgrade_Reminder.UI
                 var isRepeat = spec?.IsRepeat == true;
                 var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
                 var targetFinish = inSkipPhase
-                    ? ApplyRepeatOffset(t.Finish, CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _), spec!)
+                    ? ApplyRepeatOffset(t.Finish, CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _),
+                        spec!)
                     : t.Finish;
 
                 if (adv > 0 && !t.AdvanceNotified)
@@ -289,7 +292,8 @@ namespace Game_Upgrade_Reminder.UI
 
             if (spec is { HasSkip: true, Skip: var skipRule and not null })
             {
-                parts.Add(_localizationService.GetFormattedText("Repeat.Skip", skipRule.RemindTimes, skipRule.SkipTimes));
+                parts.Add(
+                    _localizationService.GetFormattedText("Repeat.Skip", skipRule.RemindTimes, skipRule.SkipTimes));
             }
 
             if (spec.PauseUntilDone)
@@ -297,22 +301,24 @@ namespace Game_Upgrade_Reminder.UI
                 parts.Add(_localizationService.GetText("Repeat.PauseUntilDone", "提醒后暂停直到确认"));
             }
 
-            if (spec.OffsetAfterSeconds != 0)
-            {
-                var dirText = spec.OffsetAfterSeconds < 0
-                    ? _localizationService.GetText("Repeat.Offset.Advance", "提醒后提前")
-                    : _localizationService.GetText("Repeat.Offset.Delay", "提醒后延后");
-                var abs = Math.Abs(spec.OffsetAfterSeconds);
-                var h = abs / 3600;
-                var m = (abs % 3600) / 60;
-                var secs = abs % 60;
-                var units = new List<string>();
-                if (h > 0) units.Add(_localizationService.GetFormattedText("Time.Hours", h));
-                if (m > 0) units.Add(_localizationService.GetFormattedText("Time.Minutes", m));
-                if (secs > 0) units.Add(_localizationService.GetFormattedText("Time.Seconds", secs));
-                var text = units.Count > 0 ? string.Join(" ", units) : _localizationService.GetFormattedText("Time.Seconds", 0);
-                parts.Add($"{dirText}{text}");
-            }
+            if (spec.OffsetAfterSeconds == 0)
+                return string.Join("，", parts);
+
+            var dirText = spec.OffsetAfterSeconds < 0
+                ? _localizationService.GetText("Repeat.Offset.Advance", "提醒后提前")
+                : _localizationService.GetText("Repeat.Offset.Delay", "提醒后延后");
+            var abs = Math.Abs(spec.OffsetAfterSeconds);
+            var h = abs / 3600;
+            var m = (abs % 3600) / 60;
+            var secs = abs % 60;
+            var units = new List<string>();
+            if (h > 0) units.Add(_localizationService.GetFormattedText("Time.Hours", h));
+            if (m > 0) units.Add(_localizationService.GetFormattedText("Time.Minutes", m));
+            if (secs > 0) units.Add(_localizationService.GetFormattedText("Time.Seconds", secs));
+            var text = units.Count > 0
+                ? string.Join(" ", units)
+                : _localizationService.GetFormattedText("Time.Seconds", 0);
+            parts.Add($"{dirText}{text}");
 
             return string.Join("，", parts);
         }
@@ -430,6 +436,235 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
+        /// <summary>
+        /// 导出配置文件为 config.zip（包含 settings.json 与 tasks.json，若存在）。
+        /// </summary>
+        private void ExportConfig()
+        {
+            try
+            {
+                var baseDir = AppContext.BaseDirectory;
+                var result = _configTransfer.Export(baseDir);
+                switch (result.Status)
+                {
+                    case ExportStatus.Empty:
+                        MessageBox.Show(
+                            _localizationService.GetText("Export.Empty", "未找到可导出的配置文件（settings.json / tasks.json）。"),
+                            _localizationService.GetText("Info.Title", "提示"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        return;
+                    case ExportStatus.Success:
+                        MessageBox.Show(
+                            _localizationService.GetFormattedText("Export.Success", result.ZipPath ?? string.Empty),
+                            _localizationService.GetText("Success.Title", "成功"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        return;
+                    case ExportStatus.Error:
+                        throw result.Error ?? new Exception("Export error");
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(result.Status), result.Status, "未知的导出状态");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    _localizationService.GetFormattedText("Error.ExportFailed", ex.Message),
+                    _localizationService.GetText("Error.Title", "错误"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 导入配置：支持选择 config.zip 或单个 settings.json / tasks.json。
+        /// </summary>
+        private void ImportConfig()
+        {
+            try
+            {
+                using var ofd = new OpenFileDialog();
+                ofd.Title = _localizationService.GetText("Import.DialogTitle", "选择要导入的配置文件");
+                ofd.Filter = _localizationService.GetText(
+                    "Import.Filter",
+                    "配置包 (*.zip)|*.zip|JSON 文件 (*.json)|*.json|所有文件 (*.*)|*.*");
+                ofd.CheckFileExists = true;
+                ofd.Multiselect = true;
+
+                if (ofd.ShowDialog(this) is not DialogResult.OK) return;
+
+                var baseDir = AppContext.BaseDirectory;
+
+                // 多选：支持同时选择 settings.json 与 tasks.json
+                if (ofd.FileNames is { Length: > 1 })
+                {
+                    // 如果包含非 .json 文件（例如 .zip 与 .json 混选），提示不支持
+                    if (ofd.FileNames.Any(f =>
+                            !string.Equals(Path.GetExtension(f), ".json", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        MessageBox.Show(
+                            _localizationService.GetText("Import.InvalidFile",
+                                "不支持的文件类型。请选择 config.zip 或 settings.json / tasks.json。"),
+                            _localizationService.GetText("Error.Title", "错误"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    var imported = 0;
+                    var importedSettings = false;
+                    var importedTasks = false;
+                    foreach (var f in ofd.FileNames)
+                    {
+                        var r = _configTransfer.Import(f, baseDir);
+                        switch (r.Status)
+                        {
+                            case ImportStatus.Error:
+                                throw r.Error ?? new Exception("Import error");
+                            case ImportStatus.InvalidFileType:
+                                continue;
+                            case ImportStatus.Success:
+                                switch (r.SingleFileKind)
+                                {
+                                    case SingleFileKind.Settings:
+                                        imported++;
+                                        importedSettings = true;
+                                        break;
+                                    case SingleFileKind.Tasks:
+                                        imported++;
+                                        importedTasks = true;
+                                        break;
+                                    case SingleFileKind.None:
+                                        // 没有指定文件类型
+                                        break;
+                                    default:
+                                        throw new ArgumentOutOfRangeException(nameof(r.SingleFileKind),
+                                            r.SingleFileKind, "未知的单文件类型");
+                                }
+
+                                break;
+                            case ImportStatus.ZipNoEntries:
+                                // ZIP文件中没有有效的配置文件
+                                continue;
+                            default:
+                                throw new ArgumentOutOfRangeException(nameof(r.Status), r.Status, "未知的导入状态");
+                        }
+                    }
+
+                    if (imported == 0)
+                    {
+                        MessageBox.Show(
+                            _localizationService.GetText("Import.InvalidFile",
+                                "不支持的文件类型。请选择 config.zip 或 settings.json / tasks.json。"),
+                            _localizationService.GetText("Error.Title", "错误"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    // 应用已导入内容对应的刷新
+                    if (importedSettings)
+                    {
+                        LoadSettings();
+                        ApplySettingsToUi();
+                        UpdateMenuChecks();
+                    }
+
+                    if (importedTasks)
+                    {
+                        LoadTasks();
+                        RefreshTable();
+                    }
+
+                    MessageBox.Show(
+                        _localizationService.GetFormattedText("Import.Success", imported),
+                        _localizationService.GetText("Success.Title", "成功"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                // 单选：支持 zip 或单个 json
+                var filePath = ofd.FileName;
+                var res = _configTransfer.Import(filePath, baseDir);
+
+                switch (res.Status)
+                {
+                    case ImportStatus.ZipNoEntries:
+                        MessageBox.Show(
+                            _localizationService.GetText("Import.ZipNoEntries", "压缩包内未找到 settings.json 或 tasks.json。"),
+                            _localizationService.GetText("Error.Title", "错误"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    case ImportStatus.InvalidFileType:
+                        MessageBox.Show(
+                            _localizationService.GetText("Import.InvalidFile",
+                                "不支持的文件类型。请选择 config.zip 或 settings.json / tasks.json。"),
+                            _localizationService.GetText("Error.Title", "错误"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    case ImportStatus.Error:
+                        throw res.Error ?? new Exception("Import error");
+                    case ImportStatus.Success:
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(res.Status), res.Status, "未知的导入状态");
+                }
+
+                switch (res.SingleFileKind)
+                {
+                    case SingleFileKind.Settings:
+                        MessageBox.Show(
+                            _localizationService.GetText("Import.SettingsOnly", "已导入 settings.json。"),
+                            _localizationService.GetText("Success.Title", "成功"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        LoadSettings();
+                        ApplySettingsToUi();
+                        UpdateMenuChecks();
+                        return;
+                    case SingleFileKind.Tasks:
+                        MessageBox.Show(
+                            _localizationService.GetText("Import.TasksOnly", "已导入 tasks.json。"),
+                            _localizationService.GetText("Success.Title", "成功"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        LoadTasks();
+                        RefreshTable();
+                        return;
+                    case SingleFileKind.None:
+                        // ZIP导入
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(res.SingleFileKind), res.SingleFileKind,
+                            "未知的单文件类型");
+                }
+
+                // zip 导入成功
+                MessageBox.Show(
+                    _localizationService.GetFormattedText("Import.Success", res.ImportedCount),
+                    _localizationService.GetText("Success.Title", "成功"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                LoadSettings();
+                ApplySettingsToUi();
+                LoadTasks();
+                RefreshTable();
+                UpdateMenuChecks();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    _localizationService.GetFormattedText("Error.ImportFailed", ex.Message),
+                    _localizationService.GetText("Error.Title", "错误"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
         private SortMode _sortMode = SortMode.DefaultByFinish;
         private int _customSortColumn = 4;
         private bool _customSortAsc = true;
@@ -538,6 +773,11 @@ namespace Game_Upgrade_Reminder.UI
         private readonly ToolStripMenuItem _miFont = new();
         private readonly ToolStripMenuItem _miAutoStart = new();
         private readonly ToolStripMenuItem _miLanguage = new();
+
+        // 新增“配置”菜单与子项
+        private readonly ToolStripMenuItem _miConfig = new();
+        private readonly ToolStripMenuItem _miExportConfig = new();
+        private readonly ToolStripMenuItem _miImportConfig = new();
 
         // 悬浮显示的三个菜单项
         private readonly ToolStripMenuItem _miOpenConfig = new();
@@ -879,14 +1119,22 @@ namespace Game_Upgrade_Reminder.UI
             _miSettings.DropDownItems.Add(_miLanguage);
             _miSettings.DropDownItems.Add(new ToolStripSeparator());
             _miSettings.DropDownItems.Add(_miAutoStart);
-            _miSettings.DropDownItems.Add(_miOpenConfig);
             _miSettings.DropDownItems.Add(_miResetWindow);
             _miSettings.DropDownItems.Add(_miAutoDelete);
             _miSettings.DropDownItems.Add(_miAdvanceNotify);
             _miSettings.DropDownItems.Add(new ToolStripSeparator());
             _miSettings.DropDownItems.Add(_miCloseBehavior);
 
+            // 新增“配置”菜单：导出、导入、(分隔线)、打开配置文件夹（置底）
+            _miConfig.DropDownItems.AddRange([
+                _miExportConfig,
+                _miImportConfig,
+                new ToolStripSeparator(),
+                _miOpenConfig
+            ]);
+
             _menu.Items.Add(_miSettings);
+            _menu.Items.Add(_miConfig);
             _miAboutTop.Alignment = ToolStripItemAlignment.Left;
             _menu.Items.Add(_miAboutTop);
 
@@ -919,11 +1167,10 @@ namespace Game_Upgrade_Reminder.UI
             // 移动到下拉时，取消待关闭；离开下拉后开始检测
             mi.DropDown.MouseEnter += (_, _) =>
             {
-                if (_hoverPendingClose == mi)
-                {
-                    _hoverPendingClose = null;
-                    _hoverMenuTimer.Stop();
-                }
+                if (_hoverPendingClose != mi) return;
+
+                _hoverPendingClose = null;
+                _hoverMenuTimer.Stop();
             };
             mi.DropDown.MouseLeave += (_, _) =>
             {
@@ -1277,6 +1524,8 @@ namespace Game_Upgrade_Reminder.UI
             _miFont.Click += (_, _) => DoChooseFont();
             _miAutoStart.Click += (_, _) => ToggleAutostart();
             _miOpenConfig.Click += (_, _) => OpenConfigFolder();
+            _miExportConfig.Click += (_, _) => ExportConfig();
+            _miImportConfig.Click += (_, _) => ImportConfig();
             _miResetWindow.Click += (_, _) => ResetWindowToDefault();
             // 自动删除下拉
             _miAutoDelete.DropDownOpening += (_, _) => UpdateAutoDeleteMenuChecks();
@@ -1811,6 +2060,11 @@ namespace Game_Upgrade_Reminder.UI
             b.MinimumSize = new Size(0, 24);
         }
 
+        /// <summary>
+        /// 处理窗体关闭事件：根据设置决定是最小化到托盘还是真正退出应用程序。
+        /// </summary>
+        /// <param name="sender">事件源。</param>
+        /// <param name="e">窗体关闭事件参数。</param>
         private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
             if (_settings.MinimizeOnClose)
@@ -1992,7 +2246,7 @@ namespace Game_Upgrade_Reminder.UI
             }
             catch
             {
-                /* ignore */
+                // 忽略
             }
         }
 
@@ -2401,6 +2655,7 @@ namespace Game_Upgrade_Reminder.UI
                                 t.RepeatCursor += adv;
                             }
                         }
+
                         if (_sortMode == SortMode.DefaultByFinish) _sortStrategy.Sort(_tasks);
                         SaveTasks();
                         RefreshTable();
@@ -2636,36 +2891,41 @@ namespace Game_Upgrade_Reminder.UI
                 t.Notified = true;
                 changed = true;
 
-                if (isRepeat && spec!.PauseUntilDone)
+                Action action = isRepeat switch
                 {
-                    // 暂停计时：等待用户确认，保持 Finish 不变（显示“到点”并高亮）
-                    t.AwaitingAck = true;
-                    // 本次“发生”已完成（提醒触发），推进总光标
-                    t.RepeatCursor++;
-                }
-                else if (isRepeat)
-                {
-                    // 正常模式：到点后仍然高亮等待确认，但计时立即进入“下一次会提醒”的时点
-                    t.AwaitingAck = true;
-                    // 发生光标+1（本次发生）与提醒计数+1
-                    t.RepeatCursor++;
-                    t.RepeatCount++;
-                    // 基于下一次发生时间，跨越所有处于跳过段的发生
-                    var first = CalcNextOccurrence(t.Finish, spec!);
-                    var baseNext = CalcNextEffectiveOccurrence(first, spec!, t.RepeatCursor, out var adv2);
-                    var nextEff = ApplyRepeatOffset(t.Finish, baseNext, spec!);
-                    if (spec!.HasEnd && nextEff > spec.EndAt!.Value)
+                    true when spec!.PauseUntilDone => () =>
                     {
-                        t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
-                    }
-                    else
+                        // 暂停计时：等待用户确认，保持 Finish 不变（显示“到点”并高亮）
+                        t.AwaitingAck = true;
+                        // 本次“发生”已完成（提醒触发），推进总光标
+                        t.RepeatCursor++;
+                    },
+                    true => () =>
                     {
-                        t.Finish = nextEff;
-                        t.Notified = false;
-                        t.AdvanceNotified = false;
-                        t.RepeatCursor += adv2; // 累计被跳过的发生
-                    }
-                }
+                        // 正常模式：到点后仍然高亮等待确认，但计时立即进入“下一次会提醒”的时点
+                        t.AwaitingAck = true;
+                        // 发生光标+1（本次发生）与提醒计数+1
+                        t.RepeatCursor++;
+                        t.RepeatCount++;
+                        // 基于下一次发生时间，跨越所有处于跳过段的发生
+                        var first = CalcNextOccurrence(t.Finish, spec);
+                        var baseNext = CalcNextEffectiveOccurrence(first, spec, t.RepeatCursor, out var adv2);
+                        var nextEff = ApplyRepeatOffset(t.Finish, baseNext, spec);
+                        if (spec.HasEnd && nextEff > spec.EndAt!.Value)
+                        {
+                            t.Repeat = new RepeatSpec { Mode = RepeatMode.None };
+                        }
+                        else
+                        {
+                            t.Finish = nextEff;
+                            t.Notified = false;
+                            t.AdvanceNotified = false;
+                            t.RepeatCursor += adv2; // 累计被跳过的发生
+                        }
+                    },
+                    _ => static () => { }
+                };
+                action();
             }
 
             // 统一发送“提前”通知：如同时有多条，则合并为一条
@@ -2674,7 +2934,9 @@ namespace Game_Upgrade_Reminder.UI
                 if (advToasts.Count >= 2)
                 {
                     var titleAggA = _localizationService.GetText("Toast.Advance.Aggregated.Title", "[提前] 提醒");
-                    var bodyAggA = string.Format(_localizationService.GetText("Toast.Advance.Aggregated.Body", "{0} 项任务即将到点"), advToasts.Count);
+                    var bodyAggA =
+                        string.Format(_localizationService.GetText("Toast.Advance.Aggregated.Body", "{0} 项任务即将到点"),
+                            advToasts.Count);
                     _notifier.Toast(titleAggA, bodyAggA);
                 }
                 else
@@ -2692,7 +2954,8 @@ namespace Game_Upgrade_Reminder.UI
                 if (dueToasts.Count >= 2)
                 {
                     var titleAgg = _localizationService.GetText("Toast.Due.Aggregated.Title", "到点提醒");
-                    var bodyAgg = string.Format(_localizationService.GetText("Toast.Due.Aggregated.Body", "{0} 项任务已到点"), dueToasts.Count);
+                    var bodyAgg = string.Format(_localizationService.GetText("Toast.Due.Aggregated.Body", "{0} 项任务已到点"),
+                        dueToasts.Count);
                     _notifier.Toast(titleAgg, bodyAgg);
                 }
                 else
@@ -2732,7 +2995,7 @@ namespace Game_Upgrade_Reminder.UI
                 foreach (var t in _tasks)
                 {
                     // 已完成或待删除的任务不参与后续调度
-                    if (t is { PendingDelete: true } || t is { Done: true }) continue;
+                    if (t is { PendingDelete: true } or { Done: true }) continue;
                     // 等待确认的任务不推进调度（保持“到点”）
                     if (t.AwaitingAck) continue;
 
@@ -2740,7 +3003,8 @@ namespace Game_Upgrade_Reminder.UI
                     var isRepeat = spec?.IsRepeat == true;
                     var inSkipPhase = isRepeat && ShouldSkipOccurrence(spec!, t.RepeatCursor);
                     var targetFinish = inSkipPhase
-                        ? ApplyRepeatOffset(t.Finish, CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _), spec!)
+                        ? ApplyRepeatOffset(t.Finish,
+                            CalcNextEffectiveOccurrence(t.Finish, spec!, t.RepeatCursor, out _), spec!)
                         : t.Finish;
 
                     // 候选1：提前提醒时间点（若启用且尚未提前提醒）
@@ -2751,16 +3015,11 @@ namespace Game_Upgrade_Reminder.UI
                     }
 
                     // 候选2：到点提醒时间（遵循 AlsoNotifyAtDue 设置）
-                    if (!t.Notified)
+                    if (t.Notified) continue;
+                    if (!_settings.AlsoNotifyAtDue && t.AdvanceNotified) continue;
+                    if (targetFinish > now)
                     {
-                        if (!_settings.AlsoNotifyAtDue && t.AdvanceNotified)
-                        {
-                            // 已提前提醒且关闭了“同时准点通知” -> 跳过到点提醒的调度
-                        }
-                        else if (targetFinish > now)
-                        {
-                            next = next is null || targetFinish < next ? targetFinish : next;
-                        }
+                        next = next is null || targetFinish < next ? targetFinish : next;
                     }
                 }
 
@@ -2797,6 +3056,9 @@ namespace Game_Upgrade_Reminder.UI
             var next = current;
             switch (spec.Mode)
             {
+                case RepeatMode.None:
+                    next = current;
+                    break;
                 case RepeatMode.Daily:
                     next = current.AddDays(1);
                     break;
@@ -2823,8 +3085,7 @@ namespace Game_Upgrade_Reminder.UI
 
                     break;
                 default:
-                    next = current;
-                    break;
+                    throw new ArgumentOutOfRangeException(nameof(spec), spec.Mode, "未知的重复模式");
             }
 
             // 安全兜底，避免不前进导致死循环
@@ -2851,7 +3112,13 @@ namespace Game_Upgrade_Reminder.UI
             return next;
         }
 
-        // 应用“提醒后偏移”到下一次发生时间；并做防回退保护：不得早于基准时间的下一秒
+        /// <summary>
+        /// 应用"提醒后偏移"到下一次发生时间；并做防回退保护：不得早于基准时间的下一秒。
+        /// </summary>
+        /// <param name="baseline">基准时间，结果不得早于此时间的下一秒。</param>
+        /// <param name="nextBase">基础的下次发生时间。</param>
+        /// <param name="spec">重复规格，包含偏移秒数。</param>
+        /// <returns>应用偏移后的下次发生时间。</returns>
         private static DateTime ApplyRepeatOffset(DateTime baseline, DateTime nextBase, RepeatSpec spec)
         {
             var next = nextBase;
@@ -2860,10 +3127,17 @@ namespace Game_Upgrade_Reminder.UI
             {
                 next = next.AddSeconds(off);
             }
+
             if (next <= baseline) next = baseline.AddSeconds(1);
             return next;
         }
 
+        /// <summary>
+        /// 判断指定的重复次数是否应该跳过提醒（基于"跳过段"规则）。
+        /// </summary>
+        /// <param name="spec">重复规格，包含跳过段配置。</param>
+        /// <param name="repeatCountSoFar">当前已重复的次数。</param>
+        /// <returns>如果应该跳过此次提醒则返回 true，否则返回 false。</returns>
         private static bool ShouldSkipOccurrence(RepeatSpec spec, int repeatCountSoFar)
         {
             if (spec is not { HasSkip: true, Skip: not null }) return false;
@@ -2875,6 +3149,10 @@ namespace Game_Upgrade_Reminder.UI
             return idx >= a; // 0..a-1: 提醒；a..l-1: 跳过
         }
 
+        /// <summary>
+        /// 清理待删除的任务：根据删除策略移除符合条件的任务。
+        /// </summary>
+        /// <param name="force">是否强制清理，忽略时间限制。</param>
         private void PurgePending(bool force)
         {
             var changed = false;
@@ -2899,6 +3177,10 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // ---------- 管理列表 ----------
+        /// <summary>
+        /// 显示账号或任务预设的管理对话框，支持实时编辑和保存。
+        /// </summary>
+        /// <param name="isAccount">true 表示管理账号列表，false 表示管理任务预设列表。</param>
         private void ShowManager(bool isAccount)
         {
             var title = isAccount
@@ -2947,74 +3229,51 @@ namespace Game_Upgrade_Reminder.UI
                 var newName = e.NewName;
                 var changedAny = false;
 
-                for (int i = 0; i < _tasks.Count; i++)
+                for (var i = 0; i < _tasks.Count; i++)
                 {
                     var t = _tasks[i];
-                    if (isAccount)
+                    var shouldUpdate = isAccount
+                        ? string.Equals(t.Account, oldName, StringComparison.Ordinal)
+                        : string.Equals(t.TaskName, oldName, StringComparison.Ordinal);
+
+                    if (!shouldUpdate) continue;
+
+                    var nt = new TaskItem
                     {
-                        if (!string.Equals(t.Account, oldName, StringComparison.Ordinal)) continue;
-                        var nt = new TaskItem
-                        {
-                            Account = newName,
-                            TaskName = t.TaskName,
-                            Start = t.Start,
-                            Days = t.Days,
-                            Hours = t.Hours,
-                            Minutes = t.Minutes,
-                            Finish = t.Finish,
-                            Notified = t.Notified,
-                            AdvanceNotified = t.AdvanceNotified,
-                            AwaitingAck = t.AwaitingAck,
-                            Done = t.Done,
-                            CompletedTime = t.CompletedTime,
-                            PendingDelete = t.PendingDelete,
-                            DeleteMarkTime = t.DeleteMarkTime,
-                            Repeat = t.Repeat,
-                            RepeatCount = t.RepeatCount,
-                            RepeatCursor = t.RepeatCursor
-                        };
-                        _tasks[i] = nt;
-                        changedAny = true;
-                    }
-                    else
-                    {
-                        if (!string.Equals(t.TaskName, oldName, StringComparison.Ordinal)) continue;
-                        var nt = new TaskItem
-                        {
-                            Account = t.Account,
-                            TaskName = newName,
-                            Start = t.Start,
-                            Days = t.Days,
-                            Hours = t.Hours,
-                            Minutes = t.Minutes,
-                            Finish = t.Finish,
-                            Notified = t.Notified,
-                            AdvanceNotified = t.AdvanceNotified,
-                            AwaitingAck = t.AwaitingAck,
-                            Done = t.Done,
-                            CompletedTime = t.CompletedTime,
-                            PendingDelete = t.PendingDelete,
-                            DeleteMarkTime = t.DeleteMarkTime,
-                            Repeat = t.Repeat,
-                            RepeatCount = t.RepeatCount,
-                            RepeatCursor = t.RepeatCursor
-                        };
-                        _tasks[i] = nt;
-                        changedAny = true;
-                    }
+                        Account = isAccount ? newName : t.Account,
+                        TaskName = isAccount ? t.TaskName : newName,
+                        Start = t.Start,
+                        Days = t.Days,
+                        Hours = t.Hours,
+                        Minutes = t.Minutes,
+                        Finish = t.Finish,
+                        Notified = t.Notified,
+                        AdvanceNotified = t.AdvanceNotified,
+                        AwaitingAck = t.AwaitingAck,
+                        Done = t.Done,
+                        CompletedTime = t.CompletedTime,
+                        PendingDelete = t.PendingDelete,
+                        DeleteMarkTime = t.DeleteMarkTime,
+                        Repeat = t.Repeat,
+                        RepeatCount = t.RepeatCount,
+                        RepeatCursor = t.RepeatCursor
+                    };
+                    _tasks[i] = nt;
+                    changedAny = true;
                 }
 
-                if (changedAny)
-                {
-                    if (_sortMode == SortMode.DefaultByFinish) _sortStrategy.Sort(_tasks);
-                    SaveTasks();
-                    RefreshTable();
-                }
+                if (!changedAny) return;
+                if (_sortMode == SortMode.DefaultByFinish) _sortStrategy.Sort(_tasks);
+                SaveTasks();
+                RefreshTable();
             };
             dlg.ShowDialog(this);
         }
 
         // ---------- 开机自启 ----------
+        /// <summary>
+        /// 切换开机自启动状态：启用或禁用应用程序的开机自动启动。
+        /// </summary>
         private void ToggleAutostart()
         {
             _settings.StartupOnBoot = !_settings.StartupOnBoot;
@@ -3038,6 +3297,9 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // ---------- 删除策略开关 ----------
+        /// <summary>
+        /// 根据当前设置应用删除策略：配置已完成任务的自动删除延时。
+        /// </summary>
         private void ApplyDeletionPolicyFromSettings()
         {
             var keepSecs = _settings.AutoDeleteCompletedSeconds > 0
@@ -3047,6 +3309,9 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // ---------- 窗口记忆 ----------
+        /// <summary>
+        /// 从设置中恢复窗口的位置、大小和最大化状态。
+        /// </summary>
         private void RestoreWindowBoundsFromSettings()
         {
             try
@@ -3082,6 +3347,10 @@ namespace Game_Upgrade_Reminder.UI
             }
         }
 
+        /// <summary>
+        /// 将当前窗口的位置、大小和最大化状态更新到设置中。
+        /// </summary>
+        /// <param name="save">是否立即保存设置到磁盘。</param>
         private void UpdateWindowBoundsToSettings(bool save)
         {
             try
@@ -3099,7 +3368,7 @@ namespace Game_Upgrade_Reminder.UI
             }
             catch
             {
-                /* ignore */
+                // 忽略
             }
         }
 
@@ -3122,9 +3391,10 @@ namespace Game_Upgrade_Reminder.UI
                 if (WindowState == FormWindowState.Maximized)
                     WindowState = FormWindowState.Normal;
 
-                var totalWidth = AccountColWidth + TaskColWidth + StartTimeColWidth + DurationColWidth +
-                                 FinishTimeColWidth + RemainingTimeColWidth + RepeatColWidth + (ActionColWidth * 2) +
-                                 ExtraSpace;
+                const int totalWidth = AccountColWidth + TaskColWidth + StartTimeColWidth + DurationColWidth +
+                                       FinishTimeColWidth + RemainingTimeColWidth + RepeatColWidth +
+                                       (ActionColWidth * 2) +
+                                       ExtraSpace;
                 var defaultHeight = (int)Math.Round(totalWidth * InvPhi);
                 ClientSize = new Size(totalWidth, defaultHeight);
 
@@ -3145,6 +3415,10 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         // ---------- 更新检查辅助 ----------
+        /// <summary>
+        /// 获取当前应用程序的版本号，优先使用 AssemblyInformationalVersion，其次使用 FileVersion 和 ProductVersion。
+        /// </summary>
+        /// <returns>当前应用程序的版本号。</returns>
         private static Version GetCurrentVersion()
         {
             // 优先使用 AssemblyInformationalVersion；若无则用 FileVersion；再退而求其次使用 ProductVersion
@@ -3166,6 +3440,11 @@ namespace Game_Upgrade_Reminder.UI
             return new Version(0, 0, 0, 0);
         }
 
+        /// <summary>
+        /// 规范化版本号：确保版本号至少包含主版本号和次版本号。
+        /// </summary>
+        /// <param name="v">要规范化的版本号。</param>
+        /// <returns>规范化后的版本号。</returns>
         private static Version NormalizeVersion(Version v)
         {
             // 将缺省的 Build/Revision 归一化为 0，避免 1.1.1 与 1.1.1.0 被误判为不同版本
@@ -3174,6 +3453,11 @@ namespace Game_Upgrade_Reminder.UI
             return new Version(v.Major, v.Minor, build, rev);
         }
 
+        /// <summary>
+        /// 格式化版本号用于显示：根据版本号的组成部分智能省略零值的 Build 和 Revision。
+        /// </summary>
+        /// <param name="v">要格式化的版本号。</param>
+        /// <returns>格式化后的版本号字符串。</returns>
         private static string FormatVersionForDisplay(Version v) =>
             v.Revision == 0
                 ? (v.Build == 0
@@ -3188,6 +3472,11 @@ namespace Game_Upgrade_Reminder.UI
             [JsonPropertyName("name")] public string? Name { get; init; }
         }
 
+        /// <summary>
+        /// 异步检查 GitHub 上的最新版本更新，并在有新版本时提示用户。
+        /// </summary>
+        /// <param name="owner">对话框的父窗口。</param>
+        /// <param name="openOnNew">当发现新版本时是否自动打开下载页面。</param>
         private async Task CheckForUpdatesAsync(IWin32Window owner, bool openOnNew = true)
         {
             const string apiUrl = "https://api.github.com/repos/YuanXiQWQ/Game-Upgrade-Reminder/releases/latest";

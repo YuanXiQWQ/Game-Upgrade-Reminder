@@ -59,8 +59,10 @@ namespace Game_Upgrade_Reminder.UI
             // 基本控件：标签、文本框、确定/取消按钮与布局参数
             var lb = new Label { Text = label, AutoSize = true, Left = 14, Top = 18 };
             _tb.SetBounds(76, 14, 250, 24);
-            var ok = new Button { Text = localizationService.GetText("Common.OK", "确定"), Left = 116, Top = 54, Width = 80 };
-            var cancel = new Button { Text = localizationService.GetText("Common.Cancel", "取消"), Left = 212, Top = 54, Width = 80 };
+            var ok = new Button
+                { Text = localizationService.GetText("Common.OK", "确定"), Left = 116, Top = 54, Width = 80 };
+            var cancel = new Button
+                { Text = localizationService.GetText("Common.Cancel", "取消"), Left = 212, Top = 54, Width = 80 };
 
             // 点击“确定”：读取并裁剪文本；仅在非空时设置 DialogResult.OK
             ok.Click += (_, _) =>

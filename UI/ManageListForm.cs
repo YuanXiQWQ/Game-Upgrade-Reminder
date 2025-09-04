@@ -50,9 +50,12 @@ namespace Game_Upgrade_Reminder.UI
         /// 初始化管理窗口。
         /// 这会影响新增条目的提示与默认账号的保护逻辑。
         /// </summary>
-        public ManageListForm(string title, bool isAccountList, List<string> items, ILocalizationService? localizationService = null)
+        public ManageListForm(string title, bool isAccountList, List<string> items,
+            ILocalizationService? localizationService = null)
         {
-            var locService = localizationService ?? new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources", "Localization"));
+            var locService = localizationService ??
+                             new JsonLocalizationService(Path.Combine(AppContext.BaseDirectory, "Resources",
+                                 "Localization"));
             Text = title;
             Items = new List<string>(items);
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -118,7 +121,8 @@ namespace Game_Upgrade_Reminder.UI
                 using var ib = new InputBox(locService, dialogTitle, locService.GetText("InputBox.Label.Name", "名称"));
 
                 // 预填旧值
-                var tbField = typeof(InputBox).GetField("_tb", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var tbField = typeof(InputBox).GetField("_tb",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 if (tbField?.GetValue(ib) is TextBox tb)
                 {
                     tb.Text = oldName;

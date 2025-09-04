@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: MainForm的本地化相关方法扩展
  * 创建日期: 2025-08-22
- * 最后修改: 2025-08-23
+ * 最后修改: 2025-09-03
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -104,37 +104,37 @@ namespace Game_Upgrade_Reminder.UI
             }
 
             // 将所有中文变体聚合为一个父菜单（本地化标签）
-            if (zhVariants.Count > 0)
+            if (zhVariants.Count == 0) return;
+
+            var chineseRaw = _localizationService.GetText("Language.zh", "中文");
+            var chineseLabel = FormatLanguageDisplay(chineseRaw, _localizationService.CurrentLanguage);
+
+            var chineseParent = new ToolStripMenuItem(chineseLabel)
             {
-                var chineseRaw = _localizationService.GetText("Language.zh", "中文");
-                var chineseLabel = FormatLanguageDisplay(chineseRaw, _localizationService.CurrentLanguage);
+                Tag = "zh-*",
+                Checked = IsChineseTag(_localizationService.CurrentLanguage)
+            };
 
-                var parent = new ToolStripMenuItem(chineseLabel)
+            // 子项固定中文名称
+            AddChinese("zh-CN", "简体中文（中国大陆）");
+            AddChinese("zh-TW", "正體中文（臺灣）");
+            AddChinese("zh-HK", "繁體中文（香港）");
+            AddChinese("zh-MO", "繁體中文（澳門）");
+            AddChinese("zh-SG", "简体中文（新加坡）");
+
+            _miLanguage.DropDownItems.Add(chineseParent);
+            return;
+
+            void AddChinese(string code, string label)
+            {
+                if (!zhVariants.Contains(code)) return;
+                var item = new ToolStripMenuItem(label)
                 {
-                    Tag = "zh-*",
-                    Checked = IsChineseTag(_localizationService.CurrentLanguage)
+                    Tag = code,
+                    Checked = code == _localizationService.CurrentLanguage
                 };
-
-                void AddChinese(string code, string label)
-                {
-                    if (!zhVariants.Contains(code)) return;
-                    var item = new ToolStripMenuItem(label)
-                    {
-                        Tag = code,
-                        Checked = code == _localizationService.CurrentLanguage
-                    };
-                    item.Click += (_, _) => SetLanguage(code);
-                    parent.DropDownItems.Add(item);
-                }
-
-                // 子项固定中文名称
-                AddChinese("zh-CN", "简体中文（中国大陆）");
-                AddChinese("zh-TW", "正體中文（臺灣）");
-                AddChinese("zh-HK", "繁體中文（香港）");
-                AddChinese("zh-MO", "繁體中文（澳門）");
-                AddChinese("zh-SG", "简体中文（新加坡）");
-
-                _miLanguage.DropDownItems.Add(parent);
+                item.Click += (_, _) => SetLanguage(code);
+                chineseParent.DropDownItems.Add(item);
             }
         }
 
@@ -186,22 +186,27 @@ namespace Game_Upgrade_Reminder.UI
         /// <param name="languageCode">语言代码</param>
         private void SetLanguage(string languageCode)
         {
-            if (_localizationService.SetLanguage(languageCode))
+            if (!_localizationService.SetLanguage(languageCode))
+                return;
+
+            _settings.Language = languageCode;
+            SaveSettings();
+
+            // 更新语言菜单的选中状态（递归处理子菜单）
+            foreach (ToolStripMenuItem item in _miLanguage.DropDownItems)
             {
-                _settings.Language = languageCode;
-                SaveSettings();
-
-                // 更新语言菜单的选中状态（递归处理子菜单）
-                foreach (ToolStripMenuItem item in _miLanguage.DropDownItems)
-                {
-                    UpdateLanguageMenuChecked(item, languageCode);
-                }
-
-                // 更新所有UI文本
-                UpdateAllTexts();
+                UpdateLanguageMenuChecked(item, languageCode);
             }
+
+            // 更新所有UI文本
+            UpdateAllTexts();
         }
 
+        /// <summary>
+        /// 判断给定的语言代码是否为英语标签。
+        /// </summary>
+        /// <param name="code">要检查的语言代码。</param>
+        /// <returns>如果是英语标签则返回 true，否则返回 false。</returns>
         private static bool IsEnglishTag(string code)
         {
             if (string.IsNullOrWhiteSpace(code)) return false;
@@ -209,6 +214,11 @@ namespace Game_Upgrade_Reminder.UI
             return tag.StartsWith("en-") || tag == "en";
         }
 
+        /// <summary>
+        /// 判断给定的语言代码是否为中文标签。
+        /// </summary>
+        /// <param name="code">要检查的语言代码。</param>
+        /// <returns>如果是中文标签则返回 true，否则返回 false。</returns>
         private static bool IsChineseTag(string code)
         {
             if (string.IsNullOrWhiteSpace(code)) return false;
@@ -216,6 +226,11 @@ namespace Game_Upgrade_Reminder.UI
             return tag.StartsWith("zh-") || tag == "zh";
         }
 
+        /// <summary>
+        /// 判断给定的语言代码是否为葡萄牙语标签。
+        /// </summary>
+        /// <param name="code">要检查的语言代码。</param>
+        /// <returns>如果是葡萄牙语标签则返回 true，否则返回 false。</returns>
         private static bool IsPortugueseTag(string code)
         {
             if (string.IsNullOrWhiteSpace(code)) return false;
@@ -223,6 +238,11 @@ namespace Game_Upgrade_Reminder.UI
             return tag.StartsWith("pt-") || tag == "pt";
         }
 
+        /// <summary>
+        /// 向菜单集合中添加语言选择菜单项。
+        /// </summary>
+        /// <param name="root">要添加菜单项的菜单集合。</param>
+        /// <param name="lang">语言代码。</param>
         private void AddLanguageMenuItem(ToolStripItemCollection root, string lang)
         {
             var rawName = _localizationService.GetText($"Language.{lang}", lang);
@@ -244,16 +264,22 @@ namespace Game_Upgrade_Reminder.UI
             root.Add(menuItem);
         }
 
+        /// <summary>
+        /// 递归更新语言菜单项的选中状态，支持嵌套菜单结构。
+        /// </summary>
+        /// <param name="item">要更新的菜单项。</param>
+        /// <param name="languageCode">当前选中的语言代码。</param>
         private static void UpdateLanguageMenuChecked(ToolStripMenuItem item, string languageCode)
         {
             if (item.DropDownItems.Count > 0)
             {
-                bool anyChildChecked = false;
+                var anyChildChecked = false;
                 foreach (ToolStripMenuItem child in item.DropDownItems)
                 {
                     UpdateLanguageMenuChecked(child, languageCode);
                     if (child.Checked) anyChildChecked = true;
                 }
+
                 item.Checked = anyChildChecked || item.Tag?.ToString() == languageCode;
             }
             else
@@ -304,6 +330,18 @@ namespace Game_Upgrade_Reminder.UI
             _miFont.Text = _localizationService.GetText("Menu.Font", "选择字体(&F)...");
             _miLanguage.Text = _localizationService.GetText("Menu.Language", "语言(&L)");
             _miAutoStart.Text = _localizationService.GetText("Menu.AutoStart", "开机自启(&A)");
+            // 新增“配置”菜单及子项
+            _miConfig.Text = _localizationService.GetText("Menu.Config", "配置(&C)");
+            _miExportConfig.Text = _localizationService.GetText("Menu.Config.Export", "导出配置文件(&E)...");
+            _miExportConfig.AccessibleName = _localizationService.GetText("Menu.Config.Export.Name", "导出配置文件");
+            _miExportConfig.AccessibleDescription = _localizationService.GetText("Menu.Config.Export.Description",
+                "将 settings.json 与 tasks.json 打包为 config.zip");
+
+            _miImportConfig.Text = _localizationService.GetText("Menu.Config.Import", "导入配置文件(&I)...");
+            _miImportConfig.AccessibleName = _localizationService.GetText("Menu.Config.Import.Name", "导入配置文件");
+            _miImportConfig.AccessibleDescription =
+                _localizationService.GetText("Menu.Config.Import.Description", "从 config.zip 或 JSON 文件导入配置");
+
             _miOpenConfig.Text = _localizationService.GetText("Menu.OpenConfig", "打开配置文件夹(&O)");
             _miOpenConfig.AccessibleName = _localizationService.GetText("Menu.OpenConfig.Name", "打开配置文件夹");
             _miOpenConfig.AccessibleDescription =
@@ -418,18 +456,17 @@ namespace Game_Upgrade_Reminder.UI
         /// </summary>
         private void UpdateListViewHeaders()
         {
-            if (_listView.Columns.Count >= 9)
-            {
-                _listView.Columns[0].Text = _localizationService.GetText("ListView.Column.Account", "账号");
-                _listView.Columns[1].Text = _localizationService.GetText("ListView.Column.Task", "任务");
-                _listView.Columns[2].Text = _localizationService.GetText("ListView.Column.StartTime", "开始时间");
-                _listView.Columns[3].Text = _localizationService.GetText("ListView.Column.Duration", "持续时间");
-                _listView.Columns[4].Text = _localizationService.GetText("ListView.Column.FinishTime", "完成时间");
-                _listView.Columns[5].Text = _localizationService.GetText("ListView.Column.RemainingTime", "剩余时间");
-                _listView.Columns[6].Text = _localizationService.GetText("ListView.Column.Repeat", "重复");
-                _listView.Columns[7].Text = _localizationService.GetText("ListView.Column.Complete", "完成");
-                _listView.Columns[8].Text = _localizationService.GetText("ListView.Column.Delete", "删除");
-            }
+            if (_listView.Columns.Count < 9) return;
+
+            _listView.Columns[0].Text = _localizationService.GetText("ListView.Column.Account", "账号");
+            _listView.Columns[1].Text = _localizationService.GetText("ListView.Column.Task", "任务");
+            _listView.Columns[2].Text = _localizationService.GetText("ListView.Column.StartTime", "开始时间");
+            _listView.Columns[3].Text = _localizationService.GetText("ListView.Column.Duration", "持续时间");
+            _listView.Columns[4].Text = _localizationService.GetText("ListView.Column.FinishTime", "完成时间");
+            _listView.Columns[5].Text = _localizationService.GetText("ListView.Column.RemainingTime", "剩余时间");
+            _listView.Columns[6].Text = _localizationService.GetText("ListView.Column.Repeat", "重复");
+            _listView.Columns[7].Text = _localizationService.GetText("ListView.Column.Complete", "完成");
+            _listView.Columns[8].Text = _localizationService.GetText("ListView.Column.Delete", "删除");
         }
 
         /// <summary>
@@ -448,7 +485,8 @@ namespace Game_Upgrade_Reminder.UI
         }
 
         /// <summary>
-        /// 初始化本地化设置
+        /// 初始化本地化设置：配置时长格式化器、加载用户语言偏好并更新所有UI文本。
+        /// 此方法在主窗体构造函数中调用，确保界面以正确的语言显示。
         /// </summary>
         private void InitializeLocalization()
         {
@@ -466,9 +504,19 @@ namespace Game_Upgrade_Reminder.UI
             UpdateAllTexts();
         }
 
+        /// <summary>
+        /// 解析 RTL 语言显示格式的正则表达式。
+        /// 匹配格式："(原文) 翻译文本"，用于提取括号内的原文和括号外的翻译文本。
+        /// </summary>
+        /// <returns>编译后的正则表达式实例，用于RTL语言的文本格式解析。</returns>
         [GeneratedRegex(@"^\((.+?)\)\s+(.*)$", RegexOptions.CultureInvariant)]
         private static partial Regex RtlDisplayRegex();
 
+        /// <summary>
+        /// 解析 LTR 语言显示格式的正则表达式。
+        /// 匹配格式："翻译文本 (原文)"，用于提取括号外的翻译文本和括号内的原文。
+        /// </summary>
+        /// <returns>编译后的正则表达式实例，用于LTR语言的文本格式解析。</returns>
         [GeneratedRegex(@"^(.*?)\s+\((.+)\)$", RegexOptions.CultureInvariant)]
         private static partial Regex LtrDisplayRegex();
     }
