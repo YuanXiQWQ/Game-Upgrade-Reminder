@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-09-03
+ * 最后修改: 2025-09-04
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -13,6 +13,8 @@
 
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -2150,7 +2152,8 @@ namespace Game_Upgrade_Reminder.UI
                         // - 未到点：保持原有行为，仅按剩余秒数
                         if (xDueGroup && yDueGroup)
                         {
-                            var accCmp = string.Compare(tx.Account, ty.Account, StringComparison.Ordinal);
+                            // 使用中文拼音排序比较账号名称
+                            var accCmp = string.Compare(tx.Account, ty.Account, CultureInfo.GetCultureInfo("zh-CN"), CompareOptions.IgnoreCase);
                             if (accCmp != 0) return accCmp;
                         }
 
@@ -2161,8 +2164,12 @@ namespace Game_Upgrade_Reminder.UI
                     }
                 }
 
-                // 字符串比较
-                var result = string.Compare(xText, yText, StringComparison.Ordinal);
+                // 字符串比较 - 对于账号(0)和任务(1)列使用中文拼音排序，其他列使用普通排序
+                var result = col switch
+                {
+                    0 or 1 => string.Compare(xText, yText, CultureInfo.GetCultureInfo("zh-CN"), CompareOptions.IgnoreCase),
+                    _ => string.Compare(xText, yText, StringComparison.Ordinal)
+                };
                 return asc ? result : -result;
             }
 
@@ -2232,12 +2239,16 @@ namespace Game_Upgrade_Reminder.UI
         private void ApplySettingsToUi()
         {
             _cbAccount.Items.Clear();
-            foreach (var a in _settings.Accounts) _cbAccount.Items.Add(a);
+            // 按中文拼音排序后添加账号
+            var sortedAccounts = _settings.Accounts.OrderBy(a => a, StringComparer.Create(CultureInfo.GetCultureInfo("zh-CN"), true)).ToList();
+            foreach (var a in sortedAccounts) _cbAccount.Items.Add(a);
             if (_cbAccount.Items.Count == 0) _cbAccount.Items.Add(TaskItem.DefaultAccount);
             _cbAccount.SelectedIndex = 0;
 
             _cbTask.Items.Clear();
-            foreach (var t in _settings.TaskPresets) _cbTask.Items.Add(t);
+            // 按中文拼音排序后添加任务预设
+            var sortedTasks = _settings.TaskPresets.OrderBy(t => t, StringComparer.Create(CultureInfo.GetCultureInfo("zh-CN"), true)).ToList();
+            foreach (var t in sortedTasks) _cbTask.Items.Add(t);
 
             try
             {
@@ -3196,7 +3207,9 @@ namespace Game_Upgrade_Reminder.UI
                     var prev = _cbAccount.SelectedItem?.ToString();
                     _settings.Accounts = e.Items;
                     _cbAccount.Items.Clear();
-                    foreach (var a in _settings.Accounts) _cbAccount.Items.Add(a);
+                    // 按中文拼音排序后添加账号
+                    var sortedAccounts = _settings.Accounts.OrderBy(a => a, StringComparer.Create(CultureInfo.GetCultureInfo("zh-CN"), true)).ToList();
+                    foreach (var a in sortedAccounts) _cbAccount.Items.Add(a);
                     if (_cbAccount.Items.Count == 0) _cbAccount.Items.Add(TaskItem.DefaultAccount);
                     if (!string.IsNullOrEmpty(prev) && _cbAccount.Items.Contains(prev))
                         _cbAccount.SelectedItem = prev;
@@ -3210,7 +3223,9 @@ namespace Game_Upgrade_Reminder.UI
                     var selLength = _cbTask.SelectionLength;
                     _settings.TaskPresets = e.Items;
                     _cbTask.Items.Clear();
-                    foreach (var t in _settings.TaskPresets) _cbTask.Items.Add(t);
+                    // 按中文拼音排序后添加任务预设
+                    var sortedTasks = _settings.TaskPresets.OrderBy(t => t, StringComparer.Create(CultureInfo.GetCultureInfo("zh-CN"), true)).ToList();
+                    foreach (var t in sortedTasks) _cbTask.Items.Add(t);
                     // 恢复输入体验
                     _cbTask.Text = text;
                     if (selStart >= 0 && selStart <= _cbTask.Text.Length)
