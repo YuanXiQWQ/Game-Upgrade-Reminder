@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: MainForm的本地化相关方法扩展
  * 创建日期: 2025-08-22
- * 最后修改: 2025-09-03
+ * 最后修改: 2025-10-17
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -189,17 +189,15 @@ namespace Game_Upgrade_Reminder.UI
             if (!_localizationService.SetLanguage(languageCode))
                 return;
 
-            _settings.Language = languageCode;
-            SaveSettings();
-
-            // 更新语言菜单的选中状态（递归处理子菜单）
-            foreach (ToolStripMenuItem item in _miLanguage.DropDownItems)
+            UpdateSettings(s => s.Language = languageCode, () =>
             {
-                UpdateLanguageMenuChecked(item, languageCode);
-            }
+                foreach (ToolStripMenuItem item in _miLanguage.DropDownItems)
+                {
+                    UpdateLanguageMenuChecked(item, languageCode);
+                }
 
-            // 更新所有UI文本
-            UpdateAllTexts();
+                UpdateAllTexts();
+            });
         }
 
         /// <summary>
