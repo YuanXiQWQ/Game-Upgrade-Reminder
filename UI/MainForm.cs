@@ -4,7 +4,7 @@
  * 项目地址: https://github.com/YuanXiQWQ/Game-Upgrade-Reminder
  * 描述: 游戏升级提醒主窗口，负责UI展示和用户交互，管理升级任务的显示和操作
  * 创建日期: 2025-08-15
- * 最后修改: 2025-09-03
+ * 最后修改: 2025-10-17
  *
  * 版权所有 (C) 2025 YuanXiQWQ
  * 根据 GNU 通用公共许可证 (AGPL-3.0) 授权
@@ -118,6 +118,9 @@ namespace Game_Upgrade_Reminder.UI
         private bool _followSystemStartTime;
         private bool _isUpdatingStartProgrammatically;
         private bool _userEditingStart;
+        private bool _isForceExit;
+        private ToolStripMenuItem? _hoverPendingClose;
+        private readonly System.Windows.Forms.Timer _hoverMenuTimer = new() { Interval = 200 };
 
         private enum SortMode
         {
@@ -404,7 +407,7 @@ namespace Game_Upgrade_Reminder.UI
                 Keys.Control | Keys.U => () => { _ = CheckForUpdatesAsync(this); },
                 Keys.Control | Keys.Q => () =>
                 {
-                    _settings.MinimizeOnClose = false;
+                    _isForceExit = true;
                     Close();
                 },
                 _ => null
@@ -835,17 +838,8 @@ namespace Game_Upgrade_Reminder.UI
         // 计时器
         private readonly System.Windows.Forms.Timer _timerTick = new() { Interval = 1_000 };
         private readonly System.Windows.Forms.Timer _timerUi = new() { Interval = 1000 };
+        private readonly System.Windows.Forms.Timer _timerPurge = new() { Interval = 1_000 };
 
-        private readonly System.Windows.Forms.Timer _timerPurge = new() { Interval = 500 };
-
-        // 菜单悬浮自动关闭控制
-        private readonly System.Windows.Forms.Timer _hoverMenuTimer = new() { Interval = 200 };
-        private ToolStripMenuItem? _hoverPendingClose;
-
-        // ---------- 原生 Header 箭头（与系统主题同步） ----------
-        /// <summary>
-        /// 对应 Win32 HDITEM 结构，用于读取/设置列头格式（含排序箭头）。
-        /// </summary>
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         private struct HeaderItem
         {
@@ -1046,9 +1040,7 @@ namespace Game_Upgrade_Reminder.UI
             var actuallyOn = _autostartManager.IsEnabled();
             if (actuallyOn != _settings.StartupOnBoot)
             {
-                _settings.StartupOnBoot = actuallyOn;
-                SaveSettings();
-                UpdateMenuChecks();
+                UpdateSettings(s => s.StartupOnBoot = actuallyOn, UpdateMenuChecks);
             }
 
             // 启动计时器
@@ -1528,6 +1520,10 @@ namespace Game_Upgrade_Reminder.UI
             _miExportConfig.Click += (_, _) => ExportConfig();
             _miImportConfig.Click += (_, _) => ImportConfig();
             _miResetWindow.Click += (_, _) => ResetWindowToDefault();
+            _miCloseExit.Click += (_, _) =>
+                UpdateSettings(s => s.MinimizeOnClose = false, UpdateMenuChecks);
+            _miCloseMinimize.Click += (_, _) =>
+                UpdateSettings(s => s.MinimizeOnClose = true, UpdateMenuChecks);
             // 自动删除下拉
             _miAutoDelete.DropDownOpening += (_, _) => UpdateAutoDeleteMenuChecks();
             _miDelOff.Click += (_, _) => SetAutoDeleteSecondsAndSave(0);
@@ -1552,12 +1548,11 @@ namespace Game_Upgrade_Reminder.UI
             _miAdv30M.Click += (_, _) => SetAdvanceSecondsAndSave(1800);
             _miAdv1H.Click += (_, _) => SetAdvanceSecondsAndSave(3600);
             _miAdvAlsoDue.Click += (_, _) =>
-            {
-                _settings.AlsoNotifyAtDue = !_settings.AlsoNotifyAtDue;
-                SaveSettings();
-                UpdateAdvanceMenuChecks();
-                RescheduleNextTick();
-            };
+                UpdateSettings(s => s.AlsoNotifyAtDue = !s.AlsoNotifyAtDue, () =>
+                {
+                    UpdateAdvanceMenuChecks();
+                    RescheduleNextTick();
+                });
             _miAdvCustom.Click += (_, _) =>
             {
                 using var dlg = new AdvanceTimeDialog(_localizationService, _settings.AdvanceNotifySeconds);
@@ -1587,12 +1582,6 @@ namespace Game_Upgrade_Reminder.UI
                 mi.HideDropDown();
                 _hoverPendingClose = null;
                 _hoverMenuTimer.Stop();
-            };
-            _miCloseMinimize.Click += (_, _) =>
-            {
-                _settings.MinimizeOnClose = true;
-                SaveSettings();
-                UpdateMenuChecks();
             };
             _miAboutTop.Click += (_, _) => ShowAboutDialog();
 
@@ -2068,24 +2057,22 @@ namespace Game_Upgrade_Reminder.UI
         /// <param name="e">窗体关闭事件参数。</param>
         private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
-            if (_settings.MinimizeOnClose)
+            var reason = e.CloseReason;
+            if (!_isForceExit && _settings.MinimizeOnClose && reason is CloseReason.UserClosing)
             {
                 e.Cancel = true;
                 Hide();
                 _tray.BalloonTipTitle = _localizationService.GetText("Tray.StillRunning.Title", "仍在运行");
                 _tray.BalloonTipText = _localizationService.GetText("Tray.StillRunning.Text", "已最小化到托盘，双击图标可恢复。");
                 _tray.ShowBalloonTip(2000);
+                return;
             }
-            else
-            {
-                // 保存窗口位置与尺寸
-                UpdateWindowBoundsToSettings(save: true);
-                SaveTasks();
-                SaveSettings();
-                _tray.Visible = false;
-            }
-        }
 
+            // 保存窗口位置与尺寸
+            UpdateWindowBoundsToSettings(save: true);
+            SaveTasks();
+            _tray.Visible = false;
+        }
         // 比较器
         private class ListViewItemComparer(int col, bool asc = true, ITextSortingService? textSortingService = null)
             : System.Collections.IComparer
@@ -2192,23 +2179,19 @@ namespace Game_Upgrade_Reminder.UI
             _settings = _settingsStore.Load();
 
             // 首次运行：从注册表读取自启动状态并写入默认设置文件
-            if (!File.Exists(Path.Combine(AppContext.BaseDirectory, "settings.json")))
+            var settingsPath = Path.Combine(AppContext.BaseDirectory, "settings.json");
+            if (!File.Exists(settingsPath))
             {
-                _settings.StartupOnBoot = _autostartManager.IsEnabled();
-                SaveSettings();
+                var autostart = _autostartManager.IsEnabled();
+                if (_settings.StartupOnBoot != autostart)
+                {
+                    UpdateSettings(s => s.StartupOnBoot = autostart);
+                }
             }
 
-            if (_settings is { AutoDeleteCompletedSeconds: <= 0, AutoDeleteCompletedAfter1Min: true })
-            {
-                _settings.AutoDeleteCompletedSeconds = 60;
-                SaveSettings();
-            }
-
-            // 合法性：不可为负
             if (_settings.AutoDeleteCompletedSeconds < 0)
             {
-                _settings.AutoDeleteCompletedSeconds = 0;
-                SaveSettings();
+                UpdateSettings(s => s.AutoDeleteCompletedSeconds = 0);
             }
 
             UpdateMenuChecks();
@@ -2218,6 +2201,18 @@ namespace Game_Upgrade_Reminder.UI
         /// 将当前内存中的设置持久化到磁盘。
         /// </summary>
         private void SaveSettings() => _settingsStore.Save(_settings);
+
+        /// <summary>
+        /// 对设置进行原子更新并立刻持久化，避免在各处重复调用保存逻辑。
+        /// </summary>
+        /// <param name="mutator">用于更新设置的委托。</param>
+        /// <param name="afterSave">保存完成后执行的附加操作。</param>
+        private void UpdateSettings(Action<SettingsData> mutator, Action? afterSave = null)
+        {
+            mutator(_settings);
+            SaveSettings();
+            afterSave?.Invoke();
+        }
 
         /// <summary>
         /// 从存储加载任务列表到内存集合。
@@ -2306,12 +2301,13 @@ namespace Game_Upgrade_Reminder.UI
         private void SetAdvanceSecondsAndSave(int secs)
         {
             if (secs < 0) secs = 0;
-            _settings.AdvanceNotifySeconds = secs;
-            SaveSettings();
-            UpdateAdvanceMenuChecks();
-            // 先立即检查一次，再重新计算下次触发，防止临近提醒点被错过
-            CheckDueAndNotify();
-            RescheduleNextTick();
+            UpdateSettings(s => s.AdvanceNotifySeconds = secs, () =>
+            {
+                UpdateAdvanceMenuChecks();
+                // 先立即检查一次，再重新计算下次触发，防止临近提醒点被错过
+                CheckDueAndNotify();
+                RescheduleNextTick();
+            });
         }
 
         /// <summary>
@@ -2343,12 +2339,13 @@ namespace Game_Upgrade_Reminder.UI
         private void SetAutoDeleteSecondsAndSave(int secs)
         {
             if (secs < 0) secs = 0;
-            _settings.AutoDeleteCompletedSeconds = secs;
-            ApplyDeletionPolicyFromSettings();
-            SaveSettings();
-            UpdateAutoDeleteMenuChecks();
-            // 变更后立即进行一次清理尝试（非强制），以尽快反映设置
-            PurgePending(force: false);
+            UpdateSettings(s => s.AutoDeleteCompletedSeconds = secs, () =>
+            {
+                ApplyDeletionPolicyFromSettings();
+                UpdateAutoDeleteMenuChecks();
+                // 变更后立即进行一次清理尝试（非强制），以尽快反映设置
+                PurgePending(force: false);
+            });
         }
 
         /// <summary>
@@ -2396,8 +2393,8 @@ namespace Game_Upgrade_Reminder.UI
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
             ApplyUiFont(dlg.Font);
-            _settings.UiFont = FontSpec.From(dlg.Font);
-            SaveSettings();
+            var spec = FontSpec.From(dlg.Font);
+            UpdateSettings(s => s.UiFont = spec);
         }
 
         // ---------- 托盘 ----------
@@ -2437,7 +2434,7 @@ namespace Game_Upgrade_Reminder.UI
             _miTrayOpenConfig.Click += (_, _) => OpenConfigFolder();
             _miTrayExit.Click += (_, _) =>
             {
-                _settings.MinimizeOnClose = false;
+                _isForceExit = true;
                 Close();
             };
 
@@ -3208,37 +3205,36 @@ namespace Game_Upgrade_Reminder.UI
                 if (isAccount)
                 {
                     var prev = _cbAccount.SelectedItem?.ToString();
-                    _settings.Accounts = e.Items;
-                    _cbAccount.Items.Clear();
-                    // 按当前语言排序后添加账号
-                    var sortedAccounts = _textSortingService.SortStrings(_settings.Accounts).ToList();
-                    foreach (var a in sortedAccounts) _cbAccount.Items.Add(a);
-                    if (_cbAccount.Items.Count == 0) _cbAccount.Items.Add(TaskItem.DefaultAccount);
-                    if (!string.IsNullOrEmpty(prev) && _cbAccount.Items.Contains(prev))
-                        _cbAccount.SelectedItem = prev;
-                    else if (_cbAccount.Items.Count > 0 && _cbAccount.SelectedIndex < 0)
-                        _cbAccount.SelectedIndex = 0;
+                    UpdateSettings(s => s.Accounts = e.Items, () =>
+                    {
+                        _cbAccount.Items.Clear();
+                        var sortedAccounts = _textSortingService.SortStrings(_settings.Accounts).ToList();
+                        foreach (var a in sortedAccounts) _cbAccount.Items.Add(a);
+                        if (_cbAccount.Items.Count == 0) _cbAccount.Items.Add(TaskItem.DefaultAccount);
+                        if (!string.IsNullOrEmpty(prev) && _cbAccount.Items.Contains(prev))
+                            _cbAccount.SelectedItem = prev;
+                        else if (_cbAccount.Items.Count > 0 && _cbAccount.SelectedIndex < 0)
+                            _cbAccount.SelectedIndex = 0;
+                    });
                 }
                 else
                 {
                     var text = _cbTask.Text;
                     var selStart = _cbTask.SelectionStart;
                     var selLength = _cbTask.SelectionLength;
-                    _settings.TaskPresets = e.Items;
-                    _cbTask.Items.Clear();
-                    // 按当前语言排序后添加任务预设
-                    var sortedTasks = _textSortingService.SortStrings(_settings.TaskPresets).ToList();
-                    foreach (var t in sortedTasks) _cbTask.Items.Add(t);
-                    // 恢复输入体验
-                    _cbTask.Text = text;
-                    if (selStart >= 0 && selStart <= _cbTask.Text.Length)
+                    UpdateSettings(s => s.TaskPresets = e.Items, () =>
                     {
-                        _cbTask.SelectionStart = selStart;
-                        _cbTask.SelectionLength = selLength;
-                    }
+                        _cbTask.Items.Clear();
+                        var sortedTasks = _textSortingService.SortStrings(_settings.TaskPresets).ToList();
+                        foreach (var t in sortedTasks) _cbTask.Items.Add(t);
+                        _cbTask.Text = text;
+                        if (selStart >= 0 && selStart <= _cbTask.Text.Length)
+                        {
+                            _cbTask.SelectionStart = selStart;
+                            _cbTask.SelectionLength = selLength;
+                        }
+                    });
                 }
-
-                SaveSettings();
             };
             // 重命名联动：更新现有任务中的账号/任务名，并持久化到 tasks.json
             dlg.ItemEdited += (_, e) =>
@@ -3294,10 +3290,11 @@ namespace Game_Upgrade_Reminder.UI
         /// </summary>
         private void ToggleAutostart()
         {
-            _settings.StartupOnBoot = !_settings.StartupOnBoot;
+            var desired = !_settings.StartupOnBoot;
             try
             {
-                _autostartManager.SetEnabled(_settings.StartupOnBoot);
+                _autostartManager.SetEnabled(desired);
+                UpdateSettings(s => s.StartupOnBoot = desired, UpdateMenuChecks);
             }
             catch (Exception ex)
             {
@@ -3306,10 +3303,6 @@ namespace Game_Upgrade_Reminder.UI
                     _localizationService.GetText("Error.Title", "错误"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
-            }
-            finally
-            {
-                SaveSettings();
                 UpdateMenuChecks();
             }
         }
